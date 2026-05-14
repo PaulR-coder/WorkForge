@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  superadmin
+  admin
+  dispatcher
+  tech
+  readonly
+}
+
+enum JobStatus {
+  open
+  scheduled
+  in_progress
+  done
+}
+
+enum Priority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum InvoiceStatus {
+  draft
+  sent
+  paid
+  overdue
+}
+
+enum PaymentMethod {
+  card
+  cash
+  check
+  digital
+}
+
+enum AuditSeverity {
+  info
+  warn
+  error
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(tech)
+  initials  String
+  company   String   @default("")
+  specialty String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedJobs Job[]      @relation("AssignedTech")
+  payments     Payment[]
+  auditLogs    AuditLog[]
+  messages     Message[]
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  client      String
+  address     String
+  description String    @default("")
+  type        String
+  priority    Priority  @default(normal)
+  status      JobStatus @default(open)
+  scheduledAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  techId     String?
+  tech       User?      @relation("AssignedTech", fields: [techId], references: [id])
+  contractId String?
+  contract   Contract?  @relation(fields: [contractId], references: [id])
+
+  invoices  Invoice[]
+  payments  Payment[]
+  messages  Message[]
+  equipment Equipment[] @relation("JobEquipment")
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  number    String        @unique
+  client    String
+  jobId     String?
+  job       Job?          @relation(fields: [jobId], references: [id])
+  labor     Float         @default(0)
+  parts     Float         @default(0)
+  surcharge Float         @default(0)
+  total     Float
+  status    InvoiceStatus @default(draft)
+  dueDate   DateTime
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  payments Payment[]
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  jobId         String?
+  job           Job?          @relation(fields: [jobId], references: [id])
+  invoiceId     String?
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id])
+  collectedById String
+  collectedBy   User          @relation(fields: [collectedById], references: [id])
+  method        PaymentMethod
+  amount        Float
+  cashTendered  Float?
+  changeDue     Float?
+  checkNumber   String?
+  signature     String?       @db.Text
+  notes         String        @default("")
+  createdAt     DateTime      @default(now())
+}
+
+model Equipment {
+  id            String    @id @default(cuid())
+  client        String
+  name          String
+  brand         String
+  model         String
+  serialNumber  String
+  icon          String    @default("⚙")
+  installedAt   DateTime
+  warrantyEnd   DateTime?
+  intervalDays  Int       @default(90)
+  lastPMDaysAgo Int       @default(0)
+  totalServices Int       @default(0)
+  notes         String    @default("")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  jobs Job[] @relation("JobEquipment")
+}
+
+model Contract {
+  id            String   @id @default(cuid())
+  client        String
+  name          String
+  icon          String   @default("📑")
+  units         Int      @default(1)
+  techInitials  String   @default("")
+  frequencyDays Int      @default(90)
+  pricePerVisit Float
+  nextDueDate   DateTime
+  jobsCompleted Int      @default(0)
+  active        Boolean  @default(true)
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  jobs Job[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model NotificationRule {
+  id          String   @id @default(cuid())
+  icon        String   @default("🔔")
+  title       String
+  description String
+  template    String   @db.Text
+  channel     String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String        @id @default(cuid())
+  icon      String
+  action    String
+  detail    String
+  severity  AuditSeverity @default(info)
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id])
+  createdAt DateTime      @default(now())
+}

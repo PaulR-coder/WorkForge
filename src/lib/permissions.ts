@@ -1,0 +1,42 @@
+import type { Role } from '@/generated/prisma/client'
+
+const PERMISSIONS: Record<Role, Record<string, boolean>> = {
+  superadmin: {
+    viewDashboard: true, createJob: true, editJob: true, deleteJob: true,
+    assignTech: true, viewFinancials: true, createInvoice: true, editInvoice: true,
+    collectPayment: true, viewAudit: true, manageUsers: true, manageSettings: true,
+    viewEquipment: true, editEquipment: true, viewContracts: true, editContracts: true,
+  },
+  admin: {
+    viewDashboard: true, createJob: true, editJob: true, deleteJob: true,
+    assignTech: true, viewFinancials: true, createInvoice: true, editInvoice: true,
+    collectPayment: true, viewAudit: true, manageUsers: false, manageSettings: true,
+    viewEquipment: true, editEquipment: true, viewContracts: true, editContracts: true,
+  },
+  dispatcher: {
+    viewDashboard: false, createJob: true, editJob: true, deleteJob: false,
+    assignTech: true, viewFinancials: false, createInvoice: false, editInvoice: false,
+    collectPayment: false, viewAudit: false, manageUsers: false, manageSettings: false,
+    viewEquipment: true, editEquipment: false, viewContracts: true, editContracts: false,
+  },
+  tech: {
+    viewDashboard: false, createJob: false, editJob: false, deleteJob: false,
+    assignTech: false, viewFinancials: false, createInvoice: false, editInvoice: false,
+    collectPayment: true, viewAudit: false, manageUsers: false, manageSettings: false,
+    viewEquipment: true, editEquipment: false, viewContracts: false, editContracts: false,
+  },
+  readonly: {
+    viewDashboard: false, createJob: false, editJob: false, deleteJob: false,
+    assignTech: false, viewFinancials: false, createInvoice: false, editInvoice: false,
+    collectPayment: false, viewAudit: false, manageUsers: false, manageSettings: false,
+    viewEquipment: true, editEquipment: false, viewContracts: true, editContracts: false,
+  },
+}
+
+export function can(role: Role, permission: string): boolean {
+  return PERMISSIONS[role]?.[permission] ?? false
+}
+
+export function getPermissions(role: Role) {
+  return PERMISSIONS[role] ?? {}
+}
