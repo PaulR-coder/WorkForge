@@ -16,7 +16,7 @@ export default function proxy(request: NextRequest) {
   }
 
   const user = verifyToken(token)
-  if (!user) {
+  if (!user || (user.role !== 'superadmin' && !user.tenantId)) {
     const response = NextResponse.redirect(new URL('/login', request.url))
     response.cookies.delete('wf_session')
     return response
