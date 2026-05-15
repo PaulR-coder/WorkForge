@@ -14,6 +14,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   })
   if (!inv) return Response.json({ error: 'Not found' }, { status: 404 })
 
+  const owner = await prisma.user.findFirst({
+    where: { tenantId: inv.tenantId, role: 'admin', active: true },
+    select: { email: true, company: true },
+  })
+
   const statusColors: Record<string, string> = {
     draft: '#94a3b8', sent: '#3b82f6', paid: '#22c55e', overdue: '#ef4444',
   }
@@ -117,7 +122,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   </table>
 
   <div class="footer">
-    <div>WorkForge Field Operations · paul.rios@workforge.io</div>
+    <div>${owner?.company ?? 'WorkForge Field Operations'} · ${owner?.email ?? 'contact@workforge.io'}</div>
     <div>Generated ${new Date().toLocaleDateString()}</div>
   </div>
 </div>

@@ -1,7 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import { verifyPassword, setSession } from '@/lib/auth'
+import { rateLimit, getIp } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
+  const ip = getIp(req)
+  const rl = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000) // 10 attempts per 15 min per IP
+  if (!rl.ok) {
+    return Response.json(
+      { error: `Too many login attempts. Try again in ${rl.retryAfter} seconds.` },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
+    )
+  }
+
   const { email, password } = await req.json()
 
   const user = await prisma.user.findUnique({ where: { email } })
