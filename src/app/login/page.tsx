@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const DEMO_ACCOUNTS = [
   { icon: '👑', name: 'Super Admin', role: 'Platform Admin', email: 'superadmin@workforge.io', password: 'admin123', badge: 'rb-superadmin', label: 'Super Admin' },
@@ -90,6 +91,11 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In →'}
             </button>
           </form>
+
+          <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text4)', marginBottom: 16, marginTop: 0 }}>
+            New business?{' '}
+            <Link href="/register" style={{ color: 'var(--amber)', fontWeight: 700, textDecoration: 'none' }}>Create a workspace →</Link>
+          </p>
 
           {/* Demo accounts */}
           <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, border: '1px solid var(--border)' }}>
