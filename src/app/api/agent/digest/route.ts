@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { emailAgentDigest } from '@/lib/email'
 
 const DEV_EMAIL = process.env.AGENT_DIGEST_EMAIL ?? 'prios0815@gmail.com'
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app'
+const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app').trim()
 
 const ENDPOINTS = [
   { path: '/api/health', method: 'GET', public: true },
