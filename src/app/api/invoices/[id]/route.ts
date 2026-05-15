@@ -38,3 +38,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   return Response.json(invoice)
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!can(session.role, 'editInvoice')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { id } = await params
+  const tenantFilter = getTenantFilter(session)
+
+  const existing = await prisma.invoice.findFirst({ where: { id, ...tenantFilter } })
+  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  await prisma.invoice.delete({ where: { id } })
+
+  await prisma.auditLog.create({
+    data: { icon: '🗑', action: 'Invoice deleted', detail: `${existing.number} — ${existing.client}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
+  })
+
+  return Response.json({ ok: true })
+}
