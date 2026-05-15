@@ -1,10 +1,16 @@
-import { prisma } from '@/lib/prisma'
+import { Resend } from 'resend'
 
 export async function GET() {
-  const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true } })
-  const result = await prisma.user.updateMany({
-    where: { email: 'carlos@acmefield.com' },
-    data: { email: 'prios0815@gmail.com' },
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return Response.json({ error: 'RESEND_API_KEY not set' })
+
+  const resend = new Resend(apiKey)
+  const result = await resend.emails.send({
+    from: process.env.EMAIL_FROM ?? 'WorkForge <onboarding@resend.dev>',
+    to: 'prios0815@gmail.com',
+    subject: 'WorkForge test email',
+    html: '<p>If you see this, email notifications are working.</p>',
   })
-  return Response.json({ updated: result.count, allUsers: users })
+
+  return Response.json({ resendResult: result })
 }
