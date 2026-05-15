@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
   const verifyToken = randomBytes(32).toString('hex')
 
-  const result = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({ data: { name: companyName, slug } })
     const user = await tx.user.create({
       data: {
@@ -39,7 +39,6 @@ export async function POST(req: Request) {
     await tx.auditLog.create({
       data: { icon: '🏢', action: 'Tenant registered', detail: `${companyName} — ${email}`, severity: 'info', userId: user.id, tenantId: tenant.id },
     })
-    return { tenant, user }
   })
 
   void emailVerification(email, name, `${APP_URL}/verify?token=${verifyToken}`)

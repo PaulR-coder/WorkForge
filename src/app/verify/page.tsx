@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Suspense } from 'react'
 
 const Logo = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 14 }}>
@@ -23,6 +22,13 @@ function VerifyContent() {
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
 
+  // React doesn't execute <script> tags — use useEffect to trigger the redirect
+  useEffect(() => {
+    if (token) {
+      window.location.href = `/api/auth/verify?token=${encodeURIComponent(token)}`
+    }
+  }, [token])
+
   async function resend() {
     if (!email) return
     setResending(true)
@@ -40,8 +46,7 @@ function VerifyContent() {
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Verifying your email…</div>
-        <div style={{ fontSize: 12, color: 'var(--text4)' }}>You should be redirected automatically.</div>
-        <script dangerouslySetInnerHTML={{ __html: `window.location.href='/api/auth/verify?token=${token}'` }} />
+        <div style={{ fontSize: 12, color: 'var(--text4)' }}>You will be redirected automatically.</div>
       </div>
     )
   }
