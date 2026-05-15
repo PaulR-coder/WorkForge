@@ -55,9 +55,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Notify tech when assigned
   if (body.techId && job.tech) {
     const jobData = { client: job.client, address: job.address, type: job.type, priority: job.priority }
-    emailJobAssigned(job.tech.email, job.tech.name, jobData)
-      .then(() => console.log('[notify] email sent to', job.tech?.email))
-      .catch(e => console.error('[notify] email error:', e))
+    void emailJobAssigned(job.tech.email, job.tech.name, jobData)
+    if (job.tech.phone) void smsJobAssigned(job.tech.phone, jobData)
   }
 
   // Notify admins when job is completed
