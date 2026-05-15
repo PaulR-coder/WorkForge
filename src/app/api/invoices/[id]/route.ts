@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getTenantFilter } from '@/lib/tenant'
 import { emailInvoiceUpdate } from '@/lib/email'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -10,6 +11,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params
   const body = await req.json()
+  const tenantFilter = getTenantFilter(session)
+
+  const existing = await prisma.invoice.findFirst({ where: { id, ...tenantFilter } })
+  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
   const invoice = await prisma.invoice.update({
     where: { id },
@@ -20,12 +25,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   })
 
   await prisma.auditLog.create({
-    data: { icon: '💰', action: `Invoice ${body.status}`, detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id },
+    data: { icon: '💰', action: `Invoice ${body.status}`, detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
   if (body.status === 'sent' || body.status === 'paid') {
     const admins = await prisma.user.findMany({
-      where: { role: { in: ['superadmin', 'admin'] }, active: true },
+      where: { role: { in: ['admin'] }, active: true, ...tenantFilter },
       select: { email: true },
     })
     void emailInvoiceUpdate(admins.map(a => a.email), { number: invoice.number, client: invoice.client, total: invoice.total }, body.status)

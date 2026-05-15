@@ -1,13 +1,16 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 
 export async function GET() {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'viewFinancials')) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
+  const tenantFilter = getTenantFilter(session)
   const payments = await prisma.payment.findMany({
+    where: tenantFilter,
     include: { collectedBy: { select: { name: true, initials: true } }, job: { select: { client: true, type: true } } },
     orderBy: { createdAt: 'desc' },
   })
@@ -21,6 +24,8 @@ export async function POST(req: Request) {
   if (!can(session.role, 'collectPayment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const tenantId = requireTenantId(session)
+
   const payment = await prisma.payment.create({
     data: {
       jobId: body.jobId ?? null,
@@ -33,12 +38,13 @@ export async function POST(req: Request) {
       checkNumber: body.checkNumber ?? null,
       signature: body.signature ?? null,
       notes: body.notes ?? '',
+      tenantId,
     },
     include: { collectedBy: { select: { name: true, initials: true } } },
   })
 
   await prisma.auditLog.create({
-    data: { icon: '💳', action: 'Payment collected', detail: `$${body.amount} via ${body.method}`, severity: 'info', userId: session.id },
+    data: { icon: '💳', action: 'Payment collected', detail: `$${body.amount} via ${body.method}`, severity: 'info', userId: session.id, tenantId },
   })
 
   return Response.json(payment, { status: 201 })

@@ -21,11 +21,12 @@ export async function POST(req: Request) {
     role: user.role,
     initials: user.initials,
     company: user.company,
+    tenantId: user.tenantId,
   })
 
   await prisma.auditLog.create({
-    data: { icon: '🔐', action: 'Login', detail: `${user.name} (${user.role})`, severity: 'info', userId: user.id },
+    data: { icon: '🔐', action: 'Login', detail: `${user.name} (${user.role})`, severity: 'info', userId: user.id, tenantId: user.tenantId },
   })
 
-  return Response.json({ id: user.id, name: user.name, email: user.email, role: user.role, initials: user.initials, company: user.company })
+  return Response.json({ id: user.id, name: user.name, email: user.email, role: user.role, initials: user.initials, company: user.company, tenantId: user.tenantId })
 }

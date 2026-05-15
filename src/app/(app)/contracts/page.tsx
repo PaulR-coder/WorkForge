@@ -1,12 +1,14 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { getTenantFilter } from '@/lib/tenant'
 
 export default async function ContractsPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
-  const contracts = await prisma.contract.findMany({ orderBy: { nextDueDate: 'asc' } })
+  const tenantFilter = getTenantFilter(session)
+  const contracts = await prisma.contract.findMany({ where: tenantFilter, orderBy: { nextDueDate: 'asc' } })
   const totalMRR = contracts.filter(c => c.active).reduce((s, c) => s + Math.round(c.pricePerVisit / (c.frequencyDays / 30)), 0)
 
   return (

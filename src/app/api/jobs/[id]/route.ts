@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getTenantFilter } from '@/lib/tenant'
 import { emailJobAssigned, emailJobCompleted } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 
@@ -9,8 +10,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const job = await prisma.job.findUnique({
-    where: { id },
+  const tenantFilter = getTenantFilter(session)
+  const job = await prisma.job.findFirst({
+    where: { id, ...tenantFilter },
     include: {
       tech: { select: { id: true, name: true, initials: true } },
       invoices: true,
@@ -30,8 +32,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params
   const body = await req.json()
+  const tenantFilter = getTenantFilter(session)
 
-  const prev = await prisma.job.findUnique({ where: { id }, select: { techId: true, status: true } })
+  const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true } })
+  if (!prev) return Response.json({ error: 'Not found' }, { status: 404 })
 
   const job = await prisma.job.update({
     where: { id },
@@ -49,20 +53,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   })
 
   await prisma.auditLog.create({
-    data: { icon: '✏️', action: 'Job updated', detail: `${job.client} → ${job.status}`, severity: 'info', userId: session.id },
+    data: { icon: '✏️', action: 'Job updated', detail: `${job.client} → ${job.status}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
-  // Notify tech when assigned
   if (body.techId && job.tech) {
     const jobData = { client: job.client, address: job.address, type: job.type, priority: job.priority }
     void emailJobAssigned(job.tech.email, job.tech.name, jobData)
     if (job.tech.phone) void smsJobAssigned(job.tech.phone, jobData)
   }
 
-  // Notify admins when job is completed
   if (body.status === 'done' && prev?.status !== 'done') {
     const admins = await prisma.user.findMany({
-      where: { role: { in: ['superadmin', 'admin'] }, active: true },
+      where: { role: { in: ['admin'] }, active: true, ...tenantFilter },
       select: { email: true },
     })
     void emailJobCompleted(admins.map(a => a.email), { client: job.client, address: job.address, type: job.type })
@@ -77,12 +79,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!can(session.role, 'deleteJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const job = await prisma.job.findUnique({ where: { id } })
+  const tenantFilter = getTenantFilter(session)
+  const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
   await prisma.job.delete({ where: { id } })
   await prisma.auditLog.create({
-    data: { icon: '🗑', action: 'Job deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id },
+    data: { icon: '🗑', action: 'Job deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
   })
 
   return Response.json({ ok: true })

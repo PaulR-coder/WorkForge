@@ -2,17 +2,19 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
+import { getTenantFilter } from '@/lib/tenant'
 
 export default async function DashboardPage() {
   const session = await getSession()
   if (!session) redirect('/login')
   if (!can(session.role, 'viewDashboard')) redirect('/jobs')
 
+  const tenantFilter = getTenantFilter(session)
   const [jobs, invoices, contracts, equipment] = await Promise.all([
-    prisma.job.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.invoice.findMany({ orderBy: { createdAt: 'desc' } }),
-    prisma.contract.findMany({ where: { active: true } }),
-    prisma.equipment.findMany(),
+    prisma.job.findMany({ where: tenantFilter, orderBy: { createdAt: 'desc' } }),
+    prisma.invoice.findMany({ where: tenantFilter, orderBy: { createdAt: 'desc' } }),
+    prisma.contract.findMany({ where: { active: true, ...tenantFilter } }),
+    prisma.equipment.findMany({ where: tenantFilter }),
   ])
 
   const paidAmt = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0)

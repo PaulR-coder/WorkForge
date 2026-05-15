@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getTenantFilter } from '@/lib/tenant'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -9,6 +10,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params
   const body = await req.json()
+  const tenantFilter = getTenantFilter(session)
+
+  const existing = await prisma.equipment.findFirst({ where: { id, ...tenantFilter } })
+  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
   const eq = await prisma.equipment.update({
     where: { id },

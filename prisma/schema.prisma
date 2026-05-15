@@ -49,6 +49,25 @@ enum AuditSeverity {
   error
 }
 
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  jobs              Job[]
+  invoices          Invoice[]
+  payments          Payment[]
+  equipment         Equipment[]
+  contracts         Contract[]
+  messages          Message[]
+  auditLogs         AuditLog[]
+  notificationRules NotificationRule[]
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -63,10 +82,15 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
   assignedJobs Job[]      @relation("AssignedTech")
   payments     Payment[]
   auditLogs    AuditLog[]
   messages     Message[]
+
+  @@index([tenantId])
 }
 
 model Job {
@@ -83,14 +107,18 @@ model Job {
   updatedAt   DateTime  @updatedAt
 
   techId     String?
-  tech       User?      @relation("AssignedTech", fields: [techId], references: [id])
+  tech       User?     @relation("AssignedTech", fields: [techId], references: [id])
   contractId String?
-  contract   Contract?  @relation(fields: [contractId], references: [id])
+  contract   Contract? @relation(fields: [contractId], references: [id])
+  tenantId   String?
+  tenant     Tenant?   @relation(fields: [tenantId], references: [id])
 
   invoices  Invoice[]
   payments  Payment[]
   messages  Message[]
   equipment Equipment[] @relation("JobEquipment")
+
+  @@index([tenantId])
 }
 
 model Invoice {
@@ -109,7 +137,12 @@ model Invoice {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
   payments Payment[]
+
+  @@index([tenantId])
 }
 
 model Payment {
@@ -128,6 +161,11 @@ model Payment {
   signature     String?       @db.Text
   notes         String        @default("")
   createdAt     DateTime      @default(now())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 model Equipment {
@@ -147,7 +185,12 @@ model Equipment {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
   jobs Job[] @relation("JobEquipment")
+
+  @@index([tenantId])
 }
 
 model Contract {
@@ -166,7 +209,12 @@ model Contract {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
   jobs Job[]
+
+  @@index([tenantId])
 }
 
 model Message {
@@ -177,6 +225,11 @@ model Message {
   author    User     @relation(fields: [authorId], references: [id])
   body      String
   createdAt DateTime @default(now())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 model NotificationRule {
@@ -189,6 +242,11 @@ model NotificationRule {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 model AuditLog {
@@ -200,4 +258,9 @@ model AuditLog {
   userId    String?
   user      User?         @relation(fields: [userId], references: [id])
   createdAt DateTime      @default(now())
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }

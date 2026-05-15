@@ -3,12 +3,15 @@ import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import TeamCard from './TeamCard'
+import { getTenantFilter } from '@/lib/tenant'
 
 export default async function TeamPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  const tenantFilter = getTenantFilter(session)
   const users = await prisma.user.findMany({
+    where: tenantFilter,
     select: { id: true, name: true, email: true, phone: true, role: true, initials: true, company: true, specialty: true, active: true },
     orderBy: { name: 'asc' },
   })

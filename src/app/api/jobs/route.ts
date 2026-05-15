@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 import { emailJobAssigned } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 
@@ -8,8 +9,11 @@ export async function GET() {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const where = session.role === 'tech' ? { techId: session.id } :
-                session.role === 'readonly' ? {} : {}
+  const tenantFilter = getTenantFilter(session)
+  const where = {
+    ...tenantFilter,
+    ...(session.role === 'tech' ? { techId: session.id } : {}),
+  }
 
   const jobs = await prisma.job.findMany({
     where,
@@ -26,6 +30,8 @@ export async function POST(req: Request) {
   if (!can(session.role, 'createJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await req.json()
+  const tenantId = requireTenantId(session)
+
   const job = await prisma.job.create({
     data: {
       client: body.client,
@@ -35,12 +41,13 @@ export async function POST(req: Request) {
       priority: body.priority ?? 'normal',
       status: body.status ?? 'open',
       techId: body.techId ?? null,
+      tenantId,
     },
     include: { tech: { select: { id: true, name: true, initials: true, email: true, phone: true } } },
   })
 
   await prisma.auditLog.create({
-    data: { icon: '🔧', action: 'Job created', detail: `${job.client} — ${job.type}`, severity: 'info', userId: session.id },
+    data: { icon: '🔧', action: 'Job created', detail: `${job.client} — ${job.type}`, severity: 'info', userId: session.id, tenantId },
   })
 
   if (job.tech) {

@@ -19,6 +19,15 @@ async function addConstraint(sql: string) {
   `)
 }
 
+async function addColumn(table: string, column: string, type: string) {
+  await prisma.$executeRawUnsafe(`
+    DO $$ BEGIN
+      ALTER TABLE "${table}" ADD COLUMN "${column}" ${type};
+    EXCEPTION WHEN duplicate_column THEN NULL;
+    END $$
+  `)
+}
+
 async function runMigrations() {
   await createType('Role', `'superadmin', 'admin', 'dispatcher', 'tech', 'readonly'`)
   await createType('JobStatus', `'open', 'scheduled', 'in_progress', 'done'`)
@@ -108,6 +117,72 @@ async function runMigrations() {
   await addConstraint(`ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
   await addConstraint(`ALTER TABLE "_JobEquipment" ADD CONSTRAINT "_JobEquipment_A_fkey" FOREIGN KEY ("A") REFERENCES "Equipment"("id") ON DELETE CASCADE ON UPDATE CASCADE`)
   await addConstraint(`ALTER TABLE "_JobEquipment" ADD CONSTRAINT "_JobEquipment_B_fkey" FOREIGN KEY ("B") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE`)
+
+  // --- Tenant table + tenantId columns ---
+  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Tenant" (
+    "id" TEXT NOT NULL, "name" TEXT NOT NULL, "slug" TEXT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Tenant_pkey" PRIMARY KEY ("id"))`)
+  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Tenant_slug_key" ON "Tenant"("slug")`)
+
+  const tenantTables = ['User','Job','Invoice','Payment','Equipment','Contract','Message','AuditLog','NotificationRule']
+  for (const t of tenantTables) {
+    await addColumn(t, 'tenantId', 'TEXT')
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "${t}_tenantId_idx" ON "${t}"("tenantId")`)
+  }
+
+  // Add phone column to User if missing
+  await addColumn('User', 'phone', 'TEXT')
+
+  // --- Backfill: create one Tenant per distinct non-superadmin company ---
+  const companies = await prisma.$queryRaw<{ company: string }[]>`
+    SELECT DISTINCT company FROM "User" WHERE company != '' AND company != 'WorkForge' AND "tenantId" IS NULL
+  `
+  for (const { company } of companies) {
+    const slug = company.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 60)
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO "Tenant" ("id","name","slug","updatedAt")
+      SELECT gen_random_uuid(), $1, $2, NOW()
+      WHERE NOT EXISTS (SELECT 1 FROM "Tenant" WHERE slug = $2)
+    `, company, slug)
+    await prisma.$executeRawUnsafe(`
+      UPDATE "User" SET "tenantId" = (SELECT id FROM "Tenant" WHERE slug = $1 LIMIT 1)
+      WHERE company = $2 AND role != 'superadmin' AND "tenantId" IS NULL
+    `, slug, company)
+  }
+
+  // Propagate tenantId from tech user to their jobs
+  await prisma.$executeRawUnsafe(`
+    UPDATE "Job" j SET "tenantId" = u."tenantId"
+    FROM "User" u WHERE j."techId" = u.id AND j."tenantId" IS NULL AND u."tenantId" IS NOT NULL
+  `)
+
+  // Fallback: assign remaining null records to first tenant
+  await prisma.$executeRawUnsafe(`
+    UPDATE "Job" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
+    WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
+  `)
+  for (const t of ['Invoice','Payment','Equipment','Contract','Message','NotificationRule']) {
+    await prisma.$executeRawUnsafe(`
+      UPDATE "${t}" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
+      WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
+    `)
+  }
+  await prisma.$executeRawUnsafe(`
+    UPDATE "AuditLog" al SET "tenantId" = u."tenantId"
+    FROM "User" u WHERE al."userId" = u.id AND al."tenantId" IS NULL AND u."tenantId" IS NOT NULL
+  `)
+  await prisma.$executeRawUnsafe(`
+    UPDATE "AuditLog" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
+    WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
+  `)
+
+  // FK constraints for tenantId
+  for (const t of tenantTables) {
+    await addConstraint(`ALTER TABLE "${t}" ADD CONSTRAINT "${t}_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE`)
+  }
 }
 
 export async function GET() {

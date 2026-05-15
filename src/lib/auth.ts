@@ -13,6 +13,7 @@ export interface SessionUser {
   role: Role
   initials: string
   company: string
+  tenantId: string | null
 }
 
 export async function hashPassword(password: string) {

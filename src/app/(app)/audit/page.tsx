@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
+import { getTenantFilter } from '@/lib/tenant'
 
 const SEV_COLORS: Record<string, string> = { info: 'var(--blue-light)', warn: 'var(--amber)', error: 'var(--red)' }
 
@@ -10,7 +11,9 @@ export default async function AuditPage() {
   if (!session) redirect('/login')
   if (!can(session.role, 'viewAudit')) redirect('/jobs')
 
+  const tenantFilter = getTenantFilter(session)
   const logs = await prisma.auditLog.findMany({
+    where: tenantFilter,
     include: { user: { select: { name: true, initials: true } } },
     orderBy: { createdAt: 'desc' },
     take: 200,
