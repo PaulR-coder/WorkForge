@@ -2,28 +2,35 @@ import { prisma } from './prisma'
 import { hashPassword } from './auth'
 
 export async function seedDatabase() {
-  const count = await prisma.user.count()
-  if (count > 0) return
+  // Ensure the Acme tenant exists
+  let acme = await prisma.tenant.findFirst({ where: { slug: 'acme-field-services' } })
+  if (!acme) {
+    acme = await prisma.tenant.create({
+      data: { name: 'Acme Field Services', slug: 'acme-field-services' },
+    })
+  }
 
-  const acme = await prisma.tenant.create({
-    data: { name: 'Acme Field Services', slug: 'acme-field-services' },
-  })
+  // Upsert each demo user individually so deleted ones get recreated on next startup
+  const demoUsers = [
+    { email: 'superadmin@workforge.io', name: 'Super Admin', password: 'admin123', role: 'superadmin', initials: 'SA', company: 'WorkForge', specialty: 'Platform Admin', tenantId: null as string | null },
+    { email: 'owner@acmefield.com', name: 'Alex Owner', password: 'owner123', role: 'admin', initials: 'AO', company: 'Acme Field Services', specialty: 'Owner', tenantId: acme.id },
+    { email: 'dispatch@acmefield.com', name: 'Diana Dispatch', password: 'disp123', role: 'dispatcher', initials: 'DD', company: 'Acme Field Services', specialty: 'Dispatcher', tenantId: acme.id },
+    { email: 'carlos@acmefield.com', name: 'Carlos Martinez', password: 'tech123', role: 'tech', initials: 'CM', company: 'Acme Field Services', specialty: 'HVAC', tenantId: acme.id },
+    { email: 'client@metalpack.com', name: 'MetalPack Client', password: 'view123', role: 'readonly', initials: 'MP', company: 'Acme Field Services', specialty: '', tenantId: acme.id },
+  ]
 
-  await prisma.user.create({
-    data: { email: 'superadmin@workforge.io', name: 'Super Admin', password: await hashPassword('admin123'), role: 'superadmin', initials: 'SA', company: 'WorkForge', specialty: 'Platform Admin', tenantId: null },
-  })
-  await prisma.user.create({
-    data: { email: 'owner@acmefield.com', name: 'Alex Owner', password: await hashPassword('owner123'), role: 'admin', initials: 'AO', company: 'Acme Field Services', specialty: 'Owner', tenantId: acme.id },
-  })
-  await prisma.user.create({
-    data: { email: 'dispatch@acmefield.com', name: 'Diana Dispatch', password: await hashPassword('disp123'), role: 'dispatcher', initials: 'DD', company: 'Acme Field Services', specialty: 'Dispatcher', tenantId: acme.id },
-  })
-  await prisma.user.create({
-    data: { email: 'carlos@acmefield.com', name: 'Carlos Martinez', password: await hashPassword('tech123'), role: 'tech', initials: 'CM', company: 'Acme Field Services', specialty: 'HVAC', tenantId: acme.id },
-  })
-  await prisma.user.create({
-    data: { email: 'client@metalpack.com', name: 'MetalPack Client', password: await hashPassword('view123'), role: 'readonly', initials: 'MP', company: 'Acme Field Services', specialty: '', tenantId: acme.id },
-  })
+  for (const u of demoUsers) {
+    const existing = await prisma.user.findUnique({ where: { email: u.email } })
+    if (!existing) {
+      await prisma.user.create({
+        data: { ...u, password: await hashPassword(u.password), emailVerified: true },
+      })
+    }
+  }
+
+  // Only seed sample data if this tenant has no jobs yet
+  const jobCount = await prisma.job.count({ where: { tenantId: acme.id } })
+  if (jobCount > 0) return
 
   const carlos = await prisma.user.findUnique({ where: { email: 'carlos@acmefield.com' } })
   const admin = await prisma.user.findUnique({ where: { email: 'owner@acmefield.com' } })
