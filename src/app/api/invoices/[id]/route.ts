@@ -1,6 +1,7 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { emailInvoiceUpdate } from '@/lib/email'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -21,6 +22,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   await prisma.auditLog.create({
     data: { icon: '💰', action: `Invoice ${body.status}`, detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id },
   })
+
+  if (body.status === 'sent' || body.status === 'paid') {
+    const admins = await prisma.user.findMany({
+      where: { role: { in: ['superadmin', 'admin'] }, active: true },
+      select: { email: true },
+    })
+    void emailInvoiceUpdate(admins.map(a => a.email), { number: invoice.number, client: invoice.client, total: invoice.total }, body.status)
+  }
 
   return Response.json(invoice)
 }

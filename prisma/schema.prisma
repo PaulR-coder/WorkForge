@@ -58,6 +58,7 @@ model User {
   initials  String
   company   String   @default("")
   specialty String   @default("")
+  phone     String?
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
