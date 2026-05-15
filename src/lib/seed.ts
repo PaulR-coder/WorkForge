@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { hashPassword } from './auth'
+import type { Role } from '@/generated/prisma/client'
 
 export async function seedDatabase() {
   // Ensure the Acme tenant exists
@@ -11,8 +12,8 @@ export async function seedDatabase() {
   }
 
   // Upsert each demo user individually so deleted ones get recreated on next startup
-  const demoUsers = [
-    { email: 'superadmin@workforge.io', name: 'Super Admin', password: 'admin123', role: 'superadmin', initials: 'SA', company: 'WorkForge', specialty: 'Platform Admin', tenantId: null as string | null },
+  const demoUsers: Array<{ email: string; name: string; password: string; role: Role; initials: string; company: string; specialty: string; tenantId: string | null }> = [
+    { email: 'superadmin@workforge.io', name: 'Super Admin', password: 'admin123', role: 'superadmin', initials: 'SA', company: 'WorkForge', specialty: 'Platform Admin', tenantId: null },
     { email: 'owner@acmefield.com', name: 'Alex Owner', password: 'owner123', role: 'admin', initials: 'AO', company: 'Acme Field Services', specialty: 'Owner', tenantId: acme.id },
     { email: 'dispatch@acmefield.com', name: 'Diana Dispatch', password: 'disp123', role: 'dispatcher', initials: 'DD', company: 'Acme Field Services', specialty: 'Dispatcher', tenantId: acme.id },
     { email: 'carlos@acmefield.com', name: 'Carlos Martinez', password: 'tech123', role: 'tech', initials: 'CM', company: 'Acme Field Services', specialty: 'HVAC', tenantId: acme.id },
