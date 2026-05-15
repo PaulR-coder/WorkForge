@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/seed', '/api/health']
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/seed', '/api/health', '/api/agent']
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

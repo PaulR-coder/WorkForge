@@ -70,6 +70,16 @@ export async function emailJobCompleted(
   }).catch(console.error)
 }
 
+export async function emailAgentDigest(to: string, subject: string, htmlBody: string) {
+  if (!resend) return
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `[WorkForge Agent] ${subject}`,
+    html: baseTemplate(htmlBody),
+  }).catch(console.error)
+}
+
 export async function emailInvoiceUpdate(
   to: string[],
   invoice: { number: string; client: string; total: number },
