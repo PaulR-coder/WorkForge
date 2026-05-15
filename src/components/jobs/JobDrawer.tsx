@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { SessionUser } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
+import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 
 type Message = {
@@ -70,6 +71,7 @@ export default function JobDrawer({
   const chatRef = useRef<HTMLDivElement>(null)
   const msgInputRef = useRef<HTMLInputElement>(null)
   const { t } = useLang()
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     fetch(`/api/jobs/${jobId}`)
@@ -127,10 +129,12 @@ export default function JobDrawer({
     msgInputRef.current?.focus()
   }
 
+  const drawerWidth = isMobile ? '100vw' : 460
+
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 900, display: 'flex', justifyContent: 'flex-end' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)' }} onClick={onClose} />
-      <div style={{ width: 460, background: 'var(--bg2)', borderLeft: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text4)', fontSize: 12 }}>
+      <div style={{ width: drawerWidth, background: 'var(--bg2)', borderLeft: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text4)', fontSize: 12 }}>
         {t('loading')}
       </div>
     </div>
@@ -146,7 +150,7 @@ export default function JobDrawer({
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)' }} onClick={onClose} />
 
       {/* Drawer */}
-      <div style={{ width: 460, background: 'var(--bg2)', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, animation: 'slideIn .25s ease', overflow: 'hidden' }}>
+      <div style={{ width: drawerWidth, background: 'var(--bg2)', borderLeft: isMobile ? 'none' : '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, animation: 'slideIn .25s ease', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>

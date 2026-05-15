@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import type { SessionUser } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLang } from '@/components/LangProvider'
+import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 
 const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | null }[] = [
@@ -24,7 +25,13 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   const pathname = usePathname()
   const router = useRouter()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const { lang, setLang, t } = useLang()
+  const isMobile = useIsMobile()
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [pathname])
 
   const visibleNav = NAV_ITEMS.filter(item => {
     if (!item.perm) return true
@@ -37,10 +44,31 @@ export default function AppShell({ session, children }: { session: SessionUser; 
     router.refresh()
   }
 
+  const navLink = (item: typeof NAV_ITEMS[0], large?: boolean) => {
+    const active = pathname === item.href || pathname.startsWith(item.href + '/')
+    return (
+      <Link key={item.href} href={item.href}
+        onClick={() => setMobileNavOpen(false)}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: large ? '13px 16px' : '9px 12px', borderRadius: 9, fontSize: large ? 14 : 12, fontWeight: active ? 700 : 500, color: active ? 'var(--amber)' : 'var(--text3)', background: active ? 'rgba(245,158,11,.08)' : 'transparent', border: active ? '1px solid rgba(245,158,11,.15)' : '1px solid transparent', textDecoration: 'none', transition: 'all .15s' }}>
+        <span style={{ fontSize: large ? 18 : 14 }}>{item.icon}</span>
+        {t(item.labelKey)}
+      </Link>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {/* Header */}
       <header style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', height: 52, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10, flexShrink: 0, zIndex: 100 }}>
+
+        {/* Hamburger - mobile only */}
+        {isMobile && (
+          <button onClick={() => setMobileNavOpen(true)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--text3)', padding: '4px 6px', display: 'flex', alignItems: 'center', marginRight: 2, flexShrink: 0 }}>
+            ☰
+          </button>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 800, color: 'var(--amber)', letterSpacing: '-.5px', flexShrink: 0 }}>
           <div style={{ width: 28, height: 28, background: 'var(--amber)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="-44 -44 88 88" style={{ width: 15, height: 15 }}>
@@ -50,12 +78,14 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           Work<span style={{ color: 'var(--text)' }}>Forge</span>
         </div>
 
-        <div style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
+        {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text4)', fontWeight: 600 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 2s ease infinite' }} />
-          Live
-        </div>
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text4)', fontWeight: 600 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 2s ease infinite' }} />
+            Live
+          </div>
+        )}
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7, position: 'relative' }}>
           <button
@@ -65,14 +95,16 @@ export default function AppShell({ session, children }: { session: SessionUser; 
             {lang === 'en' ? 'ES' : 'EN'}
           </button>
           <button onClick={() => setUserMenuOpen(o => !o)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 12px 4px 5px', cursor: 'pointer' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 8, background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? '4px 5px' : '4px 12px 4px 5px', cursor: 'pointer' }}>
             <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
               {session.initials}
             </div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)' }}>{session.name}</div>
-              <div style={{ fontSize: 9, color: 'var(--text4)', textTransform: 'capitalize' }}>{session.role}</div>
-            </div>
+            {!isMobile && (
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)' }}>{session.name}</div>
+                <div style={{ fontSize: 9, color: 'var(--text4)', textTransform: 'capitalize' }}>{session.role}</div>
+              </div>
+            )}
           </button>
 
           {userMenuOpen && (
@@ -89,34 +121,57 @@ export default function AppShell({ session, children }: { session: SessionUser; 
 
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Sidebar */}
-        <nav style={{ width: 200, background: 'var(--bg2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
-          <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {visibleNav.map(item => {
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
-              return (
-                <Link key={item.href} href={item.href}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, fontSize: 12, fontWeight: active ? 700 : 500, color: active ? 'var(--amber)' : 'var(--text3)', background: active ? 'rgba(245,158,11,.08)' : 'transparent', border: active ? '1px solid rgba(245,158,11,.15)' : '1px solid transparent', textDecoration: 'none', transition: 'all .15s' }}>
-                  <span style={{ fontSize: 14 }}>{item.icon}</span>
-                  {t(item.labelKey)}
-                </Link>
-              )
-            })}
-          </div>
-
-          <div style={{ marginTop: 'auto', padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--text4)' }}>
-              <div style={{ fontWeight: 700, color: 'var(--text3)', marginBottom: 2 }}>{session.company || 'WorkForge'}</div>
-              <div style={{ textTransform: 'capitalize' }}>{session.role} {t('access')}</div>
+        {/* Sidebar - desktop only */}
+        {!isMobile && (
+          <nav style={{ width: 200, background: 'var(--bg2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, overflowY: 'auto' }}>
+            <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {visibleNav.map(item => navLink(item))}
             </div>
-          </div>
-        </nav>
+            <div style={{ marginTop: 'auto', padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--text4)' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text3)', marginBottom: 2 }}>{session.company || 'WorkForge'}</div>
+                <div style={{ textTransform: 'capitalize' }}>{session.role} {t('access')}</div>
+              </div>
+            </div>
+          </nav>
+        )}
 
         {/* Main content */}
-        <main style={{ flex: 1, overflow: 'auto', background: 'var(--bg)' }} onClick={() => setUserMenuOpen(false)}>
+        <main style={{ flex: 1, overflow: 'auto', background: 'var(--bg)' }} onClick={() => { setUserMenuOpen(false) }}>
           {children}
         </main>
       </div>
+
+      {/* Mobile nav overlay */}
+      {isMobile && mobileNavOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex' }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.65)' }} onClick={() => setMobileNavOpen(false)} />
+          <nav style={{ width: 270, height: '100%', background: 'var(--bg2)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, animation: 'slideInLeft .25s ease', overflowY: 'auto' }}>
+            <div style={{ padding: '14px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                  {session.initials}
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)' }}>{session.name}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', textTransform: 'capitalize' }}>{session.role}</div>
+                </div>
+              </div>
+              <button onClick={() => setMobileNavOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text4)', padding: 4, lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+              {visibleNav.map(item => navLink(item, true))}
+            </div>
+
+            <div style={{ padding: '10px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+              <button onClick={handleLogout} style={{ width: '100%', padding: '13px 16px', borderRadius: 9, cursor: 'pointer', fontSize: 14, color: 'var(--red)', background: 'transparent', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
+                🚪 {t('signOut')}
+              </button>
+            </div>
+          </nav>
+        </div>
+      )}
     </div>
   )
 }

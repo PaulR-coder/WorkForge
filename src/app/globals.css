@@ -56,3 +56,14 @@ html, body {
 }
 
 .animate-fadein { animation: fadeIn 0.3s ease; }
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@media (max-width: 767px) {
+  .responsive-kpi-grid { grid-template-columns: 1fr 1fr !important; }
+  .responsive-bottom-grid { grid-template-columns: 1fr !important; }
+  .dashboard-page { padding: 14px !important; }
+}

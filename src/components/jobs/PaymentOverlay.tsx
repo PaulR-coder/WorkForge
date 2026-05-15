@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useLang } from '@/components/LangProvider'
+import { useIsMobile } from '@/lib/useIsMobile'
 
 export default function PaymentOverlay({
   jobId,
@@ -14,6 +15,7 @@ export default function PaymentOverlay({
   onClose: () => void
   onSuccess: (amount: number) => void
 }) {
+  const isMobile = useIsMobile()
   const [amount, setAmount] = useState('')
   const [step, setStep] = useState<'amount' | 'card' | 'signature' | 'done'>('amount')
   const [cardNumber, setCardNumber] = useState('')
@@ -122,8 +124,8 @@ export default function PaymentOverlay({
   const cardReady = cardNumber.replace(/\s/g, '').length === 16 && expiry.length >= 4 && cvv.length >= 3
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 18, width: 420, overflow: 'hidden', animation: 'fadeIn .2s ease', boxShadow: '0 24px 80px rgba(0,0,0,.6)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1100, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: isMobile ? '18px 18px 0 0' : 18, width: isMobile ? '100%' : 420, overflow: 'hidden', animation: 'fadeIn .2s ease', boxShadow: '0 24px 80px rgba(0,0,0,.6)', maxHeight: '95vh', overflowY: 'auto' }}>
 
         {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>

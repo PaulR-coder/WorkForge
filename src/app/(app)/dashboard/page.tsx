@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const pmAlerts = equipment.filter(e => e.lastPMDaysAgo >= e.intervalDays).length
 
   return (
-    <div style={{ padding: 20, maxWidth: 1200 }}>
+    <div className="dashboard-page" style={{ padding: 20, maxWidth: 1200 }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Owner Dashboard</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2 }}>Real-time business intelligence</div>
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="responsive-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
           { n: `$${paidAmt.toLocaleString()}`, label: 'Revenue Collected', sub: `From ${invoices.filter(i => i.status === 'paid').length} paid invoices`, color: 'var(--green)' },
           { n: `$${outstanding.toLocaleString()}`, label: 'Outstanding', sub: overdueCount ? `${overdueCount} overdue` : 'All current', color: overdueCount ? 'var(--red)' : 'var(--amber)' },
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Bottom grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="responsive-bottom-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 12 }}>Upcoming Contract Jobs</div>
           {contracts.slice(0, 4).map(c => {

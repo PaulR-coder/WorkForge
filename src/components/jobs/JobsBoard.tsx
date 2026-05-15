@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import type { SessionUser } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
+import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 import JobDrawer from './JobDrawer'
 import PaymentOverlay from './PaymentOverlay'
@@ -46,6 +47,7 @@ export default function JobsBoard({ initialJobs, users, session }: {
   const [paymentJob, setPaymentJob] = useState<{ id: string; client: string } | null>(null)
   const [lastSync, setLastSync] = useState(Date.now())
   const { t } = useLang()
+  const isMobile = useIsMobile()
 
   const pollJobs = useCallback(async () => {
     try {
@@ -108,20 +110,22 @@ export default function JobsBoard({ initialJobs, users, session }: {
   const timeSince = Math.round((Date.now() - lastSync) / 1000)
 
   return (
-    <div style={{ padding: 20, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ padding: isMobile ? 12 : 20, height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>{t('workOrders')}</h1>
-        {COLUMNS.map(col => (
+        {!isMobile && COLUMNS.map(col => (
           <span key={col.key} style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: `${col.color}18`, color: col.color, border: `1px solid ${col.color}33` }}>
             {jobs.filter(j => j.status === col.key).length} {t(col.labelKey)}
           </span>
         ))}
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 10, color: 'var(--text4)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', animation: 'pulse 2s ease infinite' }} />
-            {timeSince < 5 ? t('syncedJustNow') : `${t('synced')} ${timeSince}s ${t('syncedAgo')}`}
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 10, color: 'var(--text4)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block', animation: 'pulse 2s ease infinite' }} />
+              {timeSince < 5 ? t('syncedJustNow') : `${t('synced')} ${timeSince}s ${t('syncedAgo')}`}
+            </span>
+          )}
           {can(session.role, 'createJob') && (
             <button onClick={() => setShowCreate(true)}
               style={{ background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '8px 14px', cursor: 'pointer' }}>
@@ -132,12 +136,22 @@ export default function JobsBoard({ initialJobs, users, session }: {
       </div>
 
       {/* Board */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, flex: 1, overflow: 'hidden' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(4, 82vw)' : 'repeat(4, 1fr)',
+        gap: 10,
+        flex: 1,
+        overflowX: isMobile ? 'auto' : 'hidden',
+        overflowY: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        scrollSnapType: isMobile ? 'x mandatory' : undefined,
+        paddingBottom: isMobile ? 4 : 0,
+      } as React.CSSProperties}>
         {COLUMNS.map(col => (
           <div key={col.key}
             onDragOver={e => e.preventDefault()}
             onDrop={() => { if (dragId && can(session.role, 'editJob')) moveJob(dragId, col.key) }}
-            style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, display: 'flex', flexDirection: 'column', overflow: 'hidden', scrollSnapAlign: isMobile ? 'start' : undefined } as React.CSSProperties}>
             <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 7 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
               <span style={{ fontSize: 11, fontWeight: 700, color: col.color }}>{t(col.labelKey)}</span>
@@ -181,10 +195,10 @@ export default function JobsBoard({ initialJobs, users, session }: {
 
       {/* Create modal */}
       {showCreate && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setShowCreate(false)}>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: 480, animation: 'fadeIn .2s ease' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1000, display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setShowCreate(false)}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: isMobile ? '16px 16px 0 0' : 16, padding: isMobile ? '20px 16px 32px' : 24, width: isMobile ? '100%' : 480, animation: 'fadeIn .2s ease', maxHeight: '92vh', overflowY: 'auto' }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>{t('createWorkOrder')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('client')} *</label>
                 <input value={form.client} onChange={e => setForm(f => ({ ...f, client: e.target.value }))} placeholder={t('clientName')} style={inp()} />
@@ -200,7 +214,7 @@ export default function JobsBoard({ initialJobs, users, session }: {
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('address')} *</label>
               <input value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder={t('jobSiteAddress')} style={inp()} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('priority')}</label>
                 <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} style={inp()}>
