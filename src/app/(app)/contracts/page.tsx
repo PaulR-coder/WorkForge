@@ -10,13 +10,13 @@ export default async function ContractsPage() {
   const totalMRR = contracts.filter(c => c.active).reduce((s, c) => s + Math.round(c.pricePerVisit / (c.frequencyDays / 30)), 0)
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="page-padding" style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Service Contracts</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2 }}>MRR: <strong style={{ color: 'var(--green)' }}>${totalMRR.toLocaleString()}/month</strong> · {contracts.filter(c => c.active).length} active</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="responsive-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
           { n: `$${totalMRR.toLocaleString()}`, l: 'Monthly Contract Revenue', c: 'var(--green)' },
           { n: contracts.reduce((s, c) => s + c.jobsCompleted, 0).toString(), l: 'Jobs Completed', c: 'var(--text)' },

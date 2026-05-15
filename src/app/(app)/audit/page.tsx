@@ -17,7 +17,7 @@ export default async function AuditPage() {
   })
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="page-padding" style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Audit Log</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2 }}>Immutable record of all system actions</div>
@@ -34,15 +34,15 @@ export default async function AuditPage() {
                 <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 1 }}>{log.detail}</div>
               </div>
               {log.user && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div className="audit-user" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--bg4)', color: 'var(--text3)', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {log.user.initials}
                   </div>
                   <span style={{ fontSize: 10, color: 'var(--text4)' }}>{log.user.name}</span>
                 </div>
               )}
-              <span style={{ fontSize: 9, fontWeight: 700, color: c, background: `${c}18`, padding: '2px 7px', borderRadius: 20, border: `1px solid ${c}33`, textTransform: 'uppercase' }}>{log.severity}</span>
-              <div style={{ fontSize: 10, color: 'var(--text4)', minWidth: 130, textAlign: 'right' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: c, background: `${c}18`, padding: '2px 7px', borderRadius: 20, border: `1px solid ${c}33`, textTransform: 'uppercase', flexShrink: 0 }}>{log.severity}</span>
+              <div className="audit-timestamp" style={{ fontSize: 10, color: 'var(--text4)', minWidth: 130, textAlign: 'right' }}>
                 {new Date(log.createdAt).toLocaleString()}
               </div>
             </div>

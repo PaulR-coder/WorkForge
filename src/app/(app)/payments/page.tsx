@@ -21,7 +21,7 @@ export default async function PaymentsPage() {
   const METHOD_ICON: Record<string, string> = { card: '💳', cash: '💵', check: '📝', digital: '📱' }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="page-padding" style={{ padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Payment Ledger</h1>
         <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 700, marginLeft: 'auto' }}>${total.toLocaleString()} collected</span>

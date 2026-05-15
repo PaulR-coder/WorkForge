@@ -16,7 +16,7 @@ export default async function TeamPage() {
   })
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="page-padding" style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Team</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2 }}>{users.filter(u => u.active).length} active users</div>

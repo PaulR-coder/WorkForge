@@ -18,7 +18,7 @@ export default async function EquipmentPage() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="page-padding" style={{ padding: 20 }}>
       <div style={{ marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>Equipment & PM Tracking</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2 }}>{equipment.length} units across {clients.length} clients</div>
@@ -44,7 +44,7 @@ export default async function EquipmentPage() {
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: `${st.color}18`, color: st.color, border: `1px solid ${st.color}33` }}>{st.label}</span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 10 }}>
+                  <div className="equipment-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 10 }}>
                     {[
                       { n: eq.totalServices, l: 'Total services' },
                       { n: `${eq.lastPMDaysAgo}d`, l: 'Since last PM' },
