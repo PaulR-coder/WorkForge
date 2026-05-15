@@ -7,6 +7,42 @@ import { emailInvite } from '@/lib/email'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app').trim()
 
+export async function GET() {
+  const session = await getSession()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+
+  const tenantId = requireTenantId(session)
+  const invites = await prisma.invite.findMany({
+    where: { tenantId, usedAt: null, expiresAt: { gt: new Date() } },
+    select: { id: true, email: true, role: true, createdAt: true, expiresAt: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return Response.json(invites)
+}
+
+export async function DELETE(req: Request) {
+  const session = await getSession()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { id } = await req.json()
+  if (!id) return Response.json({ error: 'Missing invite id' }, { status: 400 })
+
+  const tenantId = requireTenantId(session)
+  const invite = await prisma.invite.findFirst({ where: { id, tenantId, usedAt: null } })
+  if (!invite) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  await prisma.invite.delete({ where: { id } })
+
+  await prisma.auditLog.create({
+    data: { icon: '✉️', action: 'Invite cancelled', detail: `${invite.email} — ${invite.role}`, severity: 'warn', userId: session.id, tenantId },
+  })
+
+  return Response.json({ ok: true })
+}
+
 export async function POST(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
