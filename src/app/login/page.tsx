@@ -70,6 +70,8 @@ export default function LoginPage() {
     setEmail(acc.email)
     setPassword(acc.password)
     setError('')
+    setNeedsVerification(false)
+    setResendStatus('idle')
   }
 
   return (

@@ -24,5 +24,5 @@ export async function GET(req: Request) {
     tenantId: user.tenantId,
   })
 
-  return Response.redirect(new URL('/dashboard', req.url))
+  return Response.json({ ok: true })
 }

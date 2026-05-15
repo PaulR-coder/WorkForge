@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const Logo = () => (
@@ -16,18 +16,28 @@ const Logo = () => (
 )
 
 function VerifyContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const email = searchParams.get('email')
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
 
-  // React doesn't execute <script> tags — use useEffect to trigger the redirect
   useEffect(() => {
-    if (token) {
-      window.location.href = `/api/auth/verify?token=${encodeURIComponent(token)}`
-    }
-  }, [token])
+    if (!token) return
+    fetch(`/api/auth/verify?token=${encodeURIComponent(token)}`)
+      .then(async res => {
+        const data = await res.json()
+        if (res.ok) {
+          router.push('/dashboard')
+          router.refresh()
+        } else {
+          setVerifyError(data.error ?? 'Verification failed. The link may have expired.')
+        }
+      })
+      .catch(() => setVerifyError('Connection error. Please try again.'))
+  }, [token, router])
 
   async function resend() {
     if (!email) return
@@ -42,6 +52,24 @@ function VerifyContent() {
   }
 
   if (token) {
+    if (verifyError) {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Verification failed</div>
+          <div style={{ fontSize: 12, color: 'var(--text4)', lineHeight: 1.6, marginBottom: 20 }}>{verifyError}</div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/register" style={{ padding: '9px 16px', background: 'var(--amber)', color: '#080c1a', borderRadius: 9, fontSize: 12, fontWeight: 800, textDecoration: 'none', display: 'inline-block' }}>
+              Register again →
+            </Link>
+            <Link href="/login" style={{ padding: '9px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 9, fontSize: 12, fontWeight: 700, textDecoration: 'none', display: 'inline-block' }}>
+              Back to sign in
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
