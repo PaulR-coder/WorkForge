@@ -1,13 +1,31 @@
 import { prisma } from '@/lib/prisma'
 import { seedDatabase } from '@/lib/seed'
 
+async function createType(name: string, values: string) {
+  await prisma.$executeRawUnsafe(`
+    DO $$ BEGIN
+      CREATE TYPE "${name}" AS ENUM (${values});
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$
+  `)
+}
+
+async function addConstraint(sql: string) {
+  await prisma.$executeRawUnsafe(`
+    DO $$ BEGIN
+      ${sql};
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$
+  `)
+}
+
 async function runMigrations() {
-  await prisma.$executeRawUnsafe(`CREATE TYPE IF NOT EXISTS "Role" AS ENUM ('superadmin', 'admin', 'dispatcher', 'tech', 'readonly')`)
-  await prisma.$executeRawUnsafe(`CREATE TYPE IF NOT EXISTS "JobStatus" AS ENUM ('open', 'scheduled', 'in_progress', 'done')`)
-  await prisma.$executeRawUnsafe(`CREATE TYPE IF NOT EXISTS "Priority" AS ENUM ('low', 'normal', 'high', 'urgent')`)
-  await prisma.$executeRawUnsafe(`CREATE TYPE IF NOT EXISTS "InvoiceStatus" AS ENUM ('draft', 'sent', 'paid', 'overdue')`)
-  await prisma.$executeRawUnsafe(`CREATE TYPE IF NOT EXISTS "PaymentMethod" AS ENUM ('card', 'cash', 'check', 'digital')`)
-  await prisma.$executeRawUnsafe(`CREATE TYPE IF NOT EXISTS "AuditSeverity" AS ENUM ('info', 'warn', 'error')`)
+  await createType('Role', `'superadmin', 'admin', 'dispatcher', 'tech', 'readonly'`)
+  await createType('JobStatus', `'open', 'scheduled', 'in_progress', 'done'`)
+  await createType('Priority', `'low', 'normal', 'high', 'urgent'`)
+  await createType('InvoiceStatus', `'draft', 'sent', 'paid', 'overdue'`)
+  await createType('PaymentMethod', `'card', 'cash', 'check', 'digital'`)
+  await createType('AuditSeverity', `'info', 'warn', 'error'`)
 
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT NOT NULL, "email" TEXT NOT NULL, "name" TEXT NOT NULL, "password" TEXT NOT NULL,
@@ -79,17 +97,17 @@ async function runMigrations() {
   await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Invoice_number_key" ON "Invoice"("number")`)
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "_JobEquipment_B_index" ON "_JobEquipment"("B")`)
 
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Job" ADD CONSTRAINT IF NOT EXISTS "Job_techId_fkey" FOREIGN KEY ("techId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Job" ADD CONSTRAINT IF NOT EXISTS "Job_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "Contract"("id") ON DELETE SET NULL ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Invoice" ADD CONSTRAINT IF NOT EXISTS "Invoice_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD CONSTRAINT IF NOT EXISTS "Payment_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD CONSTRAINT IF NOT EXISTS "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE SET NULL ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Payment" ADD CONSTRAINT IF NOT EXISTS "Payment_collectedById_fkey" FOREIGN KEY ("collectedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Message" ADD CONSTRAINT IF NOT EXISTS "Message_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE RESTRICT ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "Message" ADD CONSTRAINT IF NOT EXISTS "Message_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "AuditLog" ADD CONSTRAINT IF NOT EXISTS "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "_JobEquipment" ADD CONSTRAINT IF NOT EXISTS "_JobEquipment_A_fkey" FOREIGN KEY ("A") REFERENCES "Equipment"("id") ON DELETE CASCADE ON UPDATE CASCADE`).catch(() => {})
-  await prisma.$executeRawUnsafe(`ALTER TABLE "_JobEquipment" ADD CONSTRAINT IF NOT EXISTS "_JobEquipment_B_fkey" FOREIGN KEY ("B") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE`).catch(() => {})
+  await addConstraint(`ALTER TABLE "Job" ADD CONSTRAINT "Job_techId_fkey" FOREIGN KEY ("techId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Job" ADD CONSTRAINT "Job_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "Contract"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Payment" ADD CONSTRAINT "Payment_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Payment" ADD CONSTRAINT "Payment_invoiceId_fkey" FOREIGN KEY ("invoiceId") REFERENCES "Invoice"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Payment" ADD CONSTRAINT "Payment_collectedById_fkey" FOREIGN KEY ("collectedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Message" ADD CONSTRAINT "Message_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE RESTRICT ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "Message" ADD CONSTRAINT "Message_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "_JobEquipment" ADD CONSTRAINT "_JobEquipment_A_fkey" FOREIGN KEY ("A") REFERENCES "Equipment"("id") ON DELETE CASCADE ON UPDATE CASCADE`)
+  await addConstraint(`ALTER TABLE "_JobEquipment" ADD CONSTRAINT "_JobEquipment_B_fkey" FOREIGN KEY ("B") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE`)
 }
 
 export async function GET() {
