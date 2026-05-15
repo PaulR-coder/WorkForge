@@ -18,10 +18,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resendEmail, setResendEmail] = useState('')
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent'>('idle')
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    setNeedsVerification(false)
     setLoading(true)
     try {
       const res = await fetch('/api/auth/login', {
@@ -30,13 +34,35 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error ?? 'Login failed'); return }
+      if (!res.ok) {
+        if (data.needsVerification) {
+          setNeedsVerification(true)
+          setResendEmail(data.email ?? email)
+        } else {
+          setError(data.error ?? 'Login failed')
+        }
+        return
+      }
       router.push('/dashboard')
       router.refresh()
     } catch {
       setError('Connection error. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleResend() {
+    setResendStatus('sending')
+    try {
+      await fetch('/api/auth/resend-verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resendEmail }),
+      })
+      setResendStatus('sent')
+    } catch {
+      setResendStatus('idle')
     }
   }
 
@@ -68,29 +94,56 @@ export default function LoginPage() {
 
         {/* Form */}
         <div style={{ padding: '24px 28px' }}>
-          <form onSubmit={handleLogin}>
-            {error && (
-              <div style={{ background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.22)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--red)', marginBottom: 12, animation: 'shake .3s ease' }}>
-                {error}
+          {needsVerification ? (
+            <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>✉️</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Verify your email first</div>
+              <div style={{ fontSize: 12, color: 'var(--text4)', lineHeight: 1.6, marginBottom: 20 }}>
+                We sent a verification link to <strong style={{ color: 'var(--text)' }}>{resendEmail}</strong>. Click the link in that email, then sign in.
               </div>
-            )}
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>Email</label>
-            <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              placeholder="your@email.com"
-              style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 13, padding: '11px 14px', outline: 'none', marginBottom: 14, fontFamily: 'inherit' }}
-            />
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>Password</label>
-            <input
-              type="password" value={password} onChange={e => setPassword(e.target.value)} required
-              placeholder="••••••••"
-              style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 13, padding: '11px 14px', outline: 'none', marginBottom: 14, fontFamily: 'inherit' }}
-            />
-            <button type="submit" disabled={loading}
-              style={{ width: '100%', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, padding: 13, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.5 : 1, marginBottom: 16 }}>
-              {loading ? 'Signing in...' : 'Sign In →'}
-            </button>
-          </form>
+              {resendStatus === 'sent' ? (
+                <div style={{ fontSize: 12, color: 'var(--green)', marginBottom: 16 }}>Verification email resent — check your inbox.</div>
+              ) : (
+                <button onClick={handleResend} disabled={resendStatus === 'sending'}
+                  style={{ padding: '9px 18px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, fontSize: 12, fontWeight: 700, color: 'var(--text)', cursor: resendStatus === 'sending' ? 'wait' : 'pointer', marginBottom: 16 }}>
+                  {resendStatus === 'sending' ? 'Sending…' : 'Resend verification email'}
+                </button>
+              )}
+              <div>
+                <button onClick={() => { setNeedsVerification(false); setResendStatus('idle') }}
+                  style={{ background: 'none', border: 'none', color: 'var(--amber)', fontWeight: 700, fontSize: 12, cursor: 'pointer', textDecoration: 'none' }}>
+                  ← Back to sign in
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleLogin}>
+              {error && (
+                <div role="alert" style={{ background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.22)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--red)', marginBottom: 12, animation: 'shake .3s ease' }}>
+                  {error}
+                </div>
+              )}
+              <label htmlFor="login-email" style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 5 }}>Email</label>
+              <input id="login-email"
+                type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus
+                placeholder="your@email.com"
+                style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 13, padding: '11px 14px', outline: 'none', marginBottom: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+                <label htmlFor="login-password" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Password</label>
+                <Link href="/forgot-password" style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 600, textDecoration: 'none' }}>Forgot password?</Link>
+              </div>
+              <input id="login-password"
+                type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                placeholder="••••••••"
+                style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 13, padding: '11px 14px', outline: 'none', marginBottom: 14, fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              <button type="submit" disabled={loading}
+                style={{ width: '100%', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 800, padding: 13, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.5 : 1, marginBottom: 16 }}>
+                {loading ? 'Signing in…' : 'Sign In →'}
+              </button>
+            </form>
+          )}
 
           <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text4)', marginBottom: 16, marginTop: 0 }}>
             New business?{' '}

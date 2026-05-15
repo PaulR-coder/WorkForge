@@ -136,6 +136,25 @@ async function runMigrations() {
   // Add phone column to User if missing
   await addColumn('User', 'phone', 'TEXT')
 
+  // --- Auth enhancement columns ---
+  await addColumn('User', 'emailVerified', 'BOOLEAN NOT NULL DEFAULT true')
+  await addColumn('User', 'verifyToken', 'TEXT')
+  await addColumn('User', 'resetToken', 'TEXT')
+  await addColumn('User', 'resetTokenExpiry', 'TIMESTAMP(3)')
+  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "User_verifyToken_key" ON "User"("verifyToken") WHERE "verifyToken" IS NOT NULL`)
+  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "User_resetToken_key" ON "User"("resetToken") WHERE "resetToken" IS NOT NULL`)
+
+  // --- Invite table ---
+  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Invite" (
+    "id" TEXT NOT NULL, "email" TEXT NOT NULL, "role" "Role" NOT NULL DEFAULT 'tech',
+    "token" TEXT NOT NULL, "tenantId" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL, "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Invite_pkey" PRIMARY KEY ("id"))`)
+  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Invite_token_key" ON "Invite"("token")`)
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Invite_tenantId_idx" ON "Invite"("tenantId")`)
+  await addConstraint(`ALTER TABLE "Invite" ADD CONSTRAINT "Invite_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE`)
+
   // --- Backfill: create one Tenant per distinct non-superadmin company ---
   const companies = await prisma.$queryRaw<{ company: string }[]>`
     SELECT DISTINCT company FROM "User" WHERE company != '' AND company != 'WorkForge' AND "tenantId" IS NULL

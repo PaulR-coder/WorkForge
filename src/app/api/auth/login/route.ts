@@ -14,6 +14,10 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid credentials' }, { status: 401 })
   }
 
+  if (!user.emailVerified) {
+    return Response.json({ error: 'Please verify your email before signing in.', needsVerification: true, email: user.email }, { status: 403 })
+  }
+
   await setSession({
     id: user.id,
     email: user.email,

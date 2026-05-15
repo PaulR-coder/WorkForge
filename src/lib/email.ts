@@ -70,6 +70,52 @@ export async function emailJobCompleted(
   }).catch(console.error)
 }
 
+export async function emailVerification(to: string, name: string, verifyUrl: string) {
+  if (!resend) return
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: '[WorkForge] Verify your email address',
+    html: baseTemplate(`
+      <h2 style="margin-bottom:4px">Hi ${name},</h2>
+      <p>Thanks for signing up! Click the button below to verify your email and activate your workspace.</p>
+      <a href="${verifyUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:14px;text-decoration:none">Verify Email →</a>
+      <p style="font-size:12px;color:#999">This link expires in 24 hours. If you didn't create a WorkForge account, you can ignore this email.</p>
+      <p style="font-size:11px;color:#bbb;word-break:break-all">Or copy this link: ${verifyUrl}</p>
+    `),
+  }).catch(console.error)
+}
+
+export async function emailPasswordReset(to: string, name: string, resetUrl: string) {
+  if (!resend) return
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: '[WorkForge] Reset your password',
+    html: baseTemplate(`
+      <h2 style="margin-bottom:4px">Hi ${name},</h2>
+      <p>We received a request to reset your password. Click the button below to set a new one.</p>
+      <a href="${resetUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:14px;text-decoration:none">Reset Password →</a>
+      <p style="font-size:12px;color:#999">This link expires in 1 hour. If you didn't request a reset, you can safely ignore this email — your password has not changed.</p>
+    `),
+  }).catch(console.error)
+}
+
+export async function emailInvite(to: string, companyName: string, role: string, inviteUrl: string) {
+  if (!resend) return
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `[WorkForge] You've been invited to join ${companyName}`,
+    html: baseTemplate(`
+      <h2 style="margin-bottom:4px">You're invited!</h2>
+      <p>You've been invited to join <strong>${companyName}</strong> on WorkForge as a <strong>${role}</strong>.</p>
+      <a href="${inviteUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:14px;text-decoration:none">Accept Invitation →</a>
+      <p style="font-size:12px;color:#999">This invitation expires in 7 days. If you weren't expecting this, you can ignore it.</p>
+    `),
+  }).catch(console.error)
+}
+
 export async function emailAgentDigest(to: string, subject: string, htmlBody: string) {
   if (!resend) return
   await resend.emails.send({
