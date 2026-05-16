@@ -6,6 +6,7 @@ const T = {
     dashboard: 'Dashboard',
     workOrders: 'Work Orders',
     fieldView: 'Field View',
+    schedule: 'Schedule',
     invoices: 'Invoices',
     payments: 'Payments',
     equipment: 'Equipment',
@@ -160,6 +161,16 @@ const T = {
     noPayments: 'No payments recorded yet',
     signed: '✓ Signed',
 
+    // Schedule / calendar
+    dispatchSchedule: 'Dispatch Schedule',
+    unscheduledJobs: 'Unscheduled',
+    noUnscheduledJobs: 'No unscheduled jobs',
+    allTechs: 'All Techs',
+    scheduledTime: 'Scheduled Time',
+    setSchedule: 'Set date & time',
+    clearSchedule: 'Clear',
+    dragToSlot: 'Drag a job to a time slot to schedule it',
+
     // Field view
     myJobs: 'My Jobs',
     allCaughtUp: 'All caught up!',
@@ -187,6 +198,7 @@ const T = {
     dashboard: 'Panel Principal',
     workOrders: 'Órdenes de Trabajo',
     fieldView: 'Vista de Campo',
+    schedule: 'Agenda',
     invoices: 'Facturas',
     payments: 'Pagos',
     equipment: 'Equipos',
@@ -340,6 +352,16 @@ const T = {
     collected: 'cobrado',
     noPayments: 'No hay pagos registrados aún',
     signed: '✓ Firmado',
+
+    // Schedule / calendar
+    dispatchSchedule: 'Agenda de Despacho',
+    unscheduledJobs: 'Sin Programar',
+    noUnscheduledJobs: 'No hay órdenes sin programar',
+    allTechs: 'Todos los Técnicos',
+    scheduledTime: 'Hora Programada',
+    setSchedule: 'Fecha y hora',
+    clearSchedule: 'Limpiar',
+    dragToSlot: 'Arrastra una orden a un horario para programarla',
 
     // Field view
     myJobs: 'Mis Trabajos',

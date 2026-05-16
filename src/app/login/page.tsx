@@ -43,7 +43,8 @@ export default function LoginPage() {
         }
         return
       }
-      router.push('/dashboard')
+      const dest = data.role === 'tech' ? '/field' : '/dashboard'
+      router.push(dest)
       router.refresh()
     } catch {
       setError('Connection error. Please try again.')
@@ -75,10 +76,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '12px', overflowY: 'auto' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 30% 50%,rgba(245,158,11,.04) 0%,transparent 60%),radial-gradient(ellipse at 70% 20%,rgba(59,130,246,.03) 0%,transparent 50%)' }} />
 
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, width: 420, overflow: 'hidden', position: 'relative', zIndex: 1, animation: 'fadeIn .4s ease', boxShadow: '0 24px 80px rgba(0,0,0,.6)' }}>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 20, width: '100%', maxWidth: 420, overflow: 'hidden', position: 'relative', zIndex: 1, animation: 'fadeIn .4s ease', boxShadow: '0 24px 80px rgba(0,0,0,.6)', margin: 'auto' }}>
         {/* Header */}
         <div style={{ padding: '28px 28px 20px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 14 }}>

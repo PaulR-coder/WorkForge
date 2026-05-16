@@ -12,6 +12,7 @@ import type { TKeys } from '@/lib/i18n'
 const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | null }[] = [
   { href: '/dashboard', icon: '📊', labelKey: 'dashboard', perm: 'viewDashboard' },
   { href: '/jobs', icon: '🔧', labelKey: 'workOrders', perm: null },
+  { href: '/schedule', icon: '📅', labelKey: 'schedule', perm: 'assignTech' },
   { href: '/field', icon: '📱', labelKey: 'fieldView', perm: null },
   { href: '/invoices', icon: '💰', labelKey: 'invoices', perm: 'viewFinancials' },
   { href: '/payments', icon: '💳', labelKey: 'payments', perm: 'viewFinancials' },

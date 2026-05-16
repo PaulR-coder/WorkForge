@@ -23,6 +23,7 @@ type DetailJob = {
   priority: string
   status: string
   createdAt: string
+  scheduledAt: string | null
   completedAt: string | null
   tech: { id: string; name: string; initials: string } | null
   invoices: { id: string; number: string; total: number; status: string }[]
@@ -110,6 +111,24 @@ export default function JobDrawer({
       onJobUpdate({ id: job.id, status: job.status, tech: tech ? { id: tech.id, name: tech.name, initials: tech.initials } : null })
     }
     setEditingTech(false)
+  }
+
+  async function updateScheduledAt(value: string) {
+    if (!job) return
+    const scheduledAt = value ? new Date(value).toISOString() : null
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scheduledAt,
+        ...(scheduledAt ? { status: 'scheduled' } : {}),
+      }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setJob(prev => prev ? { ...prev, scheduledAt: updated.scheduledAt ?? null, status: updated.status } : null)
+      onJobUpdate({ id: job.id, status: updated.status, tech: updated.tech })
+    }
   }
 
   async function sendMessage() {
@@ -206,6 +225,42 @@ export default function JobDrawer({
               </div>
             )}
           </div>
+
+          {/* Scheduled time */}
+          {can(session.role, 'editJob') && (
+            <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+                {t('scheduledTime' as import('@/lib/i18n').TKeys)}
+              </div>
+              <input
+                type="datetime-local"
+                value={job.scheduledAt
+                  ? new Date(job.scheduledAt).toLocaleString('sv-SE', { timeZoneName: undefined }).slice(0, 16)
+                  : ''}
+                onChange={e => updateScheduledAt(e.target.value)}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  color: 'var(--text)',
+                  fontSize: 12,
+                  padding: '8px 10px',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {job.scheduledAt && (
+                <button
+                  onClick={() => updateScheduledAt('')}
+                  style={{ marginTop: 5, fontSize: 10, color: 'var(--text4)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                >
+                  {t('clearSchedule' as import('@/lib/i18n').TKeys)}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Assigned tech */}
           <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>

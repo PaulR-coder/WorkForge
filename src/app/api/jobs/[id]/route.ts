@@ -47,6 +47,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.priority !== undefined && { priority: body.priority }),
       ...(body.status !== undefined && { status: body.status }),
       ...(body.techId !== undefined && { techId: body.techId }),
+      ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
       ...(body.status === 'done' && { completedAt: new Date() }),
     },
     include: { tech: { select: { id: true, name: true, initials: true, email: true, phone: true } } },
