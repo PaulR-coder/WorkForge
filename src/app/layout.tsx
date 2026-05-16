@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { SupportWidget } from '@/components/SupportWidget'
 
 export const metadata: Metadata = {
   title: 'WorkForge — Forged for the field. Built for control.',
@@ -11,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="h-full">
       <body className="h-full">
         {children}
-        <script src="https://support-agent-production.up.railway.app/api/embed/widget.js"></script>
+        <SupportWidget />
       </body>
     </html>
   )
