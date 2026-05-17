@@ -206,8 +206,16 @@ export default function AppShell({ session, children }: { session: SessionUser; 
             <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {visibleNav.map(item => navLink(item))}
             </div>
-            <div style={{ marginTop: 'auto', padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
-              <div style={{ padding: '8px 12px', fontSize: 10, color: 'var(--text4)' }}>
+            <div style={{ marginTop: 'auto', padding: '8px 8px 0', borderTop: '1px solid var(--border)' }}>
+              <button
+                onClick={() => window.__wfSupportToggle?.()}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 9, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 12, fontWeight: 600, textAlign: 'left' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span style={{ fontSize: 16 }}>💬</span> Support
+              </button>
+              <div style={{ padding: '8px 12px 10px', fontSize: 10, color: 'var(--text4)' }}>
                 <div style={{ fontWeight: 700, color: 'var(--text3)', marginBottom: 2 }}>{session.company || 'WorkForge'}</div>
                 <div style={{ textTransform: 'capitalize' }}>{session.role} {t('access')}</div>
               </div>
@@ -320,6 +328,11 @@ export default function AppShell({ session, children }: { session: SessionUser; 
             </div>
 
             <div style={{ padding: '10px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+              <button
+                onClick={() => { setMobileNavOpen(false); setTimeout(() => window.__wfSupportToggle?.(), 150) }}
+                style={{ width: '100%', padding: '13px 16px', borderRadius: 9, cursor: 'pointer', fontSize: 14, color: 'var(--text3)', background: 'transparent', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
+                💬 Support
+              </button>
               <button onClick={handleLogout} style={{ width: '100%', padding: '13px 16px', borderRadius: 9, cursor: 'pointer', fontSize: 14, color: 'var(--red)', background: 'transparent', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
                 🚪 {t('signOut')}
               </button>

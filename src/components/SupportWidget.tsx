@@ -2,47 +2,61 @@
 
 import { useEffect } from 'react';
 
+declare global {
+  interface Window { __wfSupportToggle?: () => void }
+}
+
 export function SupportWidget() {
   useEffect(() => {
     const existing = document.getElementById('support-widget-script');
     if (existing) existing.remove();
+
+    const style = document.createElement('style');
+    style.id = 'support-widget-style';
+    style.textContent = `
+      /* Hide the script's own button — we render our own in the sidebar */
+      #supportToggle { display: none !important; }
+
+      /* Reposition chat window: above sidebar bottom section, left-aligned */
+      #chatWindow {
+        position: fixed !important;
+        bottom: 80px !important;
+        left: 16px !important;
+        right: auto !important;
+        width: 340px !important;
+      }
+
+      @media (max-width: 767px) {
+        #chatWindow {
+          left: 8px !important;
+          right: 8px !important;
+          width: auto !important;
+          bottom: calc(56px + env(safe-area-inset-bottom) + 8px) !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
     const script = document.createElement('script');
     script.id = 'support-widget-script';
     script.src = 'https://support-agent-production-085a.up.railway.app/api/embed/widget.js?v=3';
     script.async = true;
     document.body.appendChild(script);
 
-    const style = document.createElement('style');
-    style.id = 'support-widget-position-override';
-    style.textContent = `
-      /* Desktop: move to bottom-right so it clears the 200px left sidebar */
-      #supportWidget {
-        left: auto !important;
-        right: 24px !important;
-        bottom: 24px !important;
+    // Expose toggle so the sidebar button can open/close the chat
+    window.__wfSupportToggle = () => {
+      const win = document.getElementById('chatWindow');
+      const input = document.getElementById('chatInput') as HTMLInputElement | null;
+      if (win) {
+        win.classList.toggle('hidden');
+        if (!win.classList.contains('hidden') && input) input.focus();
       }
-      #chatWindow {
-        left: auto !important;
-        right: 0 !important;
-      }
+    };
 
-      /* Mobile: raise above the 56px bottom tab bar */
-      @media (max-width: 767px) {
-        #supportWidget {
-          right: 16px !important;
-          bottom: calc(56px + env(safe-area-inset-bottom) + 12px) !important;
-        }
-        #chatWindow {
-          width: calc(100vw - 32px) !important;
-          max-width: 360px !important;
-          right: 0 !important;
-          left: auto !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-
-    return () => { style.remove(); };
+    return () => {
+      style.remove();
+      delete window.__wfSupportToggle;
+    };
   }, []);
 
   return null;
