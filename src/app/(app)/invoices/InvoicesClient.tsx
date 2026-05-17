@@ -21,28 +21,32 @@ const TABS: TKeys[] = ['all', 'draft', 'sent', 'paid', 'overdue']
 export default function InvoicesClient({ initialInvoices, session }: { initialInvoices: Invoice[]; session: SessionUser }) {
   const [invoices, setInvoices] = useState(initialInvoices)
   const [tab, setTab] = useState('all')
+  const [loadingId, setLoadingId] = useState<string | null>(null)
   const { t } = useLang()
   const isMobile = useIsMobile()
 
   const filtered = tab === 'all' ? invoices : invoices.filter(i => i.status === tab)
 
   async function updateStatus(id: string, status: string) {
+    setLoadingId(id)
     const res = await fetch(`/api/invoices/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
+    setLoadingId(null)
     if (res.ok) {
       setInvoices(prev => prev.map(i => i.id === id ? { ...i, status } : i))
     }
   }
 
   function ActionButtons({ inv, c }: { inv: Invoice; c: string }) {
+    const busy = loadingId === inv.id
     return (
       <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-        {inv.status === 'draft' && <button onClick={() => updateStatus(inv.id, 'sent')} style={{ background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}>{t('sendInvoice')}</button>}
-        {inv.status === 'sent' && <button onClick={() => updateStatus(inv.id, 'paid')} style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}>{t('markPaid')}</button>}
-        {inv.status === 'overdue' && <button onClick={() => updateStatus(inv.id, 'sent')} style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}>{t('remind')}</button>}
+        {inv.status === 'draft' && <button onClick={() => updateStatus(inv.id, 'sent')} disabled={busy} style={{ background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? '…' : t('sendInvoice')}</button>}
+        {inv.status === 'sent' && <button onClick={() => updateStatus(inv.id, 'paid')} disabled={busy} style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? '…' : t('markPaid')}</button>}
+        {inv.status === 'overdue' && <button onClick={() => updateStatus(inv.id, 'sent')} disabled={busy} style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? '…' : t('remind')}</button>}
         <button onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, '_blank')} style={{ background: 'var(--bg3)', color: 'var(--text3)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}>{t('pdf')}</button>
       </div>
     )

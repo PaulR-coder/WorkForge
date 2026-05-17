@@ -22,6 +22,7 @@ export default function PaymentOverlay({
   const [expiry, setExpiry] = useState('')
   const [cvv, setCvv] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [payError, setPayError] = useState('')
   const [signature, setSignature] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
@@ -30,6 +31,10 @@ export default function PaymentOverlay({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || step !== 'signature') return
+    // Sync canvas pixel dimensions to its CSS dimensions so touch coords match
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = Math.round(rect.width)
+    canvas.height = Math.round(rect.height)
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.strokeStyle = '#f59e0b'
@@ -97,9 +102,9 @@ export default function PaymentOverlay({
 
   async function processPayment() {
     setProcessing(true)
-    await new Promise(r => setTimeout(r, 1800))
+    setPayError('')
 
-    await fetch('/api/payments', {
+    const res = await fetch('/api/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -112,6 +117,11 @@ export default function PaymentOverlay({
     })
 
     setProcessing(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setPayError(data.error ?? 'Payment failed. Please try again.')
+      return
+    }
     setStep('done')
   }
 
@@ -222,11 +232,12 @@ export default function PaymentOverlay({
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>{t('customerSignature')}</div>
               <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 10 }}>{t('authorizeCharge')} ${parseFloat(amount).toFixed(2)} {t('charge')}</div>
               <div style={{ position: 'relative', marginBottom: 12 }}>
-                <canvas ref={canvasRef} width={380} height={130}
-                  style={{ width: '100%', height: 130, background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 10, touchAction: 'none', cursor: 'crosshair' }} />
+                <canvas ref={canvasRef}
+                  style={{ width: '100%', height: 130, background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 10, touchAction: 'none', cursor: 'crosshair', display: 'block' }} />
                 <button onClick={clearSignature} style={{ position: 'absolute', top: 6, right: 8, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--text4)' }}>{t('clear')}</button>
                 {!signature && <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: 'var(--text4)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{t('signHere')}</div>}
               </div>
+              {payError && <div style={{ background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.22)', borderRadius: 8, padding: '9px 12px', fontSize: 12, color: 'var(--red)', marginBottom: 10 }}>{payError}</div>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setStep('card')} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text3)', fontSize: 12, padding: '10px 16px', cursor: 'pointer' }}>{t('back')}</button>
                 <button onClick={processPayment} disabled={processing}

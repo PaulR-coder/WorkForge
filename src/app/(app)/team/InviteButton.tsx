@@ -51,7 +51,7 @@ export default function InviteButton() {
         <div role="dialog" aria-modal="true" aria-label="Invite team member"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
           onClick={e => { if (e.target === e.currentTarget) reset() }}>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 420, overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,.7)' }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(420px, 90vw)', overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,.7)' }}>
             <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>Invite Team Member</div>
               <button onClick={reset} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
