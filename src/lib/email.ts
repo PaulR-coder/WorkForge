@@ -75,12 +75,18 @@ export async function emailVerification(to: string, name: string, verifyUrl: str
   await resend.emails.send({
     from: FROM,
     to,
-    subject: '[WorkForge] Verify your email address',
+    subject: '[WorkForge] Verify your email — one click to go live',
     html: baseTemplate(`
       <h2 style="margin-bottom:4px">Hi ${name},</h2>
-      <p>Thanks for signing up! Click the button below to verify your email and activate your workspace.</p>
-      <a href="${verifyUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:14px;text-decoration:none">Verify Email →</a>
-      <p style="font-size:12px;color:#999">This link expires in 24 hours. If you didn't create a WorkForge account, you can ignore this email.</p>
+      <p style="margin-bottom:20px">Thanks for creating a WorkForge workspace. Click the button below to verify your email and activate your account.</p>
+      <a href="${verifyUrl}" style="display:inline-block;margin-bottom:28px;padding:13px 32px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:15px;text-decoration:none">Verify Email →</a>
+      <div style="background:#f5f7fa;border-radius:10px;padding:16px 20px;margin-bottom:20px">
+        <p style="font-weight:700;font-size:13px;margin-bottom:10px">What to do after verifying:</p>
+        <p style="font-size:13px;margin-bottom:6px">🧑‍🔧 <strong>Invite your team</strong> — add dispatchers and technicians so they can receive jobs on their phones</p>
+        <p style="font-size:13px;margin-bottom:6px">🔧 <strong>Create a work order</strong> — assign jobs to techs and track them from open to complete</p>
+        <p style="font-size:13px;margin-bottom:0">💰 <strong>Collect payments</strong> — techs can collect payment in the field directly from the app</p>
+      </div>
+      <p style="font-size:12px;color:#999">This link expires in 24 hours. If you didn't create a WorkForge account, you can safely ignore this email.</p>
       <p style="font-size:11px;color:#bbb;word-break:break-all">Or copy this link: ${verifyUrl}</p>
     `),
   }).catch(console.error)
