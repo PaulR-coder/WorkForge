@@ -270,6 +270,41 @@ export default function ScheduleCalendar({
     const selectedDay = weekDays[mobileDay]
     const dayJobs = thisWeek.filter(j => isSameDay(new Date(j.scheduledAt!), selectedDay))
 
+    function mobileCard(job: CalJob) {
+      const pColor = PRIORITY_COLOR[job.priority] ?? '#5ba3f5'
+      const tColor = job.techId ? (techColor[job.techId] ?? '#5ba3f5') : 'var(--text4)'
+      return (
+        <div
+          key={job.id}
+          onClick={() => setOpenJobId(job.id)}
+          style={{
+            background: 'var(--bg2)',
+            border: `1px solid var(--border)`,
+            borderLeft: `3px solid ${pColor}`,
+            borderRadius: 10,
+            padding: '12px 14px',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3, flex: 1 }}>{job.client}</div>
+            <span style={{ fontSize: 9, fontWeight: 700, color: pColor, background: `${pColor}18`, padding: '2px 8px', borderRadius: 20, border: `1px solid ${pColor}30`, flexShrink: 0 }}>
+              {job.priority}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: job.tech ? 8 : 0 }}>{job.type} · {job.address.split(',')[0]}</div>
+          {job.tech && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: tColor, color: '#080c1a', fontSize: 7, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {job.tech.initials}
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>{job.tech.name}</span>
+            </div>
+          )}
+        </div>
+      )
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
         {/* Mobile header */}
@@ -293,11 +328,11 @@ export default function ScheduleCalendar({
           </div>
 
           {/* Day selector strip */}
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2 }}>
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 6 }}>
             {weekDays.map((d, i) => {
               const isToday = isSameDay(d, today)
               const isSelected = i === mobileDay
-              const hasjobs = thisWeek.some(j => isSameDay(new Date(j.scheduledAt!), d))
+              const jobCount = thisWeek.filter(j => isSameDay(new Date(j.scheduledAt!), d)).length
               return (
                 <button key={i}
                   onClick={() => setMobileDay(i)}
@@ -306,68 +341,85 @@ export default function ScheduleCalendar({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    padding: '6px 8px',
-                    borderRadius: 8,
+                    padding: '6px 10px',
+                    borderRadius: 10,
                     border: `1px solid ${isSelected ? 'var(--amber)' : 'var(--border)'}`,
                     background: isSelected ? 'rgba(245,158,11,.12)' : 'transparent',
                     cursor: 'pointer',
-                    minWidth: 40,
+                    minWidth: 44,
                   }}
                 >
                   <div style={{ fontSize: 9, fontWeight: 700, color: isToday ? 'var(--amber)' : 'var(--text4)', marginBottom: 2 }}>
                     {dayLabels[d.getDay()]}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: isSelected ? 'var(--amber)' : isToday ? 'var(--amber)' : 'var(--text)', lineHeight: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? 'var(--amber)' : isToday ? 'var(--amber)' : 'var(--text)', lineHeight: 1 }}>
                     {d.getDate()}
                   </div>
-                  {hasjobs && (
-                    <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--amber)', marginTop: 3 }} />
-                  )}
+                  <div style={{ fontSize: 8, fontWeight: 700, color: jobCount > 0 ? 'var(--amber)' : 'transparent', marginTop: 2 }}>
+                    {jobCount > 0 ? `${jobCount}` : '·'}
+                  </div>
                 </button>
               )
             })}
           </div>
+
+          {/* Tech filter */}
+          {techs.length > 1 && (
+            <div style={{ marginTop: 6 }}>
+              <select
+                value={filterTechId}
+                onChange={e => setFilterTechId(e.target.value)}
+                style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '7px 10px', outline: 'none' }}
+              >
+                <option value="all">{t('allTechs')}</option>
+                {techs.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Day content */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {/* Scheduled for this day */}
-          {dayJobs.length === 0 ? (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text4)', fontSize: 12 }}>
-              No jobs scheduled for {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </div>
-          ) : (
-            <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {HOURS.map(hour => {
-                const hJobs = dayJobs.filter(j => new Date(j.scheduledAt!).getHours() === hour)
-                if (hJobs.length === 0) return null
-                return (
-                  <div key={hour} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <div style={{ fontSize: 9, color: 'var(--text4)', fontWeight: 600, width: 38, paddingTop: 9, textAlign: 'right', flexShrink: 0 }}>
-                      {fmtHour(hour)}
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {hJobs.map(j => renderCard(j))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Unscheduled section */}
-          <div style={{ borderTop: '1px solid var(--border)', padding: '10px 12px' }}>
+          <div style={{ padding: '10px 12px' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
-              {t('unscheduledJobs')} ({unscheduled.length})
+              {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} · {dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}
             </div>
-            {unscheduled.length === 0 ? (
-              <div style={{ fontSize: 11, color: 'var(--text4)' }}>{t('noUnscheduledJobs')}</div>
+            {dayJobs.length === 0 ? (
+              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text4)', fontSize: 12 }}>
+                Nothing scheduled
+              </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {unscheduled.map(j => renderCard(j))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {HOURS.map(hour => {
+                  const hJobs = dayJobs.filter(j => new Date(j.scheduledAt!).getHours() === hour)
+                  if (hJobs.length === 0) return null
+                  return (
+                    <div key={hour} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 600, width: 40, paddingTop: 14, textAlign: 'right', flexShrink: 0 }}>
+                        {fmtHour(hour)}
+                      </div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {hJobs.map(j => mobileCard(j))}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
+
+          {/* Unscheduled section */}
+          {unscheduled.length > 0 && (
+            <div style={{ borderTop: '1px solid var(--border)', padding: '10px 12px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+                {t('unscheduledJobs')} ({unscheduled.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {unscheduled.map(j => mobileCard(j))}
+              </div>
+            </div>
+          )}
         </div>
 
         {overlays}

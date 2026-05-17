@@ -22,6 +22,36 @@ const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | n
   { href: '/audit', icon: '🛡', labelKey: 'auditLog', perm: 'viewAudit' },
 ]
 
+const BOTTOM_TABS: Record<string, { href: string; icon: string; labelKey: TKeys }[]> = {
+  tech: [
+    { href: '/field',    icon: '📱', labelKey: 'fieldView'   },
+    { href: '/jobs',     icon: '🔧', labelKey: 'workOrders'  },
+    { href: '/schedule', icon: '📅', labelKey: 'schedule'    },
+  ],
+  dispatcher: [
+    { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
+    { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
+    { href: '/schedule',  icon: '📅', labelKey: 'schedule'   },
+    { href: '/team',      icon: '👥', labelKey: 'team'       },
+  ],
+  admin: [
+    { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
+    { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
+    { href: '/schedule',  icon: '📅', labelKey: 'schedule'   },
+    { href: '/team',      icon: '👥', labelKey: 'team'       },
+  ],
+  superadmin: [
+    { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
+    { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
+    { href: '/schedule',  icon: '📅', labelKey: 'schedule'   },
+    { href: '/team',      icon: '👥', labelKey: 'team'       },
+  ],
+  readonly: [
+    { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
+    { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
+  ],
+}
+
 export default function AppShell({ session, children }: { session: SessionUser; children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -38,6 +68,8 @@ export default function AppShell({ session, children }: { session: SessionUser; 
     if (!item.perm) return true
     return can(session.role, item.perm)
   })
+
+  const bottomTabs = BOTTOM_TABS[session.role] ?? BOTTOM_TABS.readonly
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -62,7 +94,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
       {/* Header */}
       <header style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)', height: 52, display: 'flex', alignItems: 'center', padding: '0 16px', gap: 10, flexShrink: 0, zIndex: 100 }}>
 
-        {/* Hamburger - mobile only */}
+        {/* Hamburger - mobile only (overflow nav for secondary pages) */}
         {isMobile && (
           <button onClick={() => setMobileNavOpen(true)}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 20, color: 'var(--text3)', padding: '4px 6px', display: 'flex', alignItems: 'center', marginRight: 2, flexShrink: 0 }}>
@@ -143,7 +175,83 @@ export default function AppShell({ session, children }: { session: SessionUser; 
         </main>
       </div>
 
-      {/* Mobile nav overlay */}
+      {/* Bottom tab bar - mobile only */}
+      {isMobile && (
+        <nav style={{
+          background: 'var(--bg2)',
+          borderTop: '1px solid var(--border)',
+          display: 'flex',
+          flexShrink: 0,
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          zIndex: 100,
+        }}>
+          {bottomTabs.map(tab => {
+            const active = pathname === tab.href || pathname.startsWith(tab.href + '/')
+            return (
+              <Link key={tab.href} href={tab.href} style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px 4px 6px',
+                textDecoration: 'none',
+                position: 'relative',
+                minHeight: 56,
+                WebkitTapHighlightColor: 'transparent',
+              }}>
+                {active && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '25%',
+                    right: '25%',
+                    height: 2,
+                    background: 'var(--amber)',
+                    borderRadius: '0 0 3px 3px',
+                  }} />
+                )}
+                <span style={{ fontSize: 22, lineHeight: 1, marginBottom: 3 }}>{tab.icon}</span>
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: active ? 700 : 500,
+                  color: active ? 'var(--amber)' : 'var(--text4)',
+                  letterSpacing: '.2px',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {t(tab.labelKey)}
+                </span>
+              </Link>
+            )
+          })}
+
+          {/* More — opens full nav drawer */}
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '8px 4px 6px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              position: 'relative',
+              minHeight: 56,
+              WebkitTapHighlightColor: 'transparent',
+            } as React.CSSProperties}
+          >
+            <span style={{ fontSize: 22, lineHeight: 1, marginBottom: 3 }}>⋯</span>
+            <span style={{ fontSize: 9, fontWeight: 500, color: 'var(--text4)', letterSpacing: '.2px' }}>
+              More
+            </span>
+          </button>
+        </nav>
+      )}
+
+      {/* Mobile nav overlay (all pages + overflow) */}
       {isMobile && mobileNavOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.65)' }} onClick={() => setMobileNavOpen(false)} />
