@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
+import SupportChat from '@/components/SupportChat'
 
 const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | null }[] = [
   { href: '/dashboard', icon: '📊', labelKey: 'dashboard', perm: 'viewDashboard' },
@@ -57,6 +58,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   const router = useRouter()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const [notifState, setNotifState] = useState<'unsupported' | 'denied' | 'granted' | 'default'>('default')
   const { lang, setLang, t } = useLang()
   const isMobile = useIsMobile()
@@ -208,7 +210,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
             </div>
             <div style={{ marginTop: 'auto', padding: '8px 8px 0', borderTop: '1px solid var(--border)' }}>
               <button
-                onClick={() => window.__wfSupportToggle?.()}
+                onClick={() => setSupportOpen(true)}
                 style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 9, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 12, fontWeight: 600, textAlign: 'left' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -305,6 +307,8 @@ export default function AppShell({ session, children }: { session: SessionUser; 
         </nav>
       )}
 
+      {supportOpen && <SupportChat onClose={() => setSupportOpen(false)} />}
+
       {/* Mobile nav overlay (all pages + overflow) */}
       {isMobile && mobileNavOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex' }}>
@@ -329,7 +333,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
 
             <div style={{ padding: '10px 8px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
               <button
-                onClick={() => { setMobileNavOpen(false); setTimeout(() => window.__wfSupportToggle?.(), 150) }}
+                onClick={() => { setMobileNavOpen(false); setSupportOpen(true) }}
                 style={{ width: '100%', padding: '13px 16px', borderRadius: 9, cursor: 'pointer', fontSize: 14, color: 'var(--text3)', background: 'transparent', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10 }}>
                 💬 Support
               </button>
