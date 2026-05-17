@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { emailJobAssigned, emailJobCompleted } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
+import { sendPushToUser } from '@/lib/push'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -57,10 +58,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     data: { icon: '✏️', action: 'Job updated', detail: `${job.client} → ${job.status}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
-  if (body.techId && job.tech) {
+  const techActuallyChanged = body.techId !== undefined && body.techId !== prev?.techId && job.tech
+  if (techActuallyChanged && job.tech) {
     const jobData = { client: job.client, address: job.address, type: job.type, priority: job.priority }
     void emailJobAssigned(job.tech.email, job.tech.name, jobData)
     if (job.tech.phone) void smsJobAssigned(job.tech.phone, jobData)
+    const subs = await prisma.pushSubscription.findMany({ where: { userId: job.tech.id } })
+    if (subs.length > 0) {
+      void sendPushToUser(subs, {
+        title: 'New Job Assigned',
+        body: `${job.type} — ${job.client} · ${job.address.split(',')[0]}`,
+        url: '/field',
+      })
+    }
   }
 
   if (body.status === 'done' && prev?.status !== 'done') {

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import type { SessionUser } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
@@ -57,12 +57,44 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   const router = useRouter()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [notifState, setNotifState] = useState<'unsupported' | 'denied' | 'granted' | 'default'>('default')
   const { lang, setLang, t } = useLang()
   const isMobile = useIsMobile()
 
   useEffect(() => {
     setMobileNavOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    if (typeof Notification === 'undefined') { setNotifState('unsupported'); return }
+    setNotifState(Notification.permission as 'denied' | 'granted' | 'default')
+  }, [])
+
+  const subscribeToPush = useCallback(async () => {
+    if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return
+    const permission = await Notification.requestPermission()
+    setNotifState(permission as 'denied' | 'granted' | 'default')
+    if (permission !== 'granted') return
+
+    const reg = await navigator.serviceWorker.ready
+    const existing = await reg.pushManager.getSubscription()
+    const sub = existing ?? await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    })
+    if (!sub) return
+    const json = sub.toJSON()
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  }, [])
 
   const visibleNav = NAV_ITEMS.filter(item => {
     if (!item.perm) return true
@@ -127,6 +159,20 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           >
             {lang === 'en' ? 'ES' : 'EN'}
           </button>
+
+          {/* Notification bell */}
+          {notifState !== 'unsupported' && (
+            <button
+              onClick={notifState !== 'granted' ? subscribeToPush : undefined}
+              title={notifState === 'granted' ? 'Notifications enabled' : notifState === 'denied' ? 'Notifications blocked in browser settings' : 'Enable push notifications'}
+              style={{ background: 'var(--bg4)', border: `1px solid ${notifState === 'granted' ? 'rgba(245,158,11,.4)' : 'var(--border)'}`, borderRadius: 8, padding: '4px 8px', fontSize: 14, cursor: notifState === 'granted' ? 'default' : 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+            >
+              {notifState === 'granted' ? '🔔' : notifState === 'denied' ? '🔕' : '🔔'}
+              {notifState !== 'granted' && (
+                <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--amber)', marginLeft: 2, lineHeight: 1 }}>!</span>
+              )}
+            </button>
+          )}
           <button onClick={() => setUserMenuOpen(o => !o)}
             style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 8, background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 20, padding: isMobile ? '4px 5px' : '4px 12px 4px 5px', cursor: 'pointer' }}>
             <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>

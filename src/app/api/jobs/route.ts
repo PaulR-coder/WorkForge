@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 import { emailJobAssigned } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
+import { sendPushToUser } from '@/lib/push'
 
 export async function GET() {
   const session = await getSession()
@@ -54,6 +55,14 @@ export async function POST(req: Request) {
     const jobData = { client: job.client, address: job.address, type: job.type, priority: job.priority }
     void emailJobAssigned(job.tech.email, job.tech.name, jobData)
     if (job.tech.phone) void smsJobAssigned(job.tech.phone, jobData)
+    const subs = await prisma.pushSubscription.findMany({ where: { userId: job.tech.id } })
+    if (subs.length > 0) {
+      void sendPushToUser(subs, {
+        title: 'New Job Assigned',
+        body: `${job.type} — ${job.client} · ${job.address.split(',')[0]}`,
+        url: '/field',
+      })
+    }
   }
 
   return Response.json({ ...job, tech: job.tech ? { id: job.tech.id, name: job.tech.name, initials: job.tech.initials } : null }, { status: 201 })

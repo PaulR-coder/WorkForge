@@ -106,12 +106,25 @@ model User {
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
-  assignedJobs Job[]      @relation("AssignedTech")
-  payments     Payment[]
-  auditLogs    AuditLog[]
-  messages     Message[]
+  assignedJobs      Job[]              @relation("AssignedTech")
+  payments          Payment[]
+  auditLogs         AuditLog[]
+  messages          Message[]
+  pushSubscriptions PushSubscription[]
 
   @@index([tenantId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Job {
