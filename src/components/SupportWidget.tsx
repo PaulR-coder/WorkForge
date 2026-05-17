@@ -12,27 +12,37 @@ export function SupportWidget() {
     script.async = true;
     document.body.appendChild(script);
 
-    // On mobile the bottom tab bar is 56px + safe-area; push widget above it
     const style = document.createElement('style');
     style.id = 'support-widget-position-override';
     style.textContent = `
+      /* Desktop: move to bottom-right so it clears the 200px left sidebar */
+      #supportWidget {
+        left: auto !important;
+        right: 24px !important;
+        bottom: 24px !important;
+      }
+      #chatWindow {
+        left: auto !important;
+        right: 0 !important;
+      }
+
+      /* Mobile: raise above the 56px bottom tab bar */
       @media (max-width: 767px) {
         #supportWidget {
+          right: 16px !important;
           bottom: calc(56px + env(safe-area-inset-bottom) + 12px) !important;
-          left: 12px !important;
         }
         #chatWindow {
-          bottom: 60px !important;
-          width: calc(100vw - 24px) !important;
+          width: calc(100vw - 32px) !important;
           max-width: 360px !important;
+          right: 0 !important;
+          left: auto !important;
         }
       }
     `;
     document.head.appendChild(style);
 
-    return () => {
-      style.remove();
-    };
+    return () => { style.remove(); };
   }, []);
 
   return null;
