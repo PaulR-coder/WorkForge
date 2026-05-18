@@ -10,7 +10,10 @@ export default async function EquipmentPage() {
   if (!session) redirect('/login')
 
   const tenantFilter = getTenantFilter(session)
-  const equipment = await prisma.equipment.findMany({ where: tenantFilter, orderBy: { client: 'asc' } })
+  const where = session.role === 'tech'
+    ? { ...tenantFilter, jobs: { some: { techId: session.id } } }
+    : tenantFilter
+  const equipment = await prisma.equipment.findMany({ where, orderBy: { client: 'asc' } })
 
   return (
     <EquipmentClient
