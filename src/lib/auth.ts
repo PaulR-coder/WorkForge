@@ -14,6 +14,7 @@ export interface SessionUser {
   initials: string
   company: string
   tenantId: string | null
+  impersonating?: boolean
 }
 
 export async function hashPassword(password: string) {

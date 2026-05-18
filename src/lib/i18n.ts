@@ -14,6 +14,7 @@ const T = {
     team: 'Team',
     auditLog: 'Audit Log',
     billing: 'Billing',
+    commandCenter: 'Command Center',
     signOut: 'Sign Out',
 
     // Auth
@@ -207,6 +208,7 @@ const T = {
     team: 'Equipo',
     auditLog: 'Registro de Auditoría',
     billing: 'Facturación',
+    commandCenter: 'Centro de Mando',
     signOut: 'Cerrar Sesión',
 
     // Auth

@@ -8,6 +8,7 @@ import Link from 'next/link'
 export default async function DashboardPage() {
   const session = await getSession()
   if (!session) redirect('/login')
+  if (session.role === 'superadmin' && !session.impersonating) redirect('/superadmin')
   if (!can(session.role, 'viewDashboard')) redirect('/jobs')
 
   const tenantFilter = getTenantFilter(session)

@@ -11,6 +11,7 @@ import type { TKeys } from '@/lib/i18n'
 import SupportChat from '@/components/SupportChat'
 
 const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | null }[] = [
+  { href: '/superadmin', icon: '🎛', labelKey: 'commandCenter', perm: 'superAdminView' },
   { href: '/dashboard', icon: '📊', labelKey: 'dashboard', perm: 'viewDashboard' },
   { href: '/jobs', icon: '🔧', labelKey: 'workOrders', perm: null },
   { href: '/schedule', icon: '📅', labelKey: 'schedule', perm: 'assignTech' },
@@ -52,6 +53,31 @@ const BOTTOM_TABS: Record<string, { href: string; icon: string; labelKey: TKeys 
     { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
     { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
   ],
+}
+
+function ImpersonationBanner({ company }: { company: string }) {
+  const router = useRouter()
+  const [exiting, setExiting] = useState(false)
+
+  async function exit() {
+    setExiting(true)
+    await fetch('/api/superadmin/exit-impersonate', { method: 'POST' })
+    router.push('/superadmin')
+    router.refresh()
+  }
+
+  return (
+    <div style={{ background: 'rgba(239,68,68,.15)', borderBottom: '1px solid rgba(239,68,68,.35)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, zIndex: 200 }}>
+      <span style={{ fontSize: 14 }}>👤</span>
+      <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>
+        Impersonating <strong>{company}</strong> — changes you make affect this tenant's real data
+      </span>
+      <button onClick={exit} disabled={exiting}
+        style={{ padding: '5px 12px', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: exiting ? 'wait' : 'pointer', opacity: exiting ? 0.6 : 1 }}>
+        {exiting ? '…' : 'Exit'}
+      </button>
+    </div>
+  )
 }
 
 export default function AppShell({ session, children }: { session: SessionUser; children: React.ReactNode }) {
@@ -213,6 +239,11 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           )}
         </div>
       </header>
+
+      {/* Impersonation banner */}
+      {session.impersonating && (
+        <ImpersonationBanner company={session.company} />
+      )}
 
       {/* Push notification prompt banner */}
       {!notifBannerDismissed && notifState === 'default' && (
