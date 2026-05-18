@@ -76,6 +76,9 @@ export default function JobDrawer({
   const [msgText, setMsgText] = useState('')
   const [sending, setSending] = useState(false)
   const [editingTech, setEditingTech] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [editForm, setEditForm] = useState({ client: '', address: '', type: '', priority: '', description: '' })
+  const [savingDetails, setSavingDetails] = useState(false)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const chatRef = useRef<HTMLDivElement>(null)
@@ -142,6 +145,29 @@ export default function JobDrawer({
       setJob(prev => prev ? { ...prev, scheduledAt: updated.scheduledAt ?? null, status: updated.status } : null)
       onJobUpdate({ id: job.id, status: updated.status, tech: updated.tech })
     }
+  }
+
+  function openEditDetails() {
+    if (!job) return
+    setEditForm({ client: job.client, address: job.address, type: job.type, priority: job.priority, description: job.description ?? '' })
+    setEditingDetails(true)
+  }
+
+  async function saveDetails() {
+    if (!job) return
+    setSavingDetails(true)
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setJob(prev => prev ? { ...prev, client: updated.client, address: updated.address, type: updated.type, priority: updated.priority, description: updated.description ?? '' } : null)
+      onJobUpdate({ id: job.id, status: job.status, tech: job.tech })
+      setEditingDetails(false)
+    }
+    setSavingDetails(false)
   }
 
   async function sendMessage() {
@@ -227,15 +253,67 @@ export default function JobDrawer({
 
           {/* Job info */}
           <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('fullAddress')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text2)' }}>{job.address}</div>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ flex: 1, fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Details</div>
+              {can(session.role, 'editJob') && !editingDetails && (
+                <button onClick={openEditDetails} style={{ fontSize: 10, color: 'var(--amber)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 700 }}>Edit</button>
+              )}
             </div>
-            {job.description && (
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('description')}</div>
-                <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>{job.description}</div>
+            {editingDetails ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { label: 'Client', key: 'client', type: 'text' },
+                  { label: 'Address', key: 'address', type: 'text' },
+                  { label: 'Type', key: 'type', type: 'text' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', marginBottom: 3 }}>{f.label}</div>
+                    <input
+                      value={editForm[f.key as keyof typeof editForm]}
+                      onChange={e => setEditForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '7px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', marginBottom: 3 }}>Priority</div>
+                  <select
+                    value={editForm.priority}
+                    onChange={e => setEditForm(prev => ({ ...prev, priority: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '7px 10px', outline: 'none' }}
+                  >
+                    {['low', 'normal', 'high', 'urgent'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', marginBottom: 3 }}>Description</div>
+                  <textarea
+                    value={editForm.description}
+                    onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '7px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setEditingDetails(false)} style={{ flex: 1, background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text3)', fontSize: 12, fontWeight: 700, padding: '8px 0', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={saveDetails} disabled={savingDetails} style={{ flex: 2, background: 'var(--amber)', border: 'none', borderRadius: 8, color: '#080c1a', fontSize: 12, fontWeight: 700, padding: '8px 0', cursor: 'pointer', opacity: savingDetails ? 0.6 : 1 }}>
+                    {savingDetails ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
               </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('fullAddress')}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)' }}>{job.address}</div>
+                </div>
+                {job.description && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('description')}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5 }}>{job.description}</div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
