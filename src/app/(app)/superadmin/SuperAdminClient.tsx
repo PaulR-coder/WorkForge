@@ -13,7 +13,7 @@ type TenantRow = {
 
 type PlatformStats = {
   totalTenants: number; mrr: number; totalUsers: number
-  totalJobsThisMonth: number; activeCount: number; trialCount: number
+  totalJobsThisMonth: number; activeCount: number; trialCount: number; totalJobs: number
 }
 
 type TenantDetail = TenantRow & {
@@ -75,6 +75,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
   const isMobile = useIsMobile()
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<'newest' | 'activity' | 'users' | 'jobs'>('newest')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<TenantDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -95,8 +96,13 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
     let list = tenants
     if (filter !== 'all') list = list.filter(t => t.subscriptionStatus === filter)
     if (search.trim()) list = list.filter(t => t.name.toLowerCase().includes(search.toLowerCase()))
-    return list
-  }, [tenants, filter, search])
+    return [...list].sort((a, b) => {
+      if (sort === 'activity') return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+      if (sort === 'users')    return b.userCount - a.userCount
+      if (sort === 'jobs')     return b.jobsThisMonth - a.jobsThisMonth
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+  }, [tenants, filter, search, sort])
 
   async function openDetail(id: string) {
     setSelectedId(id)
@@ -158,7 +164,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
     { value: String(stats.activeCount), label: 'Active', color: 'var(--green)' },
     { value: String(stats.trialCount), label: 'Trialing', color: '#5ba3f5' },
     { value: String(stats.totalUsers), label: 'Users' },
-    { value: String(stats.totalJobsThisMonth), label: 'Jobs/mo' },
+    { value: String(stats.totalJobs), label: 'Total Jobs' },
   ]
 
   // ─── Drawer content (shared mobile + desktop) ─────────────────────────
@@ -260,6 +266,15 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
             {/* Actions */}
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 2 }}>Actions</div>
+              {(() => {
+                const adminUser = detail.users.find(u => u.role === 'admin' && u.active)
+                return adminUser ? (
+                  <a href={`mailto:${adminUser.email}?subject=Your WorkForge account&body=Hi ${adminUser.name},`}
+                    style={{ width: '100%', display: 'block', padding: '12px 0', background: 'rgba(91,163,245,.1)', border: '1px solid rgba(91,163,245,.25)', color: '#5ba3f5', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
+                    ✉️ Email {adminUser.name}
+                  </a>
+                ) : null
+              })()}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <button onClick={() => runAction('toggle_active')} disabled={actionLoading !== null}
                   style={{ padding: '11px 0', background: 'var(--bg3)', border: '1px solid var(--border)', color: detail.active ? 'var(--red)' : 'var(--green)', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: actionLoading ? 0.6 : 1 }}>
@@ -334,10 +349,17 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
           ))}
         </div>
 
-        {/* Search */}
-        <div style={{ padding: '0 16px 12px' }}>
+        {/* Search + Sort */}
+        <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tenants…"
-            style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 13, padding: '10px 14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            style={{ flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 13, padding: '10px 14px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          <select value={sort} onChange={e => setSort(e.target.value as typeof sort)}
+            style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 12, padding: '10px 10px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+            <option value="newest">Newest</option>
+            <option value="activity">Active</option>
+            <option value="users">Users</option>
+            <option value="jobs">Jobs</option>
+          </select>
         </div>
 
         {/* Tenant cards */}
@@ -442,8 +464,17 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
                 </button>
               ))}
             </div>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tenants…"
-              style={{ marginLeft: 'auto', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '6px 12px', outline: 'none', fontFamily: 'inherit', width: 200 }} />
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select value={sort} onChange={e => setSort(e.target.value as typeof sort)}
+                style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                <option value="newest">Newest</option>
+                <option value="activity">Last Active</option>
+                <option value="users">Most Users</option>
+                <option value="jobs">Most Jobs</option>
+              </select>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tenants…"
+                style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '6px 12px', outline: 'none', fontFamily: 'inherit', width: 180 }} />
+            </div>
           </div>
 
           {/* Table header */}

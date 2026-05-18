@@ -51,12 +51,16 @@ export default async function SuperAdminPage() {
   const trialCount = enriched.filter(t => t.subscriptionStatus === 'trialing').length
   const totalUsers = tenants.reduce((s, t) => s + t._count.users, 0)
   const totalJobsThisMonth = jobGroups.reduce((s, j) => s + j._count._all, 0)
-  const mrr = activeCount * 39
+  const totalJobs = await prisma.job.count()
+  // MRR = $39 base + $12/user per active tenant
+  const mrr = enriched
+    .filter(t => t.subscriptionStatus === 'active')
+    .reduce((s, t) => s + 39 + t.userCount * 12, 0)
 
   return (
     <SuperAdminClient
       tenants={enriched}
-      stats={{ totalTenants: enriched.length, mrr, totalUsers, totalJobsThisMonth, activeCount, trialCount }}
+      stats={{ totalTenants: enriched.length, mrr, totalUsers, totalJobsThisMonth, activeCount, trialCount, totalJobs }}
     />
   )
 }
