@@ -28,7 +28,7 @@ export default function TermsPage() {
         },
         {
           title: '3. Account Responsibilities',
-          body: 'You are responsible for maintaining the confidentiality of your login credentials. You must notify us immediately at support@workforge.io if you believe your account has been compromised. WorkForge is not liable for any loss resulting from unauthorized account access.',
+          body: 'You are responsible for maintaining the confidentiality of your login credentials. You must notify us immediately at support@getworkforge.com if you believe your account has been compromised. WorkForge is not liable for any loss resulting from unauthorized account access.',
         },
         {
           title: '4. Data Ownership',
@@ -56,7 +56,7 @@ export default function TermsPage() {
         },
         {
           title: '10. Contact',
-          body: 'Questions about these terms? Reach us at support@workforge.io.',
+          body: 'Questions about these terms? Reach us at support@getworkforge.com.',
         },
       ].map(({ title, body }) => (
         <div key={title} style={{ marginBottom: 28 }}>

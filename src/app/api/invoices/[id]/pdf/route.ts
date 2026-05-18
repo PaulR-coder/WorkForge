@@ -122,7 +122,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   </table>
 
   <div class="footer">
-    <div>${owner?.company ?? 'WorkForge Field Operations'} · ${owner?.email ?? 'contact@workforge.io'}</div>
+    <div>${owner?.company ?? 'WorkForge Field Operations'} · ${owner?.email ?? 'contact@getworkforge.com'}</div>
     <div>Generated ${new Date().toLocaleDateString()}</div>
   </div>
 </div>

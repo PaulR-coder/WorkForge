@@ -36,7 +36,7 @@ export default function PrivacyPage() {
         },
         {
           title: 'Data Retention',
-          body: 'Active account data is retained for as long as your workspace exists. Upon account deletion, all data is permanently removed within 30 days. You may request a data export at any time by contacting support@workforge.io.',
+          body: 'Active account data is retained for as long as your workspace exists. Upon account deletion, all data is permanently removed within 30 days. You may request a data export at any time by contacting support@getworkforge.com.',
         },
         {
           title: 'Security',
@@ -44,7 +44,7 @@ export default function PrivacyPage() {
         },
         {
           title: 'Your Rights',
-          body: 'You have the right to access, correct, or delete your personal data at any time. To exercise these rights, contact us at support@workforge.io. We will respond within 30 days.',
+          body: 'You have the right to access, correct, or delete your personal data at any time. To exercise these rights, contact us at support@getworkforge.com. We will respond within 30 days.',
         },
         {
           title: 'Cookies',
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
         },
         {
           title: 'Contact',
-          body: 'For privacy questions or data requests, contact: support@workforge.io',
+          body: 'For privacy questions or data requests, contact: support@getworkforge.com',
         },
       ].map(({ title, body }) => (
         <div key={title} style={{ marginBottom: 28 }}>

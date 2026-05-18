@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
-const FROM = process.env.EMAIL_FROM ?? 'WorkForge <no-reply@workforge.io>'
+const FROM = process.env.EMAIL_FROM ?? 'WorkForge <no-reply@getworkforge.com>'
 
 function baseTemplate(body: string) {
   return `
