@@ -190,69 +190,6 @@ export default function ContractsClient({
     setConfirmDelete(null)
   }
 
-  function ContractFormFields({
-    icon, setIcon,
-    client, setClient,
-    name, setName,
-    units, setUnits,
-    techInitials, setTechInitials,
-    frequencyDays, setFrequencyDays,
-    pricePerVisit, setPricePerVisit,
-    nextDueDate, setNextDueDate,
-    notes, setNotes,
-  }: {
-    icon: string; setIcon: (v: string) => void
-    client: string; setClient: (v: string) => void
-    name: string; setName: (v: string) => void
-    units: number; setUnits: (v: number) => void
-    techInitials: string; setTechInitials: (v: string) => void
-    frequencyDays: number; setFrequencyDays: (v: number) => void
-    pricePerVisit: number; setPricePerVisit: (v: number) => void
-    nextDueDate: string; setNextDueDate: (v: string) => void
-    notes: string; setNotes: (v: string) => void
-  }) {
-    return (
-      <>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Icon (emoji)</label>
-          <input value={icon} onChange={e => setIcon(e.target.value)} placeholder="📑" style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Client</label>
-          <input value={client} onChange={e => setClient(e.target.value)} placeholder="Client name" style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Contract Name</label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Annual HVAC Maintenance" style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Units</label>
-          <input type="number" min={1} value={units} onChange={e => setUnits(Number(e.target.value))} style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Tech Initials</label>
-          <input value={techInitials} onChange={e => setTechInitials(e.target.value)} placeholder="e.g. CG" style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Frequency (days)</label>
-          <input type="number" min={1} value={frequencyDays} onChange={e => setFrequencyDays(Number(e.target.value))} style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Price Per Visit $</label>
-          <input type="number" min={0} value={pricePerVisit} onChange={e => setPricePerVisit(Number(e.target.value))} style={inp} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Next Due Date</label>
-          <input type="date" value={nextDueDate} onChange={e => setNextDueDate(e.target.value)} style={inp} />
-        </div>
-        <div style={{ marginBottom: 20 }}>
-          <label style={lbl}>Notes</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Any notes…" style={{ ...inp, resize: 'vertical' }} />
-        </div>
-      </>
-    )
-  }
-
   return (
     <div className="page-padding" style={{ padding: 20 }}>
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
@@ -372,17 +309,15 @@ export default function ContractsClient({
         >
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(480px,90vw)', padding: 24, overflowY: 'auto', maxHeight: '90vh' }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>Add Contract</div>
-            <ContractFormFields
-              icon={createIcon} setIcon={setCreateIcon}
-              client={createClient} setClient={setCreateClient}
-              name={createName} setName={setCreateName}
-              units={createUnits} setUnits={setCreateUnits}
-              techInitials={createTechInitials} setTechInitials={setCreateTechInitials}
-              frequencyDays={createFrequencyDays} setFrequencyDays={setCreateFrequencyDays}
-              pricePerVisit={createPricePerVisit} setPricePerVisit={setCreatePricePerVisit}
-              nextDueDate={createNextDueDate} setNextDueDate={setCreateNextDueDate}
-              notes={createNotes} setNotes={setCreateNotes}
-            />
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Icon (emoji)</label><input value={createIcon} onChange={e => setCreateIcon(e.target.value)} placeholder="📑" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Client</label><input value={createClient} onChange={e => setCreateClient(e.target.value)} placeholder="Client name" autoFocus style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Contract Name</label><input value={createName} onChange={e => setCreateName(e.target.value)} placeholder="e.g. Annual HVAC Maintenance" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Units</label><input type="number" min={1} value={createUnits} onChange={e => setCreateUnits(Number(e.target.value))} style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Tech Initials</label><input value={createTechInitials} onChange={e => setCreateTechInitials(e.target.value)} placeholder="e.g. CG" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Frequency (days)</label><input type="number" min={1} value={createFrequencyDays} onChange={e => setCreateFrequencyDays(Number(e.target.value))} style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Price Per Visit $</label><input type="number" min={0} value={createPricePerVisit} onChange={e => setCreatePricePerVisit(Number(e.target.value))} style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Next Due Date</label><input type="date" value={createNextDueDate} onChange={e => setCreateNextDueDate(e.target.value)} style={inp} /></div>
+            <div style={{ marginBottom: 20 }}><label style={lbl}>Notes</label><textarea value={createNotes} onChange={e => setCreateNotes(e.target.value)} rows={3} placeholder="Any notes…" style={{ ...inp, resize: 'vertical' as const }} /></div>
             {createError && (
               <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>{createError}</div>
             )}
@@ -411,17 +346,15 @@ export default function ContractsClient({
         >
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(480px,90vw)', padding: 24, overflowY: 'auto', maxHeight: '90vh' }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>Edit Contract</div>
-            <ContractFormFields
-              icon={editIcon} setIcon={setEditIcon}
-              client={editClient} setClient={setEditClient}
-              name={editName} setName={setEditName}
-              units={editUnits} setUnits={setEditUnits}
-              techInitials={editTechInitials} setTechInitials={setEditTechInitials}
-              frequencyDays={editFrequencyDays} setFrequencyDays={setEditFrequencyDays}
-              pricePerVisit={editPricePerVisit} setPricePerVisit={setEditPricePerVisit}
-              nextDueDate={editNextDueDate} setNextDueDate={setEditNextDueDate}
-              notes={editNotes} setNotes={setEditNotes}
-            />
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Icon (emoji)</label><input value={editIcon} onChange={e => setEditIcon(e.target.value)} placeholder="📑" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Client</label><input value={editClient} onChange={e => setEditClient(e.target.value)} placeholder="Client name" autoFocus style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Contract Name</label><input value={editName} onChange={e => setEditName(e.target.value)} placeholder="e.g. Annual HVAC Maintenance" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Units</label><input type="number" min={1} value={editUnits} onChange={e => setEditUnits(Number(e.target.value))} style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Tech Initials</label><input value={editTechInitials} onChange={e => setEditTechInitials(e.target.value)} placeholder="e.g. CG" style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Frequency (days)</label><input type="number" min={1} value={editFrequencyDays} onChange={e => setEditFrequencyDays(Number(e.target.value))} style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Price Per Visit $</label><input type="number" min={0} value={editPricePerVisit} onChange={e => setEditPricePerVisit(Number(e.target.value))} style={inp} /></div>
+            <div style={{ marginBottom: 14 }}><label style={lbl}>Next Due Date</label><input type="date" value={editNextDueDate} onChange={e => setEditNextDueDate(e.target.value)} style={inp} /></div>
+            <div style={{ marginBottom: 20 }}><label style={lbl}>Notes</label><textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} placeholder="Any notes…" style={{ ...inp, resize: 'vertical' as const }} /></div>
             {editError && (
               <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>{editError}</div>
             )}

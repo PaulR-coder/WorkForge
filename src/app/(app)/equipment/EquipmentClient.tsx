@@ -25,6 +25,11 @@ const lbl: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4,
 }
 
+const noteInp: React.CSSProperties = {
+  width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+  color: 'var(--text)', fontSize: 12, padding: '8px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+}
+
 export default function EquipmentClient({
   initialEquipment,
   canEdit,
@@ -107,11 +112,6 @@ export default function EquipmentClient({
     } finally {
       setCreateLoading(false)
     }
-  }
-
-  const noteInp: React.CSSProperties = {
-    width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
-    color: 'var(--text)', fontSize: 12, padding: '8px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
   }
 
   const clients = [...new Set(equipment.map(e => e.client))]
