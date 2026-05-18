@@ -1,10 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { SessionUser } from '@/lib/auth'
 import { useLang } from '@/components/LangProvider'
 import type { TKeys } from '@/lib/i18n'
 import PaymentOverlay from '@/components/jobs/PaymentOverlay'
+
+type Message = {
+  id: string; body: string; createdAt: string
+  author: { name: string; initials: string; role: string }
+}
 
 type Job = {
   id: string
@@ -30,7 +35,49 @@ export default function FieldView({ initialJobs, session }: {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [paymentJob, setPaymentJob] = useState<{ id: string; client: string } | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Record<string, Message[]>>({})
+  const [msgInput, setMsgInput] = useState('')
+  const [sendingMsg, setSendingMsg] = useState(false)
+  const msgBottomRef = useRef<HTMLDivElement>(null)
   const { t } = useLang()
+
+  // Fetch messages when a job is expanded, then poll every 15s
+  useEffect(() => {
+    if (!expandedId) return
+    let cancelled = false
+
+    async function fetchMessages() {
+      const res = await fetch(`/api/jobs/${expandedId}/messages`)
+      if (!res.ok || cancelled) return
+      const data = await res.json()
+      if (Array.isArray(data)) setMessages(prev => ({ ...prev, [expandedId!]: data }))
+    }
+
+    fetchMessages()
+    const iv = setInterval(fetchMessages, 15000)
+    return () => { cancelled = true; clearInterval(iv) }
+  }, [expandedId])
+
+  // Scroll to latest message when thread loads or new message arrives
+  useEffect(() => {
+    msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [expandedId, messages])
+
+  async function sendMessage() {
+    if (!expandedId || !msgInput.trim() || sendingMsg) return
+    setSendingMsg(true)
+    const res = await fetch(`/api/jobs/${expandedId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: msgInput.trim() }),
+    })
+    if (res.ok) {
+      const msg = await res.json()
+      setMessages(prev => ({ ...prev, [expandedId]: [...(prev[expandedId] ?? []), msg] }))
+      setMsgInput('')
+    }
+    setSendingMsg(false)
+  }
 
   const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
     open:        { next: 'scheduled',   label: t('scheduleAction'),  color: 'var(--amber)'  },
@@ -150,6 +197,52 @@ export default function FieldView({ initialJobs, session }: {
                         <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, background: 'var(--bg3)', borderRadius: 8, padding: '10px 12px' }}>{job.description}</div>
                       </>
                     )}
+                  </div>
+
+                  {/* Message thread */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+                      Notes & Messages {(messages[job.id]?.length ?? 0) > 0 ? `· ${messages[job.id].length}` : ''}
+                    </div>
+                    {(messages[job.id]?.length ?? 0) === 0 ? (
+                      <div style={{ fontSize: 11, color: 'var(--text4)', fontStyle: 'italic', padding: '8px 0' }}>No messages yet</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', marginBottom: 8 }}>
+                        {messages[job.id].map(m => {
+                          const isMe = m.author.role === session.role && m.author.initials === session.initials
+                          return (
+                            <div key={m.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                              <div style={{ width: 26, height: 26, borderRadius: '50%', background: isMe ? 'var(--amber)' : 'var(--bg4)', color: isMe ? '#080c1a' : 'var(--text3)', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {m.author.initials}
+                              </div>
+                              <div style={{ maxWidth: '75%' }}>
+                                <div style={{ fontSize: 9, color: 'var(--text4)', marginBottom: 2, textAlign: isMe ? 'right' : 'left' }}>
+                                  {m.author.name} · {new Date(m.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                </div>
+                                <div style={{ fontSize: 12, padding: '8px 10px', borderRadius: isMe ? '10px 10px 2px 10px' : '10px 10px 10px 2px', background: isMe ? 'var(--amber)' : 'var(--bg3)', color: isMe ? '#080c1a' : 'var(--text)', border: isMe ? 'none' : '1px solid var(--border)', lineHeight: 1.4 }}>
+                                  {m.body}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <div ref={msgBottomRef} />
+                      </div>
+                    )}
+                    {/* Reply box */}
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        value={msgInput}
+                        onChange={e => setMsgInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage() } }}
+                        placeholder="Send a note…"
+                        style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text)', fontSize: 12, padding: '9px 12px', outline: 'none', fontFamily: 'inherit' }}
+                      />
+                      <button onClick={sendMessage} disabled={!msgInput.trim() || sendingMsg}
+                        style={{ padding: '9px 14px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: sendingMsg ? 'wait' : 'pointer', opacity: (!msgInput.trim() || sendingMsg) ? 0.5 : 1 }}>
+                        {sendingMsg ? '…' : '↑'}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Map link */}
