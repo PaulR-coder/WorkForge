@@ -51,7 +51,7 @@ export default async function SuperAdminPage() {
   const trialCount = enriched.filter(t => t.subscriptionStatus === 'trialing').length
   const totalUsers = tenants.reduce((s, t) => s + t._count.users, 0)
   const totalJobsThisMonth = jobGroups.reduce((s, j) => s + j._count._all, 0)
-  const mrr = activeCount * 49
+  const mrr = activeCount * 39
 
   return (
     <SuperAdminClient

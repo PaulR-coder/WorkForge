@@ -20,11 +20,12 @@ export const stripe = new Proxy({} as Stripe, {
 export const PLANS = {
   pro: {
     name: 'WorkForge Pro',
-    price: 49,
+    basePrice: 39,
+    perUserPrice: 12,
     priceId: process.env.STRIPE_PRICE_ID ?? '',
     features: [
+      '$39/mo base + $12/user/mo',
       'Unlimited jobs & work orders',
-      'Unlimited technicians',
       'Push notifications',
       'Invoicing & payments',
       'Equipment tracking',

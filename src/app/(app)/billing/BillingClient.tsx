@@ -84,7 +84,7 @@ export default function BillingClient({
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>Current Plan</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>WorkForge Pro</div>
-            <div style={{ fontSize: 13, color: 'var(--text3)' }}>$49 / month · All features included</div>
+            <div style={{ fontSize: 13, color: 'var(--text3)' }}>$39/mo base + $12/user/mo · All features included</div>
           </div>
           <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 20, padding: '4px 12px', flexShrink: 0 }}>
             {st.label}
@@ -122,7 +122,7 @@ export default function BillingClient({
               disabled={loading !== null}
               style={{ padding: '11px 22px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
-              {loading === 'checkout' ? 'Redirecting…' : 'Subscribe — $49/mo'}
+              {loading === 'checkout' ? 'Redirecting…' : 'Subscribe — from $39/mo'}
             </button>
           )}
           {hasStripeCustomer && subscriptionStatus !== 'trialing' && (
