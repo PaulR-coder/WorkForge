@@ -177,13 +177,13 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           </button>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 800, color: 'var(--amber)', letterSpacing: '-.5px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15, fontWeight: 800, letterSpacing: '-.5px', flexShrink: 0 }}>
           <div style={{ width: 28, height: 28, background: 'var(--amber)', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="-44 -44 88 88" style={{ width: 15, height: 15 }}>
               <path d="M -10 -28 L -22 6 L -2 6 L -8 30 L 22 -8 L 4 -8 L 12 -28 Z" fill="#080c1a" />
             </svg>
           </div>
-          Work<span style={{ color: 'var(--text)' }}>Forge</span>
+          <span style={{ color: 'var(--text)' }}>Work</span><span style={{ color: 'var(--amber)' }}>Forge</span>
         </div>
 
         {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />}

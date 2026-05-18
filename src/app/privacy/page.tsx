@@ -11,7 +11,7 @@ export default function PrivacyPage() {
             <path d="M -10 -28 L -22 6 L -2 6 L -8 30 L 22 -8 L 4 -8 L 12 -28 Z" fill="#080c1a" />
           </svg>
         </div>
-        <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--amber)' }}>Work<span style={{ color: 'var(--text)' }}>Forge</span></span>
+        <span style={{ fontSize: 20, fontWeight: 800 }}><span style={{ color: 'var(--text)' }}>Work</span><span style={{ color: 'var(--amber)' }}>Forge</span></span>
       </div>
 
       <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Privacy Policy</h1>

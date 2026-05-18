@@ -86,7 +86,7 @@ export default function LoginPage() {
                 <path d="M -10 -28 L -22 6 L -2 6 L -8 30 L 22 -8 L 4 -8 L 12 -28 Z" fill="#080c1a" />
               </svg>
             </div>
-            <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--amber)' }}>Work<span style={{ color: 'var(--text)' }}>Forge</span></span>
+            <span style={{ fontSize: 22, fontWeight: 800 }}><span style={{ color: 'var(--text)' }}>Work</span><span style={{ color: 'var(--amber)' }}>Forge</span></span>
           </div>
           <div style={{ fontSize: 12, fontStyle: 'italic', color: 'var(--amber)', marginBottom: 14, opacity: 0.9 }}>Forged for the field. Built for control.</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Sign in to your account</div>
