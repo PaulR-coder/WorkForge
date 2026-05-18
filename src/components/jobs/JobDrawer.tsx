@@ -14,6 +14,13 @@ type Message = {
   author: { name: string; initials: string; role: string }
 }
 
+type Photo = {
+  id: string
+  data: string
+  createdAt: string
+  author: { name: string; initials: string }
+}
+
 type DetailJob = {
   id: string
   client: string
@@ -69,6 +76,8 @@ export default function JobDrawer({
   const [msgText, setMsgText] = useState('')
   const [sending, setSending] = useState(false)
   const [editingTech, setEditingTech] = useState(false)
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const chatRef = useRef<HTMLDivElement>(null)
   const msgInputRef = useRef<HTMLInputElement>(null)
   const { t } = useLang()
@@ -78,6 +87,10 @@ export default function JobDrawer({
     fetch(`/api/jobs/${jobId}`)
       .then(r => r.json())
       .then(data => { setJob(data); setLoading(false) })
+    fetch(`/api/jobs/${jobId}/photos`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setPhotos(data) })
+      .catch(() => {})
   }, [jobId])
 
   useEffect(() => {
@@ -328,6 +341,26 @@ export default function JobDrawer({
             </div>
           )}
 
+          {/* Photos */}
+          {photos.length > 0 && (
+            <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 10 }}>
+                Photos · {photos.length}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {photos.map(p => (
+                  <div
+                    key={p.id}
+                    onClick={() => setLightboxSrc(p.data)}
+                    style={{ aspectRatio: '1', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg3)' }}
+                  >
+                    <img src={p.data} alt="job photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Internal chat */}
           <div style={{ padding: '14px 0' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 10 }}>
@@ -398,6 +431,22 @@ export default function JobDrawer({
           to { transform: translateX(0); opacity: 1; }
         }
       `}</style>
+
+      {/* Photo lightbox */}
+      {lightboxSrc && (
+        <div
+          onClick={() => setLightboxSrc(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <img src={lightboxSrc} alt="full photo" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 10, objectFit: 'contain' }} />
+          <button
+            onClick={e => { e.stopPropagation(); setLightboxSrc(null) }}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   )
 }

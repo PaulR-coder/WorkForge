@@ -11,6 +11,11 @@ type Message = {
   author: { name: string; initials: string; role: string }
 }
 
+type Photo = {
+  id: string; data: string; createdAt: string
+  author: { name: string; initials: string }
+}
+
 type Job = {
   id: string
   client: string
@@ -27,6 +32,25 @@ const PRIORITY_COLOR: Record<string, string> = {
   low: 'var(--text4)', normal: '#5ba3f5', high: 'var(--amber)', urgent: 'var(--red)',
 }
 
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const MAX = 1200
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')) }
+    img.src = url
+  })
+}
+
 export default function FieldView({ initialJobs, session }: {
   initialJobs: Job[]
   session: SessionUser
@@ -38,7 +62,11 @@ export default function FieldView({ initialJobs, session }: {
   const [messages, setMessages] = useState<Record<string, Message[]>>({})
   const [msgInput, setMsgInput] = useState('')
   const [sendingMsg, setSendingMsg] = useState(false)
+  const [photos, setPhotos] = useState<Record<string, Photo[]>>({})
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const msgBottomRef = useRef<HTMLDivElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
   const { t } = useLang()
 
   // Fetch messages when a job is expanded, then poll every 15s
@@ -57,6 +85,15 @@ export default function FieldView({ initialJobs, session }: {
     const iv = setInterval(fetchMessages, 15000)
     return () => { cancelled = true; clearInterval(iv) }
   }, [expandedId])
+
+  // Fetch photos when a job is expanded
+  useEffect(() => {
+    if (!expandedId || photos[expandedId]) return
+    fetch(`/api/jobs/${expandedId}/photos`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setPhotos(prev => ({ ...prev, [expandedId!]: data })) })
+      .catch(() => {})
+  }, [expandedId, photos])
 
   // Scroll to latest message when thread loads or new message arrives
   useEffect(() => {
@@ -77,6 +114,25 @@ export default function FieldView({ initialJobs, session }: {
       setMsgInput('')
     }
     setSendingMsg(false)
+  }
+
+  async function handlePhotoFile(file: File) {
+    if (!expandedId || uploadingPhoto) return
+    setUploadingPhoto(true)
+    try {
+      const data = await compressImage(file)
+      const res = await fetch(`/api/jobs/${expandedId}/photos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data, mimeType: 'image/jpeg' }),
+      })
+      if (res.ok) {
+        const photo = await res.json()
+        setPhotos(prev => ({ ...prev, [expandedId]: [...(prev[expandedId] ?? []), photo] }))
+      }
+    } catch {}
+    setUploadingPhoto(false)
+    if (photoInputRef.current) photoInputRef.current.value = ''
   }
 
   const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
@@ -156,12 +212,23 @@ export default function FieldView({ initialJobs, session }: {
         </div>
       )}
 
+      {/* Hidden file input for camera/gallery */}
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoFile(f) }}
+      />
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {orderedJobs.map(job => {
           const pc = PRIORITY_COLOR[job.priority]
           const isExpanded = expandedId === job.id
           const nextAction = STATUS_FLOW[job.status]
           const st = STATUS_LABEL[job.status] ?? { labelKey: job.status as TKeys, color: 'var(--text3)' }
+          const jobPhotos = photos[job.id] ?? []
 
           return (
             <div key={job.id} style={{ background: 'var(--bg2)', border: `1px solid ${job.priority === 'urgent' ? 'rgba(239,68,68,.3)' : job.priority === 'high' ? 'rgba(245,158,11,.25)' : 'var(--border)'}`, borderRadius: 14, overflow: 'hidden' }}>
@@ -245,6 +312,37 @@ export default function FieldView({ initialJobs, session }: {
                     </div>
                   </div>
 
+                  {/* Photo section */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                        Photos {jobPhotos.length > 0 ? `· ${jobPhotos.length}` : ''}
+                      </div>
+                      <button
+                        onClick={() => { if (expandedId === job.id) photoInputRef.current?.click() }}
+                        disabled={uploadingPhoto}
+                        style={{ marginLeft: 'auto', padding: '4px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, fontWeight: 700, color: 'var(--text3)', cursor: uploadingPhoto ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, opacity: uploadingPhoto ? 0.6 : 1 }}
+                      >
+                        {uploadingPhoto ? '…' : '📷 Add'}
+                      </button>
+                    </div>
+                    {jobPhotos.length === 0 ? (
+                      <div style={{ fontSize: 11, color: 'var(--text4)', fontStyle: 'italic', padding: '4px 0 8px' }}>No photos yet</div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                        {jobPhotos.map(p => (
+                          <div
+                            key={p.id}
+                            onClick={() => setLightboxSrc(p.data)}
+                            style={{ aspectRatio: '1', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg3)' }}
+                          >
+                            <img src={p.data} alt="job photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Map link */}
                   <a href={`https://maps.apple.com/?q=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 10, textDecoration: 'none' }}>
@@ -290,6 +388,22 @@ export default function FieldView({ initialJobs, session }: {
           onClose={() => setPaymentJob(null)}
           onSuccess={() => setPaymentJob(null)}
         />
+      )}
+
+      {/* Photo lightbox */}
+      {lightboxSrc && (
+        <div
+          onClick={() => setLightboxSrc(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <img src={lightboxSrc} alt="full photo" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 10, objectFit: 'contain' }} />
+          <button
+            onClick={() => setLightboxSrc(null)}
+            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            ✕
+          </button>
+        </div>
       )}
     </div>
   )

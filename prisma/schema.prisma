@@ -110,6 +110,7 @@ model User {
   payments          Payment[]
   auditLogs         AuditLog[]
   messages          Message[]
+  photos            Photo[]
   pushSubscriptions PushSubscription[]
 
   @@index([tenantId])
@@ -150,6 +151,7 @@ model Job {
   invoices  Invoice[]
   payments  Payment[]
   messages  Message[]
+  photos    Photo[]
   equipment Equipment[] @relation("JobEquipment")
 
   @@index([tenantId])
@@ -297,4 +299,18 @@ model AuditLog {
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  data      String   @db.Text
+  mimeType  String   @default("image/jpeg")
+  tenantId  String?
+  createdAt DateTime @default(now())
+
+  @@index([jobId])
 }

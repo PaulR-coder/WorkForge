@@ -60,6 +60,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
   const [notifState, setNotifState] = useState<'unsupported' | 'denied' | 'granted' | 'default'>('default')
+  const [notifBannerDismissed, setNotifBannerDismissed] = useState(true)
   const { lang, setLang, t } = useLang()
   const isMobile = useIsMobile()
 
@@ -69,13 +70,20 @@ export default function AppShell({ session, children }: { session: SessionUser; 
 
   useEffect(() => {
     if (typeof Notification === 'undefined') { setNotifState('unsupported'); return }
-    setNotifState(Notification.permission as 'denied' | 'granted' | 'default')
+    const perm = Notification.permission as 'denied' | 'granted' | 'default'
+    setNotifState(perm)
+    if (perm === 'default') {
+      const dismissed = sessionStorage.getItem('notif-banner-dismissed')
+      if (!dismissed) setNotifBannerDismissed(false)
+    }
   }, [])
 
   const subscribeToPush = useCallback(async () => {
     if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return
     const permission = await Notification.requestPermission()
     setNotifState(permission as 'denied' | 'granted' | 'default')
+    setNotifBannerDismissed(true)
+    sessionStorage.setItem('notif-banner-dismissed', '1')
     if (permission !== 'granted') return
 
     const reg = await navigator.serviceWorker.ready
@@ -92,6 +100,11 @@ export default function AppShell({ session, children }: { session: SessionUser; 
       body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
     })
   }, [])
+
+  function dismissNotifBanner() {
+    setNotifBannerDismissed(true)
+    sessionStorage.setItem('notif-banner-dismissed', '1')
+  }
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
@@ -199,6 +212,29 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           )}
         </div>
       </header>
+
+      {/* Push notification prompt banner */}
+      {!notifBannerDismissed && notifState === 'default' && (
+        <div style={{ background: 'rgba(245,158,11,.1)', borderBottom: '1px solid rgba(245,158,11,.25)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, zIndex: 99 }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>🔔</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Enable notifications</div>
+            <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 1 }}>Get alerted when jobs are assigned or updated</div>
+          </div>
+          <button
+            onClick={subscribeToPush}
+            style={{ padding: '6px 14px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+          >
+            Enable
+          </button>
+          <button
+            onClick={dismissNotifBanner}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--text4)', padding: 4, lineHeight: 1, flexShrink: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
