@@ -194,7 +194,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
             {/* Stats */}
             <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {[
-                { v: String(detail.userCount), l: 'Users' },
+                { v: String(detail.userCount), l: 'Total Users' },
                 { v: String(detail.jobsThisMonth), l: 'Jobs/mo' },
                 { v: `$${Math.round(detail.totalRevenue).toLocaleString()}`, l: 'Revenue' },
               ].map(k => (
@@ -203,6 +203,23 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
                   <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 2 }}>{k.l}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Role breakdown */}
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {[
+                { role: 'admin',      label: 'Admins',      color: 'var(--amber)',  bg: 'rgba(245,158,11,.1)' },
+                { role: 'dispatcher', label: 'Dispatchers', color: '#5ba3f5',       bg: 'rgba(91,163,245,.1)' },
+                { role: 'tech',       label: 'Techs',       color: 'var(--green)',  bg: 'rgba(34,197,94,.1)'  },
+              ].map(r => {
+                const count = detail.users.filter(u => u.role === r.role && u.active).length
+                return (
+                  <div key={r.role} style={{ textAlign: 'center', background: r.bg, borderRadius: 10, padding: '10px 6px' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: r.color }}>{count}</div>
+                    <div style={{ fontSize: 10, color: r.color, marginTop: 2, fontWeight: 600 }}>{r.label}</div>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Subscription */}
