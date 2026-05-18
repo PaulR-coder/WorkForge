@@ -209,10 +209,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
               title={notifState === 'granted' ? 'Notifications enabled' : notifState === 'denied' ? 'Notifications blocked in browser settings' : 'Enable push notifications'}
               style={{ background: 'var(--bg4)', border: `1px solid ${notifState === 'granted' ? 'rgba(245,158,11,.4)' : 'var(--border)'}`, borderRadius: 8, padding: '4px 8px', fontSize: 14, cursor: notifState === 'granted' ? 'default' : 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
             >
-              {notifState === 'granted' ? '🔔' : notifState === 'denied' ? '🔕' : '🔔'}
-              {notifState !== 'granted' && (
-                <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--amber)', marginLeft: 2, lineHeight: 1 }}>!</span>
-              )}
+              {notifState === 'denied' ? '🔕' : '🔔'}
             </button>
           )}
           <button onClick={() => setUserMenuOpen(o => !o)}
