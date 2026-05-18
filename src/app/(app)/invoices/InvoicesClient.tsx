@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { SessionUser } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
@@ -18,12 +19,86 @@ const STATUS_COLORS: Record<string, string> = {
 
 const TABS: TKeys[] = ['all', 'draft', 'sent', 'paid', 'overdue']
 
+const inp: React.CSSProperties = {
+  width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+  color: 'var(--text)', fontSize: 13, padding: '9px 12px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+}
+
+const lbl: React.CSSProperties = {
+  display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)',
+  textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4,
+}
+
 export default function InvoicesClient({ initialInvoices, session }: { initialInvoices: Invoice[]; session: SessionUser }) {
   const [invoices, setInvoices] = useState(initialInvoices)
   const [tab, setTab] = useState('all')
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const { t } = useLang()
   const isMobile = useIsMobile()
+
+  const canCreate = can(session.role, 'createInvoice')
+
+  // Create modal state
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createClient, setCreateClient] = useState('')
+  const [createJobId, setCreateJobId] = useState('')
+  const [createLabor, setCreateLabor] = useState(0)
+  const [createParts, setCreateParts] = useState(0)
+  const [createSurcharge, setCreateSurcharge] = useState(0)
+  const [createLoading, setCreateLoading] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [jobs, setJobs] = useState<{ id: string; client: string; type: string }[]>([])
+
+  useEffect(() => {
+    if (createOpen) {
+      fetch('/api/jobs').then(r => r.json()).then(d => { if (Array.isArray(d)) setJobs(d) })
+    }
+  }, [createOpen])
+
+  const createTotal = createLabor + createParts + createSurcharge
+
+  function resetCreateForm() {
+    setCreateClient('')
+    setCreateJobId('')
+    setCreateLabor(0)
+    setCreateParts(0)
+    setCreateSurcharge(0)
+    setCreateError('')
+  }
+
+  async function submitCreate() {
+    if (!createClient.trim()) { setCreateError('Client name is required.'); return }
+    setCreateLoading(true)
+    setCreateError('')
+    try {
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client: createClient.trim(),
+          jobId: createJobId || null,
+          labor: createLabor,
+          parts: createParts,
+          surcharge: createSurcharge,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setCreateError(err.error ?? 'Failed to create invoice.')
+        return
+      }
+      const created = await res.json()
+      const normalized: Invoice = {
+        ...created,
+        dueDate: created.dueDate ? new Date(created.dueDate).toISOString() : new Date().toISOString(),
+      }
+      setInvoices(prev => [normalized, ...prev])
+      setCreateOpen(false)
+      resetCreateForm()
+    } finally {
+      setCreateLoading(false)
+    }
+  }
 
   const filtered = tab === 'all' ? invoices : invoices.filter(i => i.status === tab)
 
@@ -66,6 +141,14 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
             </button>
           ))}
         </div>
+        {canCreate && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            style={{ marginLeft: 'auto', padding: '7px 14px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+          >
+            + New Invoice
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -122,6 +205,98 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
           )
         })}
       </div>
+
+      {/* Create Invoice Modal */}
+      {createOpen && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) { setCreateOpen(false); resetCreateForm() } }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+        >
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 'min(480px,90vw)', padding: 24 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>New Invoice</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Client Name</label>
+              <input
+                value={createClient}
+                onChange={e => setCreateClient(e.target.value)}
+                placeholder="Client name"
+                style={inp}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Linked Job (optional)</label>
+              <select
+                value={createJobId}
+                onChange={e => setCreateJobId(e.target.value)}
+                style={inp}
+              >
+                <option value="">— No linked job —</option>
+                {jobs.map(j => (
+                  <option key={j.id} value={j.id}>{j.client} — {j.type}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Labor $</label>
+              <input
+                type="number"
+                min={0}
+                value={createLabor}
+                onChange={e => setCreateLabor(Number(e.target.value))}
+                style={inp}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Parts $</label>
+              <input
+                type="number"
+                min={0}
+                value={createParts}
+                onChange={e => setCreateParts(Number(e.target.value))}
+                style={inp}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={lbl}>Surcharge $</label>
+              <input
+                type="number"
+                min={0}
+                value={createSurcharge}
+                onChange={e => setCreateSurcharge(Number(e.target.value))}
+                style={inp}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20, padding: '10px 14px', background: 'var(--bg3)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)' }}>TOTAL</span>
+              <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>${createTotal.toLocaleString()}</span>
+            </div>
+
+            {createError && (
+              <div style={{ marginBottom: 12, fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>{createError}</div>
+            )}
+
+            <button
+              onClick={submitCreate}
+              disabled={createLoading}
+              style={{ width: '100%', padding: '11px 0', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: createLoading ? 'wait' : 'pointer', opacity: createLoading ? 0.7 : 1, marginBottom: 8 }}
+            >
+              {createLoading ? 'Saving…' : 'Create Invoice'}
+            </button>
+            <button
+              onClick={() => { setCreateOpen(false); resetCreateForm() }}
+              style={{ width: '100%', padding: '9px 0', background: 'transparent', color: 'var(--text3)', border: '1px solid var(--border)', borderRadius: 9, fontSize: 13, cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

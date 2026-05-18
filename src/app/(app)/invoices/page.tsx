@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
+import { getTenantFilter } from '@/lib/tenant'
 import InvoicesClient from './InvoicesClient'
 
 export default async function InvoicesPage() {
@@ -9,7 +10,9 @@ export default async function InvoicesPage() {
   if (!session) redirect('/login')
   if (!can(session.role, 'viewFinancials')) redirect('/jobs')
 
+  const tenantFilter = getTenantFilter(session)
   const invoices = await prisma.invoice.findMany({
+    where: tenantFilter,
     include: { job: { select: { client: true, type: true } } },
     orderBy: { createdAt: 'desc' },
   })

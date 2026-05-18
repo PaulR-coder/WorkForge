@@ -139,7 +139,7 @@ export default function ScheduleCalendar({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         scheduledAt: scheduledAt ? scheduledAt.toISOString() : null,
-        ...(scheduledAt ? { status: 'scheduled' } : {}),
+        status: scheduledAt ? 'scheduled' : 'open',
       }),
     })
     if (res.ok) {
@@ -181,6 +181,7 @@ export default function ScheduleCalendar({
         onDragEnd={() => { setDragging(null); setDropHover(null) }}
         onClick={() => setOpenJobId(job.id)}
         style={{
+          position: 'relative',
           background: `${pColor}12`,
           border: `1px solid ${pColor}30`,
           borderLeft: `3px solid ${pColor}`,
@@ -194,6 +195,26 @@ export default function ScheduleCalendar({
           transition: 'opacity .1s',
         }}
       >
+        {job.scheduledAt && can(session.role, 'editJob') && (
+          <button
+            onClick={e => { e.stopPropagation(); patchSchedule(job.id, null) }}
+            style={{
+              position: 'absolute',
+              top: 3,
+              right: 4,
+              fontSize: 10,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text4)',
+              lineHeight: 1,
+              padding: 2,
+            }}
+            title="Unschedule"
+          >
+            ×
+          </button>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <div style={{
             fontSize: compact ? 9 : 11,
@@ -299,6 +320,25 @@ export default function ScheduleCalendar({
                 {job.tech.initials}
               </div>
               <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>{job.tech.name}</span>
+            </div>
+          )}
+          {job.scheduledAt && can(session.role, 'editJob') && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <button
+                onClick={e => { e.stopPropagation(); patchSchedule(job.id, null) }}
+                style={{
+                  padding: '4px 10px',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: 6,
+                  fontSize: 10,
+                  color: 'var(--text4)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Unschedule
+              </button>
             </div>
           )}
         </div>
@@ -530,7 +570,18 @@ export default function ScheduleCalendar({
           }}>
             {t('unscheduledJobs')} ({unscheduled.length})
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div
+            style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 5 }}
+            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+            onDrop={e => {
+              e.preventDefault()
+              const jobId = e.dataTransfer.getData('jobId')
+              if (jobId && can(session.role, 'editJob')) {
+                patchSchedule(jobId, null)
+                setDragging(null)
+              }
+            }}
+          >
             {unscheduled.length === 0 ? (
               <div style={{ fontSize: 11, color: 'var(--text4)', textAlign: 'center', padding: '20px 8px', lineHeight: 1.5 }}>
                 {t('noUnscheduledJobs')}
