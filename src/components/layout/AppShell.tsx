@@ -21,6 +21,7 @@ const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | n
   { href: '/contracts', icon: '📑', labelKey: 'contracts', perm: 'viewContracts' },
   { href: '/team', icon: '👥', labelKey: 'team', perm: 'manageSettings' },
   { href: '/audit', icon: '🛡', labelKey: 'auditLog', perm: 'viewAudit' },
+  { href: '/billing', icon: '💳', labelKey: 'billing', perm: 'manageBilling' },
 ]
 
 const BOTTOM_TABS: Record<string, { href: string; icon: string; labelKey: TKeys }[]> = {

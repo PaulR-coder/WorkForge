@@ -13,6 +13,7 @@ const T = {
     contracts: 'Contracts',
     team: 'Team',
     auditLog: 'Audit Log',
+    billing: 'Billing',
     signOut: 'Sign Out',
 
     // Auth
@@ -205,6 +206,7 @@ const T = {
     contracts: 'Contratos',
     team: 'Equipo',
     auditLog: 'Registro de Auditoría',
+    billing: 'Facturación',
     signOut: 'Cerrar Sesión',
 
     // Auth

@@ -6,12 +6,14 @@ const PERMISSIONS: Record<Role, Record<string, boolean>> = {
     assignTech: true, viewFinancials: true, createInvoice: true, editInvoice: true,
     collectPayment: true, viewAudit: true, manageUsers: true, manageSettings: true,
     viewEquipment: true, editEquipment: true, viewContracts: true, editContracts: true,
+    manageBilling: true,
   },
   admin: {
     viewDashboard: true, createJob: true, editJob: true, deleteJob: true,
     assignTech: true, viewFinancials: true, createInvoice: true, editInvoice: true,
     collectPayment: true, viewAudit: true, manageUsers: true, manageSettings: true,
     viewEquipment: true, editEquipment: true, viewContracts: true, editContracts: true,
+    manageBilling: true,
   },
   dispatcher: {
     viewDashboard: false, createJob: true, editJob: true, deleteJob: false,

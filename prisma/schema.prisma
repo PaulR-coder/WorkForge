@@ -57,6 +57,12 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  subscriptionStatus   String   @default("trialing")
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+
   users             User[]
   jobs              Job[]
   invoices          Invoice[]
