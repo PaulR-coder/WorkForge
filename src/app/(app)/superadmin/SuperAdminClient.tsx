@@ -260,10 +260,6 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
             {/* Actions */}
             <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 2 }}>Actions</div>
-              <button onClick={startImpersonate} disabled={impersonating}
-                style={{ width: '100%', padding: '12px 0', background: 'rgba(245,158,11,.12)', border: '1px solid rgba(245,158,11,.3)', color: 'var(--amber)', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: impersonating ? 'wait' : 'pointer', opacity: impersonating ? 0.6 : 1 }}>
-                {impersonating ? 'Switching…' : '👤 Impersonate this account'}
-              </button>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <button onClick={() => runAction('toggle_active')} disabled={actionLoading !== null}
                   style={{ padding: '11px 0', background: 'var(--bg3)', border: '1px solid var(--border)', color: detail.active ? 'var(--red)' : 'var(--green)', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: actionLoading ? 0.6 : 1 }}>
