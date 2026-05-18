@@ -1,6 +1,6 @@
 import type { Role } from '@/generated/prisma/client'
 
-const PERMISSIONS: Record<Role, Record<string, boolean>> = {
+const PERMISSIONS: Partial<Record<Role, Record<string, boolean>>> = {
   superadmin: {
     viewDashboard: true, createJob: true, editJob: true, deleteJob: true,
     assignTech: true, viewFinancials: true, createInvoice: true, editInvoice: true,
@@ -26,12 +26,6 @@ const PERMISSIONS: Record<Role, Record<string, boolean>> = {
     assignTech: false, viewFinancials: false, createInvoice: false, editInvoice: false,
     collectPayment: true, viewAudit: false, manageUsers: false, manageSettings: false,
     viewEquipment: true, editEquipment: false, viewContracts: false, editContracts: false,
-  },
-  readonly: {
-    viewDashboard: false, createJob: false, editJob: false, deleteJob: false,
-    assignTech: false, viewFinancials: false, createInvoice: false, editInvoice: false,
-    collectPayment: false, viewAudit: false, manageUsers: false, manageSettings: false,
-    viewEquipment: true, editEquipment: false, viewContracts: true, editContracts: false,
   },
 }
 

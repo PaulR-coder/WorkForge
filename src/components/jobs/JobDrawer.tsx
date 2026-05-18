@@ -53,7 +53,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 const ROLE_COLORS: Record<string, string> = {
   superadmin: 'var(--purple)', admin: 'var(--amber)', dispatcher: '#5ba3f5',
-  tech: 'var(--green)', readonly: 'var(--text3)',
+  tech: 'var(--green)',
 }
 
 export default function JobDrawer({

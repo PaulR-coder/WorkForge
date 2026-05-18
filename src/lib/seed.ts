@@ -17,7 +17,6 @@ export async function seedDatabase() {
     { email: 'owner@acmefield.com', name: 'Alex Owner', password: 'owner123', role: 'admin', initials: 'AO', company: 'Acme Field Services', specialty: 'Owner', tenantId: acme.id },
     { email: 'dispatch@acmefield.com', name: 'Diana Dispatch', password: 'disp123', role: 'dispatcher', initials: 'DD', company: 'Acme Field Services', specialty: 'Dispatcher', tenantId: acme.id },
     { email: 'carlos@acmefield.com', name: 'Carlos Martinez', password: 'tech123', role: 'tech', initials: 'CM', company: 'Acme Field Services', specialty: 'HVAC', tenantId: acme.id },
-    { email: 'client@metalpack.com', name: 'MetalPack Client', password: 'view123', role: 'readonly', initials: 'MP', company: 'Acme Field Services', specialty: '', tenantId: acme.id },
   ]
 
   for (const u of demoUsers) {

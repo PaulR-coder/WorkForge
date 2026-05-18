@@ -5,7 +5,7 @@ import { useState } from 'react'
 type Invite = { id: string; email: string; role: string; createdAt: string; expiresAt: string }
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: 'var(--amber)', dispatcher: 'var(--blue-light)', tech: 'var(--green)', readonly: 'var(--text3)',
+  admin: 'var(--amber)', dispatcher: 'var(--blue-light)', tech: 'var(--green)',
 }
 
 export default function PendingInvites({ initialInvites }: { initialInvites: Invite[] }) {

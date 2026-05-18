@@ -191,7 +191,6 @@ const T = {
     admin: 'Admin',
     dispatcher: 'Dispatcher',
     tech: 'Technician',
-    readonly: 'Client',
     access: 'access',
   },
 
@@ -385,7 +384,6 @@ const T = {
     admin: 'Admin',
     dispatcher: 'Despachador',
     tech: 'Técnico',
-    readonly: 'Cliente',
     access: 'acceso',
   },
 } as const

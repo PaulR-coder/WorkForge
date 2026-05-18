@@ -49,10 +49,6 @@ const BOTTOM_TABS: Record<string, { href: string; icon: string; labelKey: TKeys 
     { href: '/schedule',  icon: '📅', labelKey: 'schedule'   },
     { href: '/team',      icon: '👥', labelKey: 'team'       },
   ],
-  readonly: [
-    { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
-    { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
-  ],
 }
 
 function ImpersonationBanner({ company }: { company: string }) {
@@ -148,7 +144,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
     return can(session.role, item.perm)
   })
 
-  const bottomTabs = BOTTOM_TABS[session.role] ?? BOTTOM_TABS.readonly
+  const bottomTabs = BOTTOM_TABS[session.role] ?? BOTTOM_TABS.tech
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })

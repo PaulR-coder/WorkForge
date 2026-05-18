@@ -7,7 +7,6 @@ const ROLE_COLORS: Record<string, string> = {
   admin: 'var(--amber)',
   dispatcher: '#5ba3f5',
   tech: 'var(--green)',
-  readonly: 'var(--text3)',
 }
 
 type User = {

@@ -6,7 +6,6 @@ const ROLES = [
   { value: 'admin', label: 'Admin', desc: 'Full access, manages team and jobs' },
   { value: 'dispatcher', label: 'Dispatcher', desc: 'Creates and assigns jobs' },
   { value: 'tech', label: 'Technician', desc: 'Views and completes assigned jobs' },
-  { value: 'readonly', label: 'Read-only', desc: 'View-only access' },
 ]
 
 export default function InviteButton() {
