@@ -138,7 +138,12 @@ export default function AppShell({ session, children }: { session: SessionUser; 
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   }, [])
 
+  const SUPERADMIN_ONLY_HREFS = new Set(['/superadmin', '/team', '/audit', '/billing'])
+
   const visibleNav = NAV_ITEMS.filter(item => {
+    if (session.role === 'superadmin' && !session.impersonating) {
+      return SUPERADMIN_ONLY_HREFS.has(item.href)
+    }
     if (!item.perm) return true
     return can(session.role, item.perm)
   })
