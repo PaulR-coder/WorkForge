@@ -1,6 +1,8 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
+import { sendPushToUser } from '@/lib/push'
+import { Role } from '@/generated/prisma/client'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -36,6 +38,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     data: { jobId: id, authorId: session.id, body: body.trim(), tenantId: session.tenantId },
     include: { author: { select: { name: true, initials: true, role: true } } },
   })
+
+  // Push notification to relevant recipients (fire-and-forget)
+  const isTech = session.role === 'tech'
+  const recipientFilter = isTech
+    ? { tenantId: session.tenantId ?? undefined, role: { in: [Role.admin, Role.dispatcher] }, id: { not: session.id } }
+    : job.techId ? { id: job.techId } : null
+
+  if (recipientFilter) {
+    prisma.pushSubscription.findMany({
+      where: { user: recipientFilter },
+    }).then(subs => {
+      if (subs.length === 0) return
+      sendPushToUser(subs, {
+        title: `New message — ${job.client}`,
+        body: `${session.name}: ${body.trim().slice(0, 100)}`,
+        url: isTech ? '/dashboard' : '/field',
+      })
+    }).catch(() => {})
+  }
 
   return Response.json(message, { status: 201 })
 }
