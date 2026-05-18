@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const DEMO_ACCOUNTS = [
-  { icon: '👑', name: 'Super Admin', role: 'Platform Admin', email: 'superadmin@workforge.io', password: 'admin123', badge: 'rb-superadmin', label: 'Super Admin' },
   { icon: '🏢', name: 'Alex Owner', role: 'Company Owner', email: 'owner@acmefield.com', password: 'owner123', badge: 'rb-admin', label: 'Admin' },
   { icon: '📋', name: 'Diana Dispatch', role: 'Dispatcher', email: 'dispatch@acmefield.com', password: 'disp123', badge: 'rb-dispatcher', label: 'Dispatcher' },
   { icon: '🔧', name: 'Carlos M.', role: 'HVAC Technician', email: 'carlos@acmefield.com', password: 'tech123', badge: 'rb-tech', label: 'Technician' },
