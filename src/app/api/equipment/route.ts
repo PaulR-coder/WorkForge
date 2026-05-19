@@ -21,6 +21,14 @@ export async function POST(req: Request) {
   const body = await req.json()
   const tenantId = requireTenantId(session)
 
+  if (!body.client?.trim() || !body.name?.trim() || !body.brand?.trim() || !body.model?.trim()) {
+    return Response.json({ error: 'Client, name, brand, and model are required' }, { status: 400 })
+  }
+  const installedAt = new Date(body.installedAt)
+  if (isNaN(installedAt.getTime())) {
+    return Response.json({ error: 'Invalid installation date' }, { status: 400 })
+  }
+
   const eq = await prisma.equipment.create({
     data: {
       client: body.client,
@@ -29,7 +37,7 @@ export async function POST(req: Request) {
       model: body.model,
       serialNumber: body.serialNumber,
       icon: body.icon ?? '⚙',
-      installedAt: new Date(body.installedAt),
+      installedAt,
       warrantyEnd: body.warrantyEnd ? new Date(body.warrantyEnd) : null,
       intervalDays: body.intervalDays ?? 90,
       notes: body.notes ?? '',

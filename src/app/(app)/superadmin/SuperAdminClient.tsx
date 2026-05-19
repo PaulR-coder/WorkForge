@@ -8,7 +8,7 @@ type TenantRow = {
   id: string; name: string; slug: string; active: boolean; createdAt: string
   subscriptionStatus: string; trialEndsAt: string | null; currentPeriodEnd: string | null
   stripeCustomerId: string | null; userCount: number; jobsThisMonth: number
-  lastActivity: string; totalRevenue: number
+  lastActivity: string
 }
 
 type PlatformStats = {
@@ -398,7 +398,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
               {[
                 { v: String(detail.userCount), l: 'Total Users' },
                 { v: String(detail.jobsThisMonth), l: 'Jobs/mo' },
-                { v: `$${Math.round(detail.totalRevenue).toLocaleString()}`, l: 'Revenue' },
+                { v: detail.subscriptionStatus.charAt(0).toUpperCase() + detail.subscriptionStatus.slice(1), l: 'Status' },
               ].map(k => (
                 <div key={k.l} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{k.v}</div>

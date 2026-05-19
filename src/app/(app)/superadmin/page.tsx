@@ -9,7 +9,7 @@ export default async function SuperAdminPage() {
 
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 
-  const [tenants, jobGroups, activityGroups, revenueGroups] = await Promise.all([
+  const [tenants, jobGroups, activityGroups] = await Promise.all([
     prisma.tenant.findMany({
       include: { _count: { select: { users: true } } },
       orderBy: { createdAt: 'desc' },
@@ -23,11 +23,6 @@ export default async function SuperAdminPage() {
       by: ['tenantId'],
       where: { tenantId: { not: null } },
       _max: { updatedAt: true },
-    }),
-    prisma.payment.groupBy({
-      by: ['tenantId'],
-      where: { tenantId: { not: null } },
-      _sum: { amount: true },
     }),
   ])
 
@@ -44,7 +39,6 @@ export default async function SuperAdminPage() {
     userCount: t._count.users,
     jobsThisMonth: jobGroups.find(j => j.tenantId === t.id)?._count._all ?? 0,
     lastActivity: activityGroups.find(a => a.tenantId === t.id)?._max.updatedAt?.toISOString() ?? t.createdAt.toISOString(),
-    totalRevenue: revenueGroups.find(r => r.tenantId === t.id)?._sum.amount ?? 0,
   }))
 
   const activeCount = enriched.filter(t => t.subscriptionStatus === 'active').length

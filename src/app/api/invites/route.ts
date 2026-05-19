@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { requireTenantId } from '@/lib/tenant'
 import { emailInvite } from '@/lib/email'
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app').trim()
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
 export async function GET() {
   const session = await getSession()

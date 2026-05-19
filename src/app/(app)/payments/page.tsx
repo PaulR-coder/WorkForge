@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getTenantFilter } from '@/lib/tenant'
 import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
 
@@ -8,7 +9,9 @@ export default async function PaymentsPage() {
   if (!session) redirect('/login')
   if (!can(session.role, 'viewFinancials')) redirect('/jobs')
 
+  const tenantFilter = getTenantFilter(session)
   const payments = await prisma.payment.findMany({
+    where: tenantFilter,
     include: {
       collectedBy: { select: { name: true, initials: true } },
       job: { select: { client: true, type: true } },

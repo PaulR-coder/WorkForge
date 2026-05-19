@@ -4,7 +4,7 @@ import { hashPassword, getSession } from '@/lib/auth'
 import { emailVerification } from '@/lib/email'
 import { rateLimit, getIp } from '@/lib/rateLimit'
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app').trim()
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
 export async function POST(req: Request) {
   const body = await req.json()

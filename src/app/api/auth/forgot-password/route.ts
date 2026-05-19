@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { emailPasswordReset } from '@/lib/email'
 import { rateLimit, getIp } from '@/lib/rateLimit'
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app').trim()
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
 export async function POST(req: Request) {
   const ip = getIp(req)

@@ -27,6 +27,13 @@ const PERMISSIONS: Partial<Record<Role, Record<string, boolean>>> = {
     collectPayment: true, viewAudit: false, manageUsers: false, manageSettings: false,
     viewEquipment: true, editEquipment: false, viewContracts: false, editContracts: false,
   },
+  readonly: {
+    viewDashboard: true, createJob: false, editJob: false, deleteJob: false,
+    assignTech: false, viewFinancials: false, createInvoice: false, editInvoice: false,
+    collectPayment: false, viewAudit: false, manageUsers: false, manageSettings: false,
+    viewEquipment: true, editEquipment: false, viewContracts: true, editContracts: false,
+    manageBilling: false,
+  },
 }
 
 export function can(role: Role, permission: string): boolean {

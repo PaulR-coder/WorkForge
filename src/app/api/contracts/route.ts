@@ -21,6 +21,17 @@ export async function POST(req: Request) {
   const body = await req.json()
   const tenantId = requireTenantId(session)
 
+  if (!body.client?.trim() || !body.name?.trim()) {
+    return Response.json({ error: 'Client and contract name are required' }, { status: 400 })
+  }
+  if (typeof body.pricePerVisit !== 'number' || body.pricePerVisit < 0) {
+    return Response.json({ error: 'Price per visit must be a non-negative number' }, { status: 400 })
+  }
+  const nextDueDate = new Date(body.nextDueDate)
+  if (isNaN(nextDueDate.getTime())) {
+    return Response.json({ error: 'Invalid due date' }, { status: 400 })
+  }
+
   const contract = await prisma.contract.create({
     data: {
       client: body.client,
@@ -30,7 +41,7 @@ export async function POST(req: Request) {
       techInitials: body.techInitials ?? '',
       frequencyDays: body.frequencyDays ?? 90,
       pricePerVisit: body.pricePerVisit,
-      nextDueDate: new Date(body.nextDueDate),
+      nextDueDate,
       notes: body.notes ?? '',
       tenantId,
     },
