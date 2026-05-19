@@ -73,6 +73,7 @@ const ALERT_ICON: Record<string, string> = { error: '⚠', warn: '⏱', info: '�
 export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRow[]; stats: PlatformStats }) {
   const router = useRouter()
   const isMobile = useIsMobile()
+  const [mainTab, setMainTab] = useState<'dashboard' | 'tenants'>('dashboard')
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<'newest' | 'activity' | 'users' | 'jobs'>('newest')
@@ -87,8 +88,6 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
   const [createAdminName, setCreateAdminName] = useState('')
   const [createLoading, setCreateLoading] = useState(false)
   const [createResult, setCreateResult] = useState<{ password: string } | null>(null)
-
-  const alerts = useMemo(() => buildAlerts(tenants), [tenants])
 
   const TABS = ['all', 'active', 'trialing', 'past_due', 'cancelled']
 
@@ -156,6 +155,131 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
   }
 
   const tenant = selectedId ? tenants.find(t => t.id === selectedId) : null
+
+  // ─── Platform dashboard derived stats ────────────────────────────────────
+  const totalRevenue = tenants.reduce((s, t) => s + t.totalRevenue, 0)
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const newThisMonth = tenants.filter(t => new Date(t.createdAt) >= monthStart).length
+  const alerts = useMemo(() => buildAlerts(tenants), [tenants])
+  const topTenants = [...tenants].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5)
+  const statusBreakdown = [
+    { label: 'Active',    count: stats.activeCount,  color: 'var(--green)', bg: 'rgba(34,197,94,.12)' },
+    { label: 'Trialing',  count: stats.trialCount,   color: '#5ba3f5',      bg: 'rgba(91,163,245,.12)' },
+    { label: 'Past Due',  count: tenants.filter(t => t.subscriptionStatus === 'past_due').length,  color: 'var(--amber)', bg: 'rgba(245,158,11,.12)' },
+    { label: 'Cancelled', count: tenants.filter(t => t.subscriptionStatus === 'cancelled').length, color: 'var(--text4)', bg: 'var(--bg3)' },
+  ]
+
+  const PlatformDashboard = () => (
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px 16px' : '20px 24px' }}>
+      {/* Main KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+        {[
+          { value: `$${stats.mrr.toLocaleString()}`, label: 'Monthly Revenue', sub: `${stats.activeCount} paying accounts`, color: stats.mrr > 0 ? 'var(--green)' : 'var(--text4)' },
+          { value: `$${Math.round(totalRevenue).toLocaleString()}`, label: 'Total Revenue', sub: 'All time payments collected', color: totalRevenue > 0 ? 'var(--text)' : 'var(--text4)' },
+          { value: String(stats.totalTenants), label: 'Total Workspaces', sub: `${newThisMonth} joined this month`, color: 'var(--text)' },
+          { value: String(stats.totalUsers), label: 'Total Users', sub: `Across all workspaces`, color: 'var(--text)' },
+        ].map(k => (
+          <div key={k.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+            <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: k.color, letterSpacing: '-.5px', marginBottom: 4 }}>{k.value}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', marginBottom: 3 }}>{k.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--text4)' }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        {/* Status breakdown */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Subscription Breakdown</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {statusBreakdown.map(s => {
+              const pct = stats.totalTenants > 0 ? Math.round((s.count / stats.totalTenants) * 100) : 0
+              return (
+                <div key={s.label}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: s.color }}>{s.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)' }}>{s.count} <span style={{ color: 'var(--text4)', fontWeight: 400 }}>({pct}%)</span></span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: s.color, borderRadius: 3, transition: 'width .4s ease' }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Platform activity */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Platform Activity</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { label: 'Jobs this month', value: String(stats.totalJobsThisMonth), color: 'var(--text)' },
+              { label: 'Total jobs all time', value: String(stats.totalJobs), color: 'var(--text)' },
+              { label: 'Avg users per workspace', value: stats.totalTenants > 0 ? (stats.totalUsers / stats.totalTenants).toFixed(1) : '0', color: 'var(--text)' },
+              { label: 'MRR per active account', value: stats.activeCount > 0 ? `$${Math.round(stats.mrr / stats.activeCount)}` : '—', color: 'var(--green)' },
+            ].map(r => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text3)' }}>{r.label}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: r.color }}>{r.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
+        {/* Top tenants by revenue */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Top Accounts by Revenue</div>
+          {topTenants.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center', padding: '20px 0' }}>No revenue data yet</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {topTenants.map((t, i) => (
+                <div key={t.id} onClick={() => { setMainTab('tenants'); openDetail(t.id) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: i === 0 ? 'rgba(245,158,11,.15)' : 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: i === 0 ? 'var(--amber)' : 'var(--text4)', flexShrink: 0 }}>
+                    {i + 1}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text4)' }}>{t.userCount} users</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: t.totalRevenue > 0 ? 'var(--green)' : 'var(--text4)', flexShrink: 0 }}>
+                    ${Math.round(t.totalRevenue).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Alerts */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
+            Alerts {alerts.length > 0 && <span style={{ color: 'var(--red)' }}>· {alerts.length}</span>}
+          </div>
+          {alerts.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--green)', textAlign: 'center', padding: '20px 0' }}>✓ All clear</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {alerts.slice(0, 6).map((a, i) => (
+                <div key={i} onClick={() => { setMainTab('tenants'); openDetail(a.tenantId) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}>
+                  <span style={{ fontSize: 14, color: ALERT_COLOR[a.type] }}>{ALERT_ICON[a.type]}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.tenantName}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text4)' }}>{a.msg}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 
   // ─── KPI strip ───────────────────────────────────────────────────────────
   const kpis = [
@@ -292,12 +416,24 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
     </div>
   )
 
+  // ─── Tab bar (shared) ─────────────────────────────────────────────────
+  const MainTabBar = () => (
+    <div style={{ display: 'flex', gap: 4, padding: isMobile ? '8px 16px' : '8px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg)', flexShrink: 0 }}>
+      {(['dashboard', 'tenants'] as const).map(t => (
+        <button key={t} onClick={() => setMainTab(t)}
+          style={{ padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1px solid var(--border)', background: mainTab === t ? 'var(--amber)' : 'var(--bg3)', color: mainTab === t ? '#080c1a' : 'var(--text3)', transition: 'all .15s' }}>
+          {t === 'dashboard' ? '📊 Dashboard' : '🏢 Tenants'}
+        </button>
+      ))}
+    </div>
+  )
+
   // ─── MOBILE LAYOUT ────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
         {/* Mobile header */}
-        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg2)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg2)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>🎛 Command Center</div>
             <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 1 }}>Platform admin</div>
@@ -308,6 +444,11 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
           </button>
         </div>
 
+        <MainTabBar />
+
+        {mainTab === 'dashboard' && <PlatformDashboard />}
+
+        {mainTab === 'tenants' && <>
         {/* KPI grid 3×2 */}
         <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
           {kpis.map(k => (
@@ -317,26 +458,6 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
             </div>
           ))}
         </div>
-
-        {/* Alerts strip */}
-        {alerts.length > 0 && (
-          <div style={{ padding: '0 16px 12px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>Alerts · {alerts.length}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {alerts.map((a, i) => (
-                <div key={i} onClick={() => openDetail(a.tenantId)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer' }}>
-                  <span style={{ fontSize: 14, color: ALERT_COLOR[a.type] }}>{ALERT_ICON[a.type]}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)' }}>{a.tenantName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text4)' }}>{a.msg}</div>
-                  </div>
-                  <span style={{ fontSize: 14, color: 'var(--text4)' }}>→</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Filter tabs */}
         <div style={{ padding: '0 16px 10px', display: 'flex', gap: 6, overflowX: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
@@ -401,6 +522,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
             <DrawerContent />
           </div>
         )}
+        </>}
 
         {/* Create modal */}
         <CreateModal
@@ -439,6 +561,11 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
         </button>
       </div>
 
+      <MainTabBar />
+
+      {mainTab === 'dashboard' && <PlatformDashboard />}
+
+      {mainTab === 'tenants' && <>
       {/* KPI strip */}
       <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, flexShrink: 0 }}>
         {kpis.map(k => (
@@ -569,6 +696,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
           </div>
         </div>
       )}
+      </>}
 
       <CreateModal
         open={createOpen}
