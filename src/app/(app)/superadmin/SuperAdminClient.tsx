@@ -157,11 +157,54 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
   const tenant = selectedId ? tenants.find(t => t.id === selectedId) : null
 
   // ─── Platform dashboard derived stats ────────────────────────────────────
-  const totalRevenue = tenants.reduce((s, t) => s + t.totalRevenue, 0)
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   const newThisMonth = tenants.filter(t => new Date(t.createdAt) >= monthStart).length
   const alerts = useMemo(() => buildAlerts(tenants), [tenants])
-  const topTenants = [...tenants].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5)
+
+  const trialsAtRisk = tenants.filter(t => {
+    if (t.subscriptionStatus !== 'trialing' || !t.trialEndsAt) return false
+    const days = Math.ceil((new Date(t.trialEndsAt).getTime() - Date.now()) / 86400000)
+    return days >= 0 && days <= 7
+  })
+
+  const needsAttention = useMemo(() => {
+    const seen = new Set<string>()
+    const items: { tenantId: string; tenantName: string; reason: string; urgency: 'high' | 'medium' | 'low' }[] = []
+    for (const t of tenants) {
+      if (t.subscriptionStatus === 'cancelled') continue
+      if (t.subscriptionStatus === 'past_due' || t.subscriptionStatus === 'unpaid') {
+        if (!seen.has(t.id)) { seen.add(t.id); items.push({ tenantId: t.id, tenantName: t.name, reason: 'Payment failed — account at risk', urgency: 'high' }) }
+      }
+      if (t.subscriptionStatus === 'trialing' && t.trialEndsAt) {
+        const days = Math.ceil((new Date(t.trialEndsAt).getTime() - Date.now()) / 86400000)
+        if (days >= 0 && days <= 7 && !seen.has(t.id)) {
+          seen.add(t.id); items.push({ tenantId: t.id, tenantName: t.name, reason: `Trial ends in ${days}d — needs conversion`, urgency: 'high' })
+        }
+      }
+      if (t.jobsThisMonth === 0 && t.userCount <= 1 && !seen.has(t.id)) {
+        seen.add(t.id); items.push({ tenantId: t.id, tenantName: t.name, reason: 'No jobs created, no team invited — likely lost', urgency: 'medium' })
+      }
+      const inactive = Math.floor((Date.now() - new Date(t.lastActivity).getTime()) / 86400000)
+      if (inactive > 10 && !seen.has(t.id)) {
+        seen.add(t.id); items.push({ tenantId: t.id, tenantName: t.name, reason: `No activity in ${inactive} days`, urgency: 'low' })
+      }
+    }
+    return items.sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.urgency] - { high: 0, medium: 1, low: 2 }[b.urgency])).slice(0, 6)
+  }, [tenants])
+
+  const mostEngaged = useMemo(() =>
+    [...tenants]
+      .filter(t => t.subscriptionStatus !== 'cancelled')
+      .sort((a, b) => (b.jobsThisMonth * 3 + b.userCount * 2) - (a.jobsThisMonth * 3 + a.userCount * 2))
+      .slice(0, 5)
+  , [tenants])
+
+  const conversionRate = (() => {
+    const converted = stats.activeCount
+    const total = stats.activeCount + tenants.filter(t => t.subscriptionStatus === 'cancelled').length
+    return total > 0 ? Math.round((converted / total) * 100) : null
+  })()
+
   const statusBreakdown = [
     { label: 'Active',    count: stats.activeCount,  color: 'var(--green)', bg: 'rgba(34,197,94,.12)' },
     { label: 'Trialing',  count: stats.trialCount,   color: '#5ba3f5',      bg: 'rgba(91,163,245,.12)' },
@@ -169,15 +212,38 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
     { label: 'Cancelled', count: tenants.filter(t => t.subscriptionStatus === 'cancelled').length, color: 'var(--text4)', bg: 'var(--bg3)' },
   ]
 
+  const URGENCY_COLOR: Record<string, string> = { high: 'var(--red)', medium: 'var(--amber)', low: 'var(--text4)' }
+  const URGENCY_ICON: Record<string, string>  = { high: '🔴', medium: '🟡', low: '⚪' }
+
   const PlatformDashboard = () => (
     <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px 16px' : '20px 24px' }}>
       {/* Main KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
         {[
-          { value: `$${stats.mrr.toLocaleString()}`, label: 'Monthly Revenue', sub: `${stats.activeCount} paying accounts`, color: stats.mrr > 0 ? 'var(--green)' : 'var(--text4)' },
-          { value: `$${Math.round(totalRevenue).toLocaleString()}`, label: 'Total Revenue', sub: 'All time payments collected', color: totalRevenue > 0 ? 'var(--text)' : 'var(--text4)' },
-          { value: String(stats.totalTenants), label: 'Total Workspaces', sub: `${newThisMonth} joined this month`, color: 'var(--text)' },
-          { value: String(stats.totalUsers), label: 'Total Users', sub: `Across all workspaces`, color: 'var(--text)' },
+          {
+            value: `$${stats.mrr.toLocaleString()}`,
+            label: 'Your MRR',
+            sub: `${stats.activeCount} paying account${stats.activeCount !== 1 ? 's' : ''}`,
+            color: stats.mrr > 0 ? 'var(--green)' : 'var(--text4)',
+          },
+          {
+            value: String(trialsAtRisk.length),
+            label: 'Trials at Risk',
+            sub: trialsAtRisk.length > 0 ? 'Expiring within 7 days' : 'No trials expiring soon',
+            color: trialsAtRisk.length > 0 ? 'var(--red)' : 'var(--green)',
+          },
+          {
+            value: String(stats.totalTenants),
+            label: 'Total Workspaces',
+            sub: `${newThisMonth} joined this month`,
+            color: 'var(--text)',
+          },
+          {
+            value: String(stats.totalUsers),
+            label: 'Total Users',
+            sub: stats.totalTenants > 0 ? `${(stats.totalUsers / stats.totalTenants).toFixed(1)} avg per workspace` : 'Across all workspaces',
+            color: 'var(--text)',
+          },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
             <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: k.color, letterSpacing: '-.5px', marginBottom: 4 }}>{k.value}</div>
@@ -188,7 +254,7 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        {/* Status breakdown */}
+        {/* Subscription breakdown */}
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Subscription Breakdown</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -209,17 +275,18 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
           </div>
         </div>
 
-        {/* Platform activity */}
+        {/* Platform metrics */}
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Platform Activity</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Platform Metrics</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {[
-              { label: 'Jobs this month', value: String(stats.totalJobsThisMonth), color: 'var(--text)' },
-              { label: 'Total jobs all time', value: String(stats.totalJobs), color: 'var(--text)' },
-              { label: 'Avg users per workspace', value: stats.totalTenants > 0 ? (stats.totalUsers / stats.totalTenants).toFixed(1) : '0', color: 'var(--text)' },
-              { label: 'MRR per active account', value: stats.activeCount > 0 ? `$${Math.round(stats.mrr / stats.activeCount)}` : '—', color: 'var(--green)' },
+              { label: 'Jobs created this month',    value: String(stats.totalJobsThisMonth), color: 'var(--text)' },
+              { label: 'Total jobs all time',         value: String(stats.totalJobs),          color: 'var(--text)' },
+              { label: 'Trial → paid conversion',     value: conversionRate !== null ? `${conversionRate}%` : 'No data yet', color: conversionRate !== null && conversionRate > 50 ? 'var(--green)' : 'var(--amber)' },
+              { label: 'Needs attention',             value: String(needsAttention.length),   color: needsAttention.length > 0 ? 'var(--amber)' : 'var(--green)' },
+              { label: 'Alerts active',               value: String(alerts.length),            color: alerts.length > 0 ? 'var(--red)' : 'var(--green)' },
             ].map(r => (
-              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ fontSize: 12, color: 'var(--text3)' }}>{r.label}</span>
                 <span style={{ fontSize: 14, fontWeight: 800, color: r.color }}>{r.value}</span>
               </div>
@@ -229,49 +296,54 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-        {/* Top tenants by revenue */}
+        {/* Most engaged accounts */}
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>Top Accounts by Revenue</div>
-          {topTenants.length === 0 ? (
-            <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center', padding: '20px 0' }}>No revenue data yet</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Most Engaged</div>
+          <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 14 }}>Ranked by jobs this month + team size</div>
+          {mostEngaged.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center', padding: '20px 0' }}>No active workspaces yet</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {topTenants.map((t, i) => (
+              {mostEngaged.map((t, i) => (
                 <div key={t.id} onClick={() => { setMainTab('tenants'); openDetail(t.id) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                  <div style={{ width: 22, height: 22, borderRadius: 6, background: i === 0 ? 'rgba(245,158,11,.15)' : 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: i === 0 ? 'var(--amber)' : 'var(--text4)', flexShrink: 0 }}>
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: i === 0 ? 'rgba(245,158,11,.05)' : 'transparent', border: i === 0 ? '1px solid rgba(245,158,11,.15)' : '1px solid transparent' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--bg3)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = i === 0 ? 'rgba(245,158,11,.05)' : 'transparent'}>
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: i === 0 ? 'rgba(245,158,11,.2)' : 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: i === 0 ? 'var(--amber)' : 'var(--text4)', flexShrink: 0 }}>
                     {i + 1}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text4)' }}>{t.userCount} users</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text4)' }}>{t.jobsThisMonth} jobs · {t.userCount} users · {relativeTime(t.lastActivity)}</div>
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: t.totalRevenue > 0 ? 'var(--green)' : 'var(--text4)', flexShrink: 0 }}>
-                    ${Math.round(t.totalRevenue).toLocaleString()}
-                  </div>
+                  <div style={{ fontSize: 18, color: 'var(--text4)', flexShrink: 0 }}>→</div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Alerts */}
+        {/* Needs attention — actionable churn prevention */}
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 14 }}>
-            Alerts {alerts.length > 0 && <span style={{ color: 'var(--red)' }}>· {alerts.length}</span>}
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>
+            Needs Attention {needsAttention.length > 0 && <span style={{ color: 'var(--amber)' }}>· {needsAttention.length}</span>}
           </div>
-          {alerts.length === 0 ? (
-            <div style={{ fontSize: 12, color: 'var(--green)', textAlign: 'center', padding: '20px 0' }}>✓ All clear</div>
+          <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 14 }}>Click to open account and email the admin</div>
+          {needsAttention.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--green)', textAlign: 'center', padding: '20px 0' }}>✓ All accounts healthy</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {alerts.slice(0, 6).map((a, i) => (
+              {needsAttention.map((a, i) => (
                 <div key={i} onClick={() => { setMainTab('tenants'); openDetail(a.tenantId) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}>
-                  <span style={{ fontSize: 14, color: ALERT_COLOR[a.type] }}>{ALERT_ICON[a.type]}</span>
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: 'var(--bg3)', borderRadius: 8, border: `1px solid var(--border)`, cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--bg4)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'var(--bg3)'}>
+                  <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{URGENCY_ICON[a.urgency]}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.tenantName}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text4)' }}>{a.msg}</div>
+                    <div style={{ fontSize: 10, color: URGENCY_COLOR[a.urgency], marginTop: 2 }}>{a.reason}</div>
                   </div>
+                  <span style={{ fontSize: 11, color: 'var(--text4)', flexShrink: 0, marginTop: 2 }}>→</span>
                 </div>
               ))}
             </div>
