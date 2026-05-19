@@ -41,6 +41,13 @@ export default function BillingClient({
     ? new Date(currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null
 
+  const [showDisclosure, setShowDisclosure] = useState(false)
+  const [disclosureAccepted, setDisclosureAccepted] = useState(false)
+
+  function handleSubscribeClick() {
+    setShowDisclosure(true)
+  }
+
   async function startCheckout() {
     setLoading('checkout')
     try {
@@ -118,7 +125,7 @@ export default function BillingClient({
         <div style={{ marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {(subscriptionStatus === 'trialing' || subscriptionStatus === 'cancelled') && (
             <button
-              onClick={startCheckout}
+              onClick={handleSubscribeClick}
               disabled={loading !== null}
               style={{ padding: '11px 22px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}
             >
@@ -160,6 +167,51 @@ export default function BillingClient({
           ))}
         </div>
       </div>
+
+      {/* Subscription disclosure modal — FTC Negative Option Rule & CA ARL compliance */}
+      {showDisclosure && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: '28px 28px 24px', maxWidth: 440, width: '100%', boxShadow: '0 24px 80px rgba(0,0,0,.5)' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', marginBottom: 16 }}>Subscription Terms</div>
+
+            <div style={{ background: 'var(--bg3)', borderRadius: 10, padding: '14px 16px', marginBottom: 18, fontSize: 13, color: 'var(--text3)', lineHeight: 1.7 }}>
+              <div style={{ marginBottom: 8 }}><strong style={{ color: 'var(--text)' }}>Billing:</strong> $39/mo base + $12/mo per active user</div>
+              <div style={{ marginBottom: 8 }}><strong style={{ color: 'var(--text)' }}>Renewal:</strong> Automatically renews monthly until cancelled</div>
+              <div style={{ marginBottom: 8 }}><strong style={{ color: 'var(--text)' }}>Cancellation:</strong> Cancel anytime from Billing → Manage billing. No penalty. Access continues through the end of the paid period.</div>
+              <div><strong style={{ color: 'var(--text)' }}>First charge:</strong> Immediately upon subscribing</div>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 20 }}>
+              <input
+                type="checkbox"
+                checked={disclosureAccepted}
+                onChange={e => setDisclosureAccepted(e.target.checked)}
+                style={{ marginTop: 2, flexShrink: 0, width: 16, height: 16, cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.6 }}>
+                I understand that WorkForge Pro automatically renews monthly and I authorize recurring charges until I cancel. I agree to the{' '}
+                <a href="/terms" target="_blank" style={{ color: 'var(--amber)', textDecoration: 'none', fontWeight: 700 }}>Terms of Service</a>.
+              </span>
+            </label>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { setShowDisclosure(false); setDisclosureAccepted(false) }}
+                style={{ flex: 1, padding: '11px 0', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, fontSize: 13, fontWeight: 700, color: 'var(--text3)', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setShowDisclosure(false); startCheckout() }}
+                disabled={!disclosureAccepted || loading !== null}
+                style={{ flex: 1, padding: '11px 0', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: !disclosureAccepted ? 'not-allowed' : 'pointer', opacity: !disclosureAccepted ? 0.5 : 1 }}
+              >
+                Continue to Payment →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

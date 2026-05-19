@@ -3,13 +3,20 @@ import { Resend } from 'resend'
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 const FROM = process.env.EMAIL_FROM ?? 'WorkForge <no-reply@getworkforge.com>'
 
-function baseTemplate(body: string) {
+function baseTemplate(body: string, { marketing = false }: { marketing?: boolean } = {}) {
   return `
     <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#1a1a2e">
       ${body}
-      <p style="color:#999;font-size:11px;margin-top:32px;border-top:1px solid #eee;padding-top:12px">
-        WorkForge Field Operations
-      </p>
+      <div style="margin-top:32px;border-top:1px solid #eee;padding-top:16px">
+        <p style="color:#999;font-size:11px;margin:0 0 6px">
+          WorkForge Field Operations · 11814 Whisper Creek Dr, Riverview, FL 33569
+        </p>
+        <p style="color:#bbb;font-size:11px;margin:0">
+          ${marketing
+            ? 'You received this email because you opted in to WorkForge updates. <a href="%unsubscribe_url%" style="color:#bbb">Unsubscribe</a>.'
+            : 'This is a transactional email related to your WorkForge account.'}
+        </p>
+      </div>
     </div>
   `
 }
@@ -115,9 +122,37 @@ export async function emailInvite(to: string, companyName: string, role: string,
     subject: `[WorkForge] You've been invited to join ${companyName}`,
     html: baseTemplate(`
       <h2 style="margin-bottom:4px">You're invited!</h2>
-      <p>You've been invited to join <strong>${companyName}</strong> on WorkForge as a <strong>${role}</strong>.</p>
+      <p>An administrator at <strong>${companyName}</strong> has invited you to join their workspace on WorkForge as a <strong>${role}</strong>.</p>
       <a href="${inviteUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:14px;text-decoration:none">Accept Invitation →</a>
-      <p style="font-size:12px;color:#999">This invitation expires in 7 days. If you weren't expecting this, you can ignore it.</p>
+      <p style="font-size:12px;color:#999">This invitation expires in 7 days. If you weren't expecting this invite, you can safely ignore this email — no account will be created without your action.</p>
+    `),
+  }).catch(console.error)
+}
+
+export async function emailSubscriptionConfirmation(
+  to: string,
+  name: string,
+  tenantName: string,
+  renewDate: string,
+  portalUrl: string,
+) {
+  if (!resend) return
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: '[WorkForge] Subscription confirmed — you\'re all set',
+    html: baseTemplate(`
+      <h2 style="margin-bottom:4px">Hi ${name},</h2>
+      <p>Your WorkForge Pro subscription for <strong>${tenantName}</strong> is now active.</p>
+      ${table([
+        ['Plan', 'WorkForge Pro'],
+        ['Billing', '$39/mo base + $12/user/mo'],
+        ['Renews', renewDate],
+        ['Cancellation', 'Anytime — no penalty'],
+      ])}
+      <p style="margin-top:20px;font-size:13px">To manage your subscription, update payment info, or cancel, visit your billing portal:</p>
+      <a href="${portalUrl}" style="display:inline-block;margin:12px 0 20px;padding:11px 24px;background:#f59e0b;color:#080c1a;border-radius:10px;font-weight:800;font-size:13px;text-decoration:none">Manage Billing →</a>
+      <p style="font-size:12px;color:#999">Questions? Contact us at support@getworkforge.com</p>
     `),
   }).catch(console.error)
 }
