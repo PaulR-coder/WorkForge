@@ -32,6 +32,12 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const tenantId = requireTenantId(session)
+  const tenantFilter = getTenantFilter(session)
+
+  if (body.techId != null) {
+    const tech = await prisma.user.findFirst({ where: { id: body.techId, ...tenantFilter } })
+    if (!tech) return Response.json({ error: 'Invalid technician' }, { status: 400 })
+  }
 
   const job = await prisma.job.create({
     data: {

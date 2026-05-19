@@ -20,16 +20,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return Response.json(photos)
 }
 
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const { data, mimeType } = await req.json()
+  const { data } = await req.json()
 
-  if (!data || typeof data !== 'string' || !data.startsWith('data:image/')) {
+  if (!data || typeof data !== 'string') {
     return Response.json({ error: 'Invalid image data' }, { status: 400 })
   }
+
+  // Extract and validate MIME type from the data URI itself — never trust client-supplied mimeType
+  const mimeMatch = data.match(/^data:(image\/[a-z0-9.+-]+);base64,/)
+  if (!mimeMatch) return Response.json({ error: 'Invalid image format' }, { status: 400 })
+  const mimeType = mimeMatch[1]
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+    return Response.json({ error: 'Unsupported image type' }, { status: 415 })
+  }
+
   // Sanity-check size: base64 of 4MB = ~5.5MB string
   if (data.length > 6_000_000) {
     return Response.json({ error: 'Image too large' }, { status: 413 })
@@ -44,7 +55,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       jobId: id,
       authorId: session.id,
       data,
-      mimeType: mimeType ?? 'image/jpeg',
+      mimeType,
       tenantId: session.tenantId,
     },
     select: { id: true, data: true, mimeType: true, createdAt: true, author: { select: { name: true, initials: true } } },

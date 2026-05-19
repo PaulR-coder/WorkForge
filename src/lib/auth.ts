@@ -29,7 +29,7 @@ export async function verifyPassword(password: string, hash: string) {
 }
 
 export function signToken(user: SessionUser): string {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' })
+  return jwt.sign(user, JWT_SECRET, { expiresIn: '24h' })
 }
 
 export function verifyToken(token: string): SessionUser | null {
@@ -54,7 +54,7 @@ export async function setSession(user: SessionUser) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 60 * 60 * 24,
     path: '/',
   })
 }

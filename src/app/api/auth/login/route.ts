@@ -24,6 +24,9 @@ export async function POST(req: Request) {
 
   const valid = await verifyPassword(password, user.password)
   if (!valid) {
+    void prisma.auditLog.create({
+      data: { icon: '🔐', action: 'Login failed', detail: `${user.email} — wrong password`, severity: 'warn', userId: user.id, tenantId: user.tenantId },
+    })
     return Response.json({ error: 'Invalid credentials' }, { status: 401 })
   }
 

@@ -29,18 +29,28 @@ export async function POST(req: Request) {
   const tenantId = requireTenantId(session)
   const tenantFilter = getTenantFilter(session)
 
+  const labor = Number(body.labor ?? 0)
+  const parts = Number(body.parts ?? 0)
+  const surcharge = Number(body.surcharge ?? 0)
+  if (labor < 0 || parts < 0 || surcharge < 0 || labor > 1_000_000 || parts > 1_000_000 || surcharge > 1_000_000) {
+    return Response.json({ error: 'Invalid invoice amounts' }, { status: 400 })
+  }
+  if (!body.client || typeof body.client !== 'string' || body.client.trim().length === 0) {
+    return Response.json({ error: 'Client name is required' }, { status: 400 })
+  }
+
   const count = await prisma.invoice.count({ where: tenantFilter })
   const number = `INV-${String(count + 100).padStart(3, '0')}`
 
   const invoice = await prisma.invoice.create({
     data: {
       number,
-      client: body.client,
+      client: body.client.trim(),
       jobId: body.jobId ?? null,
-      labor: body.labor ?? 0,
-      parts: body.parts ?? 0,
-      surcharge: body.surcharge ?? 0,
-      total: (body.labor ?? 0) + (body.parts ?? 0) + (body.surcharge ?? 0),
+      labor,
+      parts,
+      surcharge,
+      total: labor + parts + surcharge,
       status: 'draft',
       dueDate: new Date(Date.now() + 15 * 86400000),
       tenantId,

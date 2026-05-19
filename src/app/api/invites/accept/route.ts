@@ -5,6 +5,7 @@ export async function POST(req: Request) {
   const { token, name, password } = await req.json()
   if (!token || !name || !password) return Response.json({ error: 'Missing fields' }, { status: 400 })
   if (password.length < 8) return Response.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+  if (password.length > 128) return Response.json({ error: 'Password must be 128 characters or fewer' }, { status: 400 })
 
   const invite = await prisma.invite.findUnique({ where: { token } })
   if (!invite || invite.usedAt || invite.expiresAt < new Date()) {

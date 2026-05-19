@@ -1,3 +1,11 @@
+// NOTE: This rate limiter is in-process only. Counts are not shared across Railway
+// instances if you scale horizontally. For production-grade rate limiting, configure
+// a Cloudflare WAF rate-limit rule at the edge (Cloudflare Dashboard → Security →
+// WAF → Rate limiting rules). That sits in front of all instances and is far more
+// effective than anything we can do in-app. The in-process limiter here still
+// provides meaningful protection for single-instance deployments and adds friction
+// even in multi-instance scenarios.
+
 type Window = { count: number; resetAt: number }
 
 const store = new Map<string, Window>()

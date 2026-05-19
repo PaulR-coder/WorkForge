@@ -26,6 +26,14 @@ export async function POST(req: Request) {
   const body = await req.json()
   const tenantId = requireTenantId(session)
 
+  const VALID_METHODS = ['card', 'cash', 'check', 'digital', 'other']
+  if (!body.method || !VALID_METHODS.includes(body.method)) {
+    return Response.json({ error: 'Invalid payment method' }, { status: 400 })
+  }
+  if (typeof body.amount !== 'number' || body.amount <= 0 || body.amount > 1_000_000) {
+    return Response.json({ error: 'Amount must be a positive number' }, { status: 400 })
+  }
+
   const payment = await prisma.payment.create({
     data: {
       jobId: body.jobId ?? null,
