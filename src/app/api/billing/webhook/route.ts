@@ -17,9 +17,17 @@ export async function POST(req: Request) {
   async function syncSubscription(sub: Stripe.Subscription) {
     const tenantId = sub.metadata?.tenantId
     if (!tenantId) return
+
+    // Verify the tenant exists and the Stripe customer matches before updating
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { id: true, stripeCustomerId: true } })
+    if (!tenant) return
+    const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id
+    if (tenant.stripeCustomerId && tenant.stripeCustomerId !== customerId) return
+
     await prisma.tenant.update({
       where: { id: tenantId },
       data: {
+        stripeCustomerId: customerId ?? undefined,
         stripeSubscriptionId: sub.id,
         subscriptionStatus: sub.status,
         currentPeriodEnd: new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000),

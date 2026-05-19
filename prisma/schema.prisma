@@ -106,6 +106,7 @@ model User {
 
   emailVerified    Boolean   @default(true)
   verifyToken      String?   @unique
+  verifyTokenExpiry DateTime?
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
 

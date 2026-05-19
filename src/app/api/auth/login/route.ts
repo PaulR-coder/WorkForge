@@ -14,7 +14,10 @@ export async function POST(req: Request) {
 
   const { email, password } = await req.json()
 
-  const user = await prisma.user.findUnique({ where: { email } })
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { tenant: { select: { active: true, subscriptionStatus: true } } },
+  })
   if (!user || !user.active) {
     return Response.json({ error: 'Invalid credentials' }, { status: 401 })
   }
@@ -22,6 +25,13 @@ export async function POST(req: Request) {
   const valid = await verifyPassword(password, user.password)
   if (!valid) {
     return Response.json({ error: 'Invalid credentials' }, { status: 401 })
+  }
+
+  // Block login for suspended/disabled tenants (superadmin bypasses this check)
+  if (user.role !== 'superadmin' && user.tenant) {
+    if (!user.tenant.active || user.tenant.subscriptionStatus === 'suspended') {
+      return Response.json({ error: 'Your workspace has been suspended. Contact support@getworkforge.com.' }, { status: 403 })
+    }
   }
 
   if (!user.emailVerified) {

@@ -5,6 +5,7 @@ export async function POST(req: Request) {
   const { token, password } = await req.json()
   if (!token || !password) return Response.json({ error: 'Missing fields' }, { status: 400 })
   if (password.length < 8) return Response.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+  if (password.length > 128) return Response.json({ error: 'Password must be 128 characters or fewer' }, { status: 400 })
 
   const user = await prisma.user.findUnique({ where: { resetToken: token } })
   if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {

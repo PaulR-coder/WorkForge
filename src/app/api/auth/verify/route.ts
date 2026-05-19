@@ -9,9 +9,13 @@ export async function GET(req: Request) {
   const user = await prisma.user.findUnique({ where: { verifyToken: token } })
   if (!user) return Response.json({ error: 'Invalid or expired verification link' }, { status: 400 })
 
+  if (user.verifyTokenExpiry && user.verifyTokenExpiry < new Date()) {
+    return Response.json({ error: 'This verification link has expired. Please request a new one.' }, { status: 400 })
+  }
+
   await prisma.user.update({
     where: { id: user.id },
-    data: { emailVerified: true, verifyToken: null },
+    data: { emailVerified: true, verifyToken: null, verifyTokenExpiry: null },
   })
 
   await setSession({

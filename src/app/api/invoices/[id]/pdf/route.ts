@@ -8,8 +8,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!can(session.role, 'viewFinancials')) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const inv = await prisma.invoice.findUnique({
-    where: { id },
+  const tenantWhere = session.role === 'superadmin' ? { id } : { id, tenantId: session.tenantId }
+  const inv = await prisma.invoice.findFirst({
+    where: tenantWhere,
     include: { job: { include: { tech: { select: { name: true } } } } },
   })
   if (!inv) return Response.json({ error: 'Not found' }, { status: 404 })

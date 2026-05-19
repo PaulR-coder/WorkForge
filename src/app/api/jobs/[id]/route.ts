@@ -38,6 +38,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true } })
   if (!prev) return Response.json({ error: 'Not found' }, { status: 404 })
 
+  // Validate the technician belongs to this tenant before assigning
+  if (body.techId !== undefined && body.techId !== null) {
+    const tech = await prisma.user.findFirst({ where: { id: body.techId, ...tenantFilter } })
+    if (!tech) return Response.json({ error: 'Invalid technician' }, { status: 400 })
+  }
+
   const job = await prisma.job.update({
     where: { id },
     data: {

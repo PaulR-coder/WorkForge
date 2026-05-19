@@ -55,6 +55,9 @@ export async function POST(req: Request) {
   if (password.length < 8) {
     return Response.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
   }
+  if (password.length > 128) {
+    return Response.json({ error: 'Password must be 128 characters or fewer' }, { status: 400 })
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) return Response.json({ error: 'Email already registered' }, { status: 409 })
@@ -66,6 +69,7 @@ export async function POST(req: Request) {
   const hashed = await hashPassword(password)
   const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
   const verifyToken = randomBytes(32).toString('hex')
+  const verifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
   await prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({ data: { name: companyName, slug } })
@@ -73,7 +77,7 @@ export async function POST(req: Request) {
       data: {
         name, email, password: hashed, role: 'admin', initials,
         company: companyName, tenantId: tenant.id,
-        emailVerified: false, verifyToken,
+        emailVerified: false, verifyToken, verifyTokenExpiry,
       },
     })
     await tx.auditLog.create({

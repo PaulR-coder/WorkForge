@@ -3,8 +3,11 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import type { Role } from '@/generated/prisma/client'
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'workforge-dev-secret'
+const jwtSecret = process.env.JWT_SECRET
+if (!jwtSecret) throw new Error('JWT_SECRET environment variable is not set')
+const JWT_SECRET = jwtSecret
 const COOKIE_NAME = 'wf_session'
+const REAL_SESSION_COOKIE = 'wf_real_session'
 
 export interface SessionUser {
   id: string

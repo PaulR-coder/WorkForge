@@ -32,9 +32,17 @@ export function rateLimit(
 }
 
 export function getIp(req: Request): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
-    req.headers.get('x-real-ip') ??
-    'unknown'
-  )
+  // cf-connecting-ip is set by Cloudflare and cannot be spoofed by clients
+  const cf = req.headers.get('cf-connecting-ip')
+  if (cf) return cf.trim()
+
+  // Fall back to the LAST (rightmost) entry in x-forwarded-for, which is the
+  // IP added by our own proxy — earlier entries can be forged by the client
+  const xff = req.headers.get('x-forwarded-for')
+  if (xff) {
+    const ips = xff.split(',').map(s => s.trim()).filter(Boolean)
+    if (ips.length > 0) return ips[ips.length - 1]
+  }
+
+  return req.headers.get('x-real-ip') ?? 'unknown'
 }

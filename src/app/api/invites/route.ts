@@ -51,6 +51,11 @@ export async function POST(req: Request) {
   const { email, role } = await req.json()
   if (!email || !role) return Response.json({ error: 'Email and role required' }, { status: 400 })
 
+  const INVITABLE_ROLES = ['admin', 'dispatcher', 'tech']
+  if (!INVITABLE_ROLES.includes(role)) {
+    return Response.json({ error: 'Invalid role' }, { status: 400 })
+  }
+
   const tenantId = requireTenantId(session)
 
   const existing = await prisma.user.findUnique({ where: { email } })
