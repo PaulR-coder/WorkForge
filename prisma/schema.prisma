@@ -162,6 +162,11 @@ model Job {
   equipment Equipment[] @relation("JobEquipment")
 
   @@index([tenantId])
+  @@index([techId])
+  @@index([contractId])
+  @@index([status])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
 }
 
 model Invoice {
@@ -186,6 +191,9 @@ model Invoice {
   payments Payment[]
 
   @@index([tenantId])
+  @@index([jobId])
+  @@index([status])
+  @@index([tenantId, createdAt])
 }
 
 model Payment {
@@ -209,6 +217,8 @@ model Payment {
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+  @@index([jobId])
+  @@index([tenantId, createdAt])
 }
 
 model Equipment {
@@ -273,6 +283,7 @@ model Message {
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+  @@index([jobId])
 }
 
 model NotificationRule {
@@ -306,6 +317,10 @@ model AuditLog {
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([severity, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model Photo {
