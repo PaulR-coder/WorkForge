@@ -64,6 +64,7 @@ export function OfflineBanner() {
 
     const onOffline = () => {
       setMode('offline')
+      setConflictCount(0)
       navigator.serviceWorker?.controller?.postMessage({ type: 'GET_QUEUE_COUNT' })
     }
 

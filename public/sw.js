@@ -15,7 +15,6 @@ const BYPASS_PREFIXES = [
   '/api/seed',
   '/api/register',
   '/api/invites/accept',
-  '/api/invoices/',
 ]
 
 // Headers that must not be replayed (browser-computed or Next.js-internal)

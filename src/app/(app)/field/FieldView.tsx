@@ -112,7 +112,10 @@ export default function FieldView({ initialJobs, session }: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: msgInput.trim() }),
     })
-    if (res.ok) {
+    if (res.status === 202) {
+      // Queued offline — clear input; message will appear in thread after sync
+      setMsgInput('')
+    } else if (res.ok) {
       const msg = await res.json()
       setMessages(prev => ({ ...prev, [expandedId]: [...(prev[expandedId] ?? []), msg] }))
       setMsgInput('')
@@ -130,10 +133,11 @@ export default function FieldView({ initialJobs, session }: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data, mimeType: 'image/jpeg' }),
       })
-      if (res.ok) {
+      if (res.ok && res.status !== 202) {
         const photo = await res.json()
         setPhotos(prev => ({ ...prev, [expandedId]: [...(prev[expandedId] ?? []), photo] }))
       }
+      // 202: photo queued offline — will appear in grid after background sync
     } catch {}
     setUploadingPhoto(false)
     if (photoInputRef.current) photoInputRef.current.value = ''

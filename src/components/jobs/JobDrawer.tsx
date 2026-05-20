@@ -118,7 +118,12 @@ export default function JobDrawer({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
-    if (res.ok) {
+    if (res.status === 202) {
+      setJob(prev => prev ? { ...prev, status } : null)
+      onJobUpdate({ id: job.id, status, tech: job.tech })
+      toast(`Job marked ${status === 'done' ? 'complete' : status.replace('_', ' ')}`, 'success')
+      if (status === 'done') setShowInvoicePrompt(true)
+    } else if (res.ok) {
       const updated = await res.json()
       setJob(prev => prev ? { ...prev, status: updated.status, completedAt: updated.completedAt } : null)
       onJobUpdate({ id: job.id, status: updated.status, tech: updated.tech })
@@ -158,7 +163,11 @@ export default function JobDrawer({
         ...(scheduledAt ? { status: 'scheduled' } : {}),
       }),
     })
-    if (res.ok) {
+    if (res.status === 202) {
+      const newStatus = scheduledAt ? 'scheduled' : job.status
+      setJob(prev => prev ? { ...prev, scheduledAt: scheduledAt ?? null, status: newStatus } : null)
+      onJobUpdate({ id: job.id, status: newStatus, tech: job.tech })
+    } else if (res.ok) {
       const updated = await res.json()
       setJob(prev => prev ? { ...prev, scheduledAt: updated.scheduledAt ?? null, status: updated.status } : null)
       onJobUpdate({ id: job.id, status: updated.status, tech: updated.tech })
@@ -179,7 +188,12 @@ export default function JobDrawer({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(editForm),
     })
-    if (res.ok) {
+    if (res.status === 202) {
+      setJob(prev => prev ? { ...prev, ...editForm } : null)
+      onJobUpdate({ id: job.id, status: job.status, tech: job.tech })
+      setEditingDetails(false)
+      toast('Details saved', 'success')
+    } else if (res.ok) {
       const updated = await res.json()
       setJob(prev => prev ? { ...prev, client: updated.client, address: updated.address, type: updated.type, priority: updated.priority, description: updated.description ?? '' } : null)
       onJobUpdate({ id: job.id, status: job.status, tech: job.tech })
@@ -217,7 +231,9 @@ export default function JobDrawer({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body: msgText.trim() }),
     })
-    if (res.ok) {
+    if (res.status === 202) {
+      setMsgText('')
+    } else if (res.ok) {
       const msg = await res.json()
       setJob(prev => prev ? { ...prev, messages: [...prev.messages, msg] } : null)
       setMsgText('')

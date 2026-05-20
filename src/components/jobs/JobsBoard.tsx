@@ -9,7 +9,7 @@ import type { TKeys } from '@/lib/i18n'
 import JobDrawer from './JobDrawer'
 import PaymentOverlay from './PaymentOverlay'
 import { useToast } from '@/components/Toast'
-import { getPendingJobs, subscribePendingJobs } from '@/lib/pendingJobs'
+import { getPendingJobs, subscribePendingJobs, addPendingJob } from '@/lib/pendingJobs'
 
 type Job = {
   id: string
@@ -49,16 +49,23 @@ export default function JobsBoard({ initialJobs, users, session }: {
   const [drawerJobId, setDrawerJobId] = useState<string | null>(null)
   const [paymentJob, setPaymentJob] = useState<{ id: string; client: string } | null>(null)
   const [lastSync, setLastSync] = useState(Date.now())
+  const [, setTick] = useState(0)
   const { t } = useLang()
   const isMobile = useIsMobile()
   const { toast } = useToast()
 
   useEffect(() => subscribePendingJobs(setPendingIds), [])
 
+  // Tick every second so the "Synced Xs ago" counter stays live
+  useEffect(() => {
+    const id = setInterval(() => setTick(n => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const pollJobs = useCallback(async () => {
     try {
       const res = await fetch('/api/jobs')
-      if (res.ok) {
+      if (res.ok && !res.headers.get('X-WF-Offline')) {
         const fresh: Job[] = await res.json()
         setJobs(fresh)
         setLastSync(Date.now())
@@ -73,11 +80,12 @@ export default function JobsBoard({ initialJobs, users, session }: {
 
   async function moveJob(jobId: string, newStatus: string) {
     setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus } : j))
-    await fetch(`/api/jobs/${jobId}`, {
+    const res = await fetch(`/api/jobs/${jobId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     })
+    if (res.status === 202) addPendingJob(jobId)
   }
 
   async function createJob() {
@@ -95,7 +103,8 @@ export default function JobsBoard({ initialJobs, users, session }: {
       setForm({ client: '', address: '', type: 'HVAC', priority: 'normal', description: '', techId: '' })
       toast('Work order created', 'success')
     } else {
-      toast('Failed to create job', 'error')
+      const body = await res.json().catch(() => ({}))
+      toast(body.cannotQueue ? 'Can\'t create jobs offline — reconnect first' : 'Failed to create job', 'error')
     }
     setSaving(false)
   }
