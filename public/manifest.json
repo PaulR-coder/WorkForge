@@ -1,0 +1,19 @@
+{
+  "name": "WorkForge",
+  "short_name": "WorkForge",
+  "description": "Field operations management for service businesses",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#080c1a",
+  "theme_color": "#f59e0b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
