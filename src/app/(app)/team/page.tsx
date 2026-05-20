@@ -2,13 +2,11 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import TeamCard from './TeamCard'
 import InviteButton from './InviteButton'
 import PendingInvites from './PendingInvites'
+import TeamMapWrapper from './TeamMapWrapper'
 import { getTenantFilter } from '@/lib/tenant'
-
-const TeamMap = dynamic(() => import('./TeamMap'), { ssr: false })
 
 export default async function TeamPage() {
   const session = await getSession()
@@ -54,7 +52,7 @@ export default async function TeamPage() {
         <PendingInvites initialInvites={invites.map(i => ({ ...i, createdAt: i.createdAt.toISOString(), expiresAt: i.expiresAt.toISOString() }))} />
       )}
 
-      {canViewMap && <TeamMap />}
+      {canViewMap && <TeamMapWrapper />}
     </div>
   )
 }
