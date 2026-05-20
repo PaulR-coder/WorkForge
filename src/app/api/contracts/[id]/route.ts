@@ -12,8 +12,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json()
   const tenantFilter = getTenantFilter(session)
 
-  const existing = await prisma.contract.findFirst({ where: { id, ...tenantFilter } })
+  const existing = await prisma.contract.findFirst({ where: { id, ...tenantFilter }, select: { updatedAt: true, name: true, client: true } })
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  const queuedAt = req.headers.get('x-wf-queued-at')
+  if (queuedAt) {
+    const queuedDate = new Date(queuedAt)
+    if (!isNaN(queuedDate.getTime()) && existing.updatedAt > queuedDate) {
+      return Response.json({ error: 'conflict', message: 'Contract was updated while you were offline' }, { status: 409 })
+    }
+  }
 
   const contract = await prisma.contract.update({
     where: { id },

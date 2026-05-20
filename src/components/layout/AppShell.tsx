@@ -148,6 +148,14 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   const bottomTabs = BOTTOM_TABS[session.role] ?? BOTTOM_TABS.tech
 
   async function handleLogout() {
+    // Wipe offline caches before logging out so the next user on this device
+    // doesn't see a flash of the previous user's page or API data.
+    const sw = navigator.serviceWorker?.controller
+    if (sw) sw.postMessage({ type: 'CLEAR_USER_DATA' })
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('wf-'))
+      .forEach(k => localStorage.removeItem(k))
+
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
     router.refresh()

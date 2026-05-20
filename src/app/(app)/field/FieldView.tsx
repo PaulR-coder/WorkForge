@@ -5,6 +5,7 @@ import type { SessionUser } from '@/lib/auth'
 import { useLang } from '@/components/LangProvider'
 import type { TKeys } from '@/lib/i18n'
 import PaymentOverlay from '@/components/jobs/PaymentOverlay'
+import { getPendingJobs, subscribePendingJobs, addPendingJob } from '@/lib/pendingJobs'
 
 type Message = {
   id: string; body: string; createdAt: string
@@ -56,6 +57,7 @@ export default function FieldView({ initialJobs, session }: {
   session: SessionUser
 }) {
   const [jobs, setJobs] = useState<Job[]>(initialJobs)
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set(getPendingJobs()))
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [paymentJob, setPaymentJob] = useState<{ id: string; client: string } | null>(null)
   const [loading, setLoading] = useState<string | null>(null)
@@ -68,6 +70,8 @@ export default function FieldView({ initialJobs, session }: {
   const msgBottomRef = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const { t } = useLang()
+
+  useEffect(() => subscribePendingJobs(setPendingIds), [])
 
   // Fetch messages when a job is expanded, then poll every 15s
   useEffect(() => {
@@ -157,6 +161,11 @@ export default function FieldView({ initialJobs, session }: {
       body: JSON.stringify({ status: next.next }),
     })
     if (res.ok) {
+      // 202 means the mutation was queued offline — mark the job as pending
+      // so the tech sees it's not yet synced even if they reload the page.
+      if (res.status === 202) {
+        addPendingJob(job.id)
+      }
       if (next.next === 'done') {
         setJobs(prev => prev.filter(j => j.id !== job.id))
       } else {
@@ -244,9 +253,16 @@ export default function FieldView({ initialJobs, session }: {
                     <div style={{ fontSize: 11, color: 'var(--text4)' }}>{job.type} · {job.address.split(',')[0]}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: `${st.color}18`, padding: '3px 9px', borderRadius: 20, border: `1px solid ${st.color}33` }}>
-                      {t(st.labelKey)}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {pendingIds.has(job.id) && (
+                        <span title="Change pending sync" style={{ fontSize: 9, fontWeight: 700, color: 'var(--amber)', background: 'rgba(245,158,11,.12)', padding: '2px 6px', borderRadius: 10, border: '1px solid rgba(245,158,11,.25)' }}>
+                          ↑ syncing
+                        </span>
+                      )}
+                      <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: `${st.color}18`, padding: '3px 9px', borderRadius: 20, border: `1px solid ${st.color}33` }}>
+                        {t(st.labelKey)}
+                      </span>
+                    </div>
                     <div style={{ fontSize: 14, color: 'var(--text4)' }}>{isExpanded ? '▲' : '▼'}</div>
                   </div>
                 </div>

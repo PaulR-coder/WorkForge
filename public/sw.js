@@ -1,14 +1,13 @@
 // WorkForge Service Worker
 // CACHE_VERSION is stamped by scripts/patch-sw.mjs after each `next build`.
-// Never edit 'wf-NiywwJkKCI8uAMUfrq71J' — it is replaced automatically.
-const CACHE_VERSION = 'wf-NiywwJkKCI8uAMUfrq71J'
+const CACHE_VERSION = 'wf-ei42a26szPeuhqd3pzuuG'
 const STATIC_CACHE  = `${CACHE_VERSION}-static`
 const PAGE_CACHE    = `${CACHE_VERSION}-pages`
 
-const PAGE_MAX_AGE_MS = 7  * 24 * 60 * 60 * 1000  // 7 days
-const API_MAX_AGE_MS  = 24 * 60 * 60 * 1000        // 24 hours
+const PAGE_MAX_AGE_MS = 7  * 24 * 60 * 60 * 1000
+const API_MAX_AGE_MS  = 24 * 60 * 60 * 1000
 
-// Never intercept these paths — auth state, payments, push sub, file uploads
+// Never intercept: auth state, payments, push subscriptions, file uploads
 const BYPASS_PREFIXES = [
   '/api/auth/',
   '/api/push/',
@@ -16,27 +15,26 @@ const BYPASS_PREFIXES = [
   '/api/seed',
   '/api/register',
   '/api/invites/accept',
-  '/api/invoices/',  // PDFs, complex blobs
+  '/api/invoices/',
 ]
 
-// Headers to strip when replaying queued mutations (browser-computed or Next.js-internal)
+// Headers that must not be replayed (browser-computed or Next.js-internal)
 const STRIP_REPLAY_HEADERS = new Set([
   'cookie', 'content-length', 'host',
   'next-action', 'next-router-state-tree', 'next-router-prefetch', 'next-url',
   'rsc', 'next-action-upload-token',
 ])
 
-// ─── Network Information API — adaptive timeout ────────────────────────────
+// ─── Network Information API — adaptive page timeout ─────────────────────────
 
 function getPageTimeout() {
   try {
-    const conn = self.navigator?.connection
-    if (!conn?.effectiveType) return 6000
-    return { '4g': 5000, '3g': 10000, '2g': 14000, 'slow-2g': 20000 }[conn.effectiveType] ?? 6000
+    const t = { '4g': 5000, '3g': 10000, '2g': 14000, 'slow-2g': 20000 }
+    return t[self.navigator?.connection?.effectiveType] ?? 6000
   } catch { return 6000 }
 }
 
-// ─── IndexedDB helpers ─────────────────────────────────────────────────────
+// ─── IndexedDB helpers ─────────────────────────────────────────────────────────
 
 function openIDB() {
   return new Promise((resolve, reject) => {
@@ -74,8 +72,11 @@ function idbGetAll(db, store) {
 function idbDelete(db, store, key) {
   return new Promise((r, j) => { const q = idbTx(db, store, 'readwrite').delete(key); q.onsuccess = () => r(); q.onerror = () => j(q.error) })
 }
+function idbClear(db, store) {
+  return new Promise((r, j) => { const q = idbTx(db, store, 'readwrite').clear(); q.onsuccess = () => r(); q.onerror = () => j(q.error) })
+}
 
-// ─── Lifecycle ─────────────────────────────────────────────────────────────
+// ─── Lifecycle ──────────────────────────────────────────────────────────────────
 
 self.addEventListener('install', () => { self.skipWaiting() })
 
@@ -90,14 +91,13 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// ─── Fetch interception ────────────────────────────────────────────────────
+// ─── Fetch ─────────────────────────────────────────────────────────────────────
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
 
-  // Immutable content-hashed Next.js chunks — cache-first, no expiry
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(cacheFirst(request))
     return
@@ -118,12 +118,12 @@ self.addEventListener('fetch', (event) => {
   }
 })
 
-// ─── Strategies ────────────────────────────────────────────────────────────
+// ─── Strategies ─────────────────────────────────────────────────────────────────
 
 async function cacheFirst(request) {
-  const cache  = await caches.open(STATIC_CACHE)
-  const cached = await cache.match(request)
-  if (cached) return cached
+  const cache = await caches.open(STATIC_CACHE)
+  const hit   = await cache.match(request)
+  if (hit) return hit
   try {
     const res = await fetch(request)
     if (res.ok) cache.put(request, res.clone())
@@ -133,44 +133,34 @@ async function cacheFirst(request) {
   }
 }
 
-// Network-first with adaptive timeout. Stale content served on slow/dead
-// connections, but the background network fetch still runs to refresh the
-// cache so the NEXT load is always fresh.
+// Network-first with adaptive timeout. The network fetch always runs to
+// completion in the background — stale content is served on slow/dead
+// connections but the cache is refreshed so the next load is always fresh.
 async function pageNetworkFirst(request) {
   const cache = await caches.open(PAGE_CACHE)
 
-  // Start the network fetch unconditionally — let it run in the background
   const networkFetch = fetch(request)
-    .then(res => {
-      if (res.ok) cache.put(request.url, res.clone())
-      return res
-    })
+    .then(res => { if (res.ok) cache.put(request.url, res.clone()); return res })
     .catch(() => null)
 
-  // Race network against an adaptive timeout
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), getPageTimeout()))
   const fast    = await Promise.race([networkFetch, timeout])
 
   if (fast?.ok) return fast
 
-  // Timeout or offline — try stale cache
   const stale = await cache.match(request.url)
   if (stale) {
-    // Reject entries older than PAGE_MAX_AGE_MS
     const dateStr  = stale.headers.get('date')
     const cacheAge = dateStr ? Date.now() - new Date(dateStr).getTime() : Infinity
     if (cacheAge <= PAGE_MAX_AGE_MS) {
-      // Notify clients they're seeing stale content
       notifyAll({ type: 'WF_STALE_PAGE', cachedAt: dateStr ? new Date(dateStr).getTime() : null })
       return stale
     }
     await cache.delete(request.url)
   }
 
-  // Nothing usable — wait a bit longer for the network before giving up
   const networkRes = await networkFetch
   if (networkRes?.ok) return networkRes
-
   return new Response(OFFLINE_PAGE, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
 
@@ -206,9 +196,20 @@ async function apiNetworkFirst(request) {
   }
 }
 
-// Try network; if offline, queue the mutation and return 202 so the client's
-// optimistic update path runs as if it succeeded.
 async function handleMutation(request) {
+  const url = new URL(request.url)
+
+  // POST /api/jobs cannot be meaningfully queued — the server generates the ID
+  // and the client uses it immediately. Return 503 so the client shows an error
+  // rather than trying to use the queue response as a job object.
+  if (request.method === 'POST' && url.pathname === '/api/jobs') {
+    return new Response(JSON.stringify({ error: 'offline', cannotQueue: true }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Try the network first
   try {
     const ctrl = new AbortController()
     const tid  = setTimeout(() => ctrl.abort(), 8000)
@@ -216,15 +217,15 @@ async function handleMutation(request) {
     clearTimeout(tid)
     return res
   } catch {
+    // Offline — queue the mutation
     try {
       const body = await request.text()
 
-      // Capture safe headers + stamp the time the mutation was queued.
-      // x-wf-queued-at lets the server detect optimistic-lock conflicts.
       const headers = { 'content-type': 'application/json' }
       request.headers.forEach((v, k) => {
         if (!STRIP_REPLAY_HEADERS.has(k.toLowerCase())) headers[k] = v
       })
+      // Stamp queue time — server uses this for optimistic lock conflict detection
       headers['x-wf-queued-at'] = new Date().toISOString()
 
       const db = await openIDB()
@@ -235,6 +236,12 @@ async function handleMutation(request) {
         headers,
         queuedAt: Date.now(),
       })
+
+      // Notify clients so they can show a pending indicator on the job card
+      const jobIdMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)$/)
+      if (jobIdMatch) {
+        notifyAll({ type: 'WF_MUTATION_QUEUED', jobId: jobIdMatch[1] })
+      }
 
       if ('sync' in self.registration) {
         self.registration.sync.register('wf-sync').catch(() => {})
@@ -248,7 +255,7 @@ async function handleMutation(request) {
   }
 }
 
-// ─── Background Sync ───────────────────────────────────────────────────────
+// ─── Background Sync ──────────────────────────────────────────────────────────
 
 self.addEventListener('sync', (event) => {
   if (event.tag === 'wf-sync') event.waitUntil(flushMutations())
@@ -272,20 +279,33 @@ async function flushMutations() {
 
       if (res.ok) {
         done.push(m.id)
+
+      } else if (res.status === 401) {
+        // Session expired while offline. All remaining mutations will also fail.
+        // Discard the entire queue rather than retrying forever.
+        for (const remaining of all) {
+          if (!done.includes(remaining.id)) done.push(remaining.id)
+        }
+        notifyAll({ type: 'WF_SESSION_EXPIRED' })
+        break
+
       } else if (res.status === 404 || res.status === 403) {
-        // Resource gone or permission revoked — can't retry, discard silently
+        // Resource gone or permission revoked — discard, can't retry
         done.push(m.id)
+
       } else if (res.status === 409) {
-        // Optimistic lock conflict — notify clients so they can inform the user
+        // Optimistic lock conflict — notify client, discard this mutation
         const body = await res.json().catch(() => ({}))
         conflicts.push({ mutation: { url: m.url, method: m.method, queuedAt: m.queuedAt }, server: body })
         done.push(m.id)
+
+      } else {
+        // 5xx or other server error — server is unhealthy, stop and retry later
+        break
       }
-      // 5xx: leave in queue, server is unhealthy — stop and retry on next sync
-      else { break }
 
     } catch {
-      break // Network failure — still offline, stop here
+      break // Network failure — stop here, retry on next sync event
     }
   }
 
@@ -303,7 +323,7 @@ async function flushMutations() {
   }
 }
 
-// ─── Client messaging ──────────────────────────────────────────────────────
+// ─── Messages from client ──────────────────────────────────────────────────────
 
 function notifyAll(msg) {
   self.clients.matchAll({ includeUncontrolled: true, type: 'window' })
@@ -312,17 +332,37 @@ function notifyAll(msg) {
 }
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING')   self.skipWaiting()
-  if (event.data?.type === 'FLUSH_QUEUE')    event.waitUntil(flushMutations())
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+
+  if (event.data?.type === 'FLUSH_QUEUE') {
+    event.waitUntil(flushMutations())
+  }
+
   if (event.data?.type === 'GET_QUEUE_COUNT') {
     openIDB()
       .then(db => idbGetAll(db, 'mutations'))
       .then(all => event.source?.postMessage({ type: 'WF_QUEUE_COUNT', count: all.length }))
       .catch(() => event.source?.postMessage({ type: 'WF_QUEUE_COUNT', count: 0 }))
   }
+
+  // Called on logout — wipes cached page HTML, API data, and mutation queue
+  // so the next user on this device starts clean.
+  if (event.data?.type === 'CLEAR_USER_DATA') {
+    event.waitUntil(
+      Promise.all([
+        caches.delete(PAGE_CACHE),
+        openIDB().then(db => Promise.all([
+          idbClear(db, 'api-cache'),
+          idbClear(db, 'mutations'),
+        ])).catch(() => {}),
+      ])
+    )
+  }
 })
 
-// ─── Push Notifications ────────────────────────────────────────────────────
+// ─── Push Notifications ────────────────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {}
@@ -352,7 +392,7 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-// ─── Offline fallback ──────────────────────────────────────────────────────
+// ─── Offline fallback ──────────────────────────────────────────────────────────
 
 const OFFLINE_PAGE = `<!DOCTYPE html>
 <html lang="en">

@@ -9,6 +9,7 @@ import type { TKeys } from '@/lib/i18n'
 import JobDrawer from './JobDrawer'
 import PaymentOverlay from './PaymentOverlay'
 import { useToast } from '@/components/Toast'
+import { getPendingJobs, subscribePendingJobs } from '@/lib/pendingJobs'
 
 type Job = {
   id: string
@@ -44,12 +45,15 @@ export default function JobsBoard({ initialJobs, users, session }: {
   const [form, setForm] = useState({ client: '', address: '', type: 'HVAC', priority: 'normal', description: '', techId: '' })
   const [saving, setSaving] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set(getPendingJobs()))
   const [drawerJobId, setDrawerJobId] = useState<string | null>(null)
   const [paymentJob, setPaymentJob] = useState<{ id: string; client: string } | null>(null)
   const [lastSync, setLastSync] = useState(Date.now())
   const { t } = useLang()
   const isMobile = useIsMobile()
   const { toast } = useToast()
+
+  useEffect(() => subscribePendingJobs(setPendingIds), [])
 
   const pollJobs = useCallback(async () => {
     try {
@@ -181,9 +185,14 @@ export default function JobsBoard({ initialJobs, users, session }: {
                   style={{ background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 9, padding: 10, cursor: 'pointer', animation: 'fadeIn .2s ease', transition: 'border-color .15s' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 5 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3 }}>{job.client}</div>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: PRIORITY_COLOR[job.priority], background: `${PRIORITY_COLOR[job.priority]}18`, padding: '2px 6px', borderRadius: 10, flexShrink: 0, marginLeft: 6 }}>
-                      {t(job.priority as TKeys)}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 6 }}>
+                      {pendingIds.has(job.id) && (
+                        <span title="Pending sync" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--amber)', display: 'inline-block', animation: 'pulse 1.5s ease infinite' }} />
+                      )}
+                      <span style={{ fontSize: 9, fontWeight: 700, color: PRIORITY_COLOR[job.priority], background: `${PRIORITY_COLOR[job.priority]}18`, padding: '2px 6px', borderRadius: 10 }}>
+                        {t(job.priority as TKeys)}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 6 }}>{job.type} · {job.address.split(',')[0]}</div>
                   {job.description && <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 6, lineHeight: 1.4 }}>{job.description.slice(0, 80)}{job.description.length > 80 ? '...' : ''}</div>}

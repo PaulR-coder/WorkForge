@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { addPendingJob, clearPendingJobs } from '@/lib/pendingJobs'
 
 type BannerMode = 'hidden' | 'offline' | 'server-down' | 'syncing' | 'synced'
 
 function timeAgo(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60_000)     return 'just now'
-  if (diff < 3_600_000)  return `${Math.floor(diff / 60_000)}m ago`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
-  return `${Math.floor(diff / 86_400_000)}d ago`
+  const d = Date.now() - ts
+  if (d < 60_000)     return 'just now'
+  if (d < 3_600_000)  return `${Math.floor(d / 60_000)}m ago`
+  if (d < 86_400_000) return `${Math.floor(d / 3_600_000)}h ago`
+  return `${Math.floor(d / 86_400_000)}d ago`
 }
 
 export function OfflineBanner() {
@@ -19,23 +20,22 @@ export function OfflineBanner() {
   const [conflictCount, setConflictCount] = useState(0)
   const [staleSince, setStaleSince]       = useState<number | null>(null)
   const [updateReady, setUpdateReady]     = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
-  const synceTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const healthTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const syncedTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const healthTimer  = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Helpers ─────────────────────────────────────────────────────────────
-
-  const askQueueCount = useCallback(() => {
-    navigator.serviceWorker?.controller?.postMessage({ type: 'GET_QUEUE_COUNT' })
-  }, [])
+  // ─── Server health check ─────────────────────────────────────────────────
 
   const checkServerHealth = useCallback(async () => {
     if (!navigator.onLine) return
     try {
-      const res = await fetch('/api/health', { signal: AbortSignal.timeout(4000), cache: 'no-store' })
+      const res = await fetch('/api/health', {
+        signal: AbortSignal.timeout(4000),
+        cache: 'no-store',
+      })
       if (res.ok) {
         localStorage.setItem('wf-last-sync', Date.now().toString())
-        // Only clear server-down — don't override offline state
         setMode(prev => prev === 'server-down' ? 'hidden' : prev)
         setStaleSince(null)
       } else {
@@ -43,20 +43,20 @@ export function OfflineBanner() {
       }
     } catch {
       const last = localStorage.getItem('wf-last-sync')
-      setStaleSince(last ? parseInt(last) : null)
-      setMode('server-down')
+      setStaleSince(last ? parseInt(last, 10) : null)
+      setMode(prev => (prev === 'hidden' || prev === 'server-down') ? 'server-down' : prev)
     }
   }, [])
 
   const clearSyncedBanner = useCallback(() => {
-    if (synceTimer.current) clearTimeout(synceTimer.current)
-    synceTimer.current = setTimeout(() => {
+    if (syncedTimer.current) clearTimeout(syncedTimer.current)
+    syncedTimer.current = setTimeout(() => {
       setMode(prev => prev === 'synced' ? 'hidden' : prev)
       setSyncedCount(0)
     }, 6000)
   }, [])
 
-  // ── Lifecycle ────────────────────────────────────────────────────────────
+  // ─── Lifecycle ───────────────────────────────────────────────────────────
 
   useEffect(() => {
     setMode(navigator.onLine ? 'hidden' : 'offline')
@@ -64,27 +64,23 @@ export function OfflineBanner() {
 
     const onOffline = () => {
       setMode('offline')
-      askQueueCount()
+      navigator.serviceWorker?.controller?.postMessage({ type: 'GET_QUEUE_COUNT' })
     }
 
     const onOnline = () => {
       localStorage.setItem('wf-last-sync', Date.now().toString())
       setStaleSince(null)
       setMode('syncing')
-      // SW will flush automatically (SWRegistration handles it),
-      // but also clear server-down health interval
-      if (healthTimer.current) {
-        clearInterval(healthTimer.current)
-        healthTimer.current = null
-      }
+      // SWRegistration triggers the actual flush; we just update the UI here
     }
 
     const onSWMsg = (e: MessageEvent) => {
       switch (e.data?.type) {
         case 'WF_SYNC_COMPLETE':
           setSyncedCount(e.data.synced ?? 0)
-          setConflictCount(e.data.conflicts ?? 0)
+          setConflictCount(c => c + (e.data.conflicts ?? 0))
           setPending(e.data.remaining ?? 0)
+          clearPendingJobs()
           setMode('synced')
           clearSyncedBanner()
           break
@@ -93,14 +89,25 @@ export function OfflineBanner() {
           setPending(e.data.count ?? 0)
           break
 
+        case 'WF_MUTATION_QUEUED':
+          setPending(p => p + 1)
+          if (e.data.jobId) addPendingJob(e.data.jobId)
+          break
+
         case 'WF_STALE_PAGE':
         case 'WF_STALE_API':
-          // SW served cached content — update stale timestamp
           if (e.data.cachedAt) setStaleSince(e.data.cachedAt)
           break
 
         case 'WF_CONFLICTS':
-          setConflictCount((e.data.conflicts ?? []).length)
+          setConflictCount(c => c + ((e.data.conflicts ?? []).length))
+          break
+
+        case 'WF_SESSION_EXPIRED':
+          clearPendingJobs()
+          setPending(0)
+          setSessionExpired(true)
+          setMode('hidden')
           break
       }
     }
@@ -112,7 +119,9 @@ export function OfflineBanner() {
     window.addEventListener('wf-update-available', onUpdateAvailable)
     navigator.serviceWorker?.addEventListener('message', onSWMsg)
 
-    // Poll server health every 45s when online (detect Railway downtime)
+    // Poll server health every 45s to detect Railway downtime independently
+    // of navigator.onLine (you can have internet but Railway can still be down).
+    // Do NOT clear this interval on online — it must persist to catch future outages.
     healthTimer.current = setInterval(() => {
       if (navigator.onLine) checkServerHealth()
     }, 45_000)
@@ -123,70 +132,79 @@ export function OfflineBanner() {
       window.removeEventListener('wf-update-available', onUpdateAvailable)
       navigator.serviceWorker?.removeEventListener('message', onSWMsg)
       if (healthTimer.current)  clearInterval(healthTimer.current)
-      if (synceTimer.current)   clearTimeout(synceTimer.current)
+      if (syncedTimer.current)  clearTimeout(syncedTimer.current)
     }
-  }, [askQueueCount, checkServerHealth, clearSyncedBanner])
+  }, [checkServerHealth, clearSyncedBanner])
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────
 
-  const showBanner = mode !== 'hidden' || updateReady || conflictCount > 0
+  const showAnything = mode !== 'hidden' || updateReady || conflictCount > 0 || sessionExpired
 
-  if (!showBanner) return null
+  if (!showAnything) return null
 
   return (
     <>
-      {/* App-update strip — persists until user reloads */}
+      <style>{`
+        @keyframes wf-pulse { 0%,100%{opacity:1}50%{opacity:.25} }
+        @keyframes wf-spin   { to{transform:rotate(360deg)} }
+      `}</style>
+
+      {/* App update strip — persists at top until user chooses to reload */}
       {updateReady && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10000,
           background: '#1e293b', borderBottom: '1px solid rgba(91,163,245,.3)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 12, padding: '9px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '9px 16px',
         }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-            WorkForge was updated — reload to apply changes
-          </span>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: '5px 12px', background: '#5ba3f5', border: 'none',
-              borderRadius: 6, color: '#080c1a', fontSize: 11, fontWeight: 800, cursor: 'pointer',
-            }}>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>WorkForge was updated</span>
+          <button onClick={() => window.location.reload()}
+            style={{ padding: '5px 12px', background: '#5ba3f5', border: 'none', borderRadius: 6, color: '#080c1a', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
             Reload now
           </button>
-          <button
-            onClick={() => setUpdateReady(false)}
-            aria-label="Dismiss"
-            style={{
-              padding: '4px 8px', background: 'transparent', border: 'none',
-              color: '#64748b', fontSize: 14, cursor: 'pointer',
-            }}>
+          <button onClick={() => setUpdateReady(false)} aria-label="Dismiss"
+            style={{ padding: '4px 8px', background: 'transparent', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer' }}>
             ✕
           </button>
         </div>
       )}
 
-      {/* Conflict warning */}
-      {conflictCount > 0 && (
+      {/* Session expired alert */}
+      {sessionExpired && (
         <div style={{
-          position: 'fixed', bottom: mode !== 'hidden' ? 60 : 16,
-          left: '50%', transform: 'translateX(-50%)', zIndex: 9998,
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 14px',
-          background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)',
-          borderRadius: 10, backdropFilter: 'blur(8px)',
-          boxShadow: '0 4px 20px rgba(0,0,0,.4)', whiteSpace: 'nowrap',
+          position: 'fixed', bottom: mode !== 'hidden' ? 58 : 16, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9998, display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 14px', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)',
+          borderRadius: 10, backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(0,0,0,.4)', whiteSpace: 'nowrap',
         }}>
           <span style={{ fontSize: 13 }}>⚠️</span>
           <span style={{ fontSize: 12, fontWeight: 600, color: '#fca5a5' }}>
-            {conflictCount} change{conflictCount !== 1 ? 's' : ''} couldn't sync — job was modified by someone else
+            Session expired — offline changes couldn't be saved. Please log in again.
           </span>
-          <button
-            onClick={() => setConflictCount(0)}
-            aria-label="Dismiss"
-            style={{ padding: '2px 6px', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-            ✕
+          <button onClick={() => { setSessionExpired(false); window.location.href = '/login' }}
+            style={{ padding: '4px 10px', background: 'rgba(239,68,68,.2)', border: '1px solid rgba(239,68,68,.4)', borderRadius: 6, color: '#fca5a5', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+            Log in
           </button>
+          <button onClick={() => setSessionExpired(false)} aria-label="Dismiss"
+            style={{ padding: '2px 6px', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
+        </div>
+      )}
+
+      {/* Conflict strip */}
+      {conflictCount > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: mode !== 'hidden' ? 58 : 16,
+          left: '50%', transform: 'translateX(-50%)', zIndex: 9998,
+          display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px',
+          background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.3)',
+          borderRadius: 10, backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(0,0,0,.4)', whiteSpace: 'nowrap',
+        }}>
+          <span style={{ fontSize: 13 }}>⚠️</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#fca5a5' }}>
+            {conflictCount} change{conflictCount !== 1 ? 's' : ''} couldn't sync — job was updated by someone else
+          </span>
+          <button onClick={() => setConflictCount(0)} aria-label="Dismiss"
+            style={{ padding: '2px 6px', background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
         </div>
       )}
 
@@ -200,32 +218,22 @@ export function OfflineBanner() {
           onRefresh={() => window.location.reload()}
         />
       )}
-
-      <style>{`
-        @keyframes wf-pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
-        @keyframes wf-spin   { to{transform:rotate(360deg)} }
-      `}</style>
     </>
   )
 }
 
-// ── Extracted pill so the main component stays readable ────────────────────
-
-function StatusPill({
-  mode, pending, syncedCount, staleSince, onRefresh,
-}: {
-  mode: BannerMode
+function StatusPill({ mode, pending, syncedCount, staleSince, onRefresh }: {
+  mode: Exclude<BannerMode, 'hidden'>
   pending: number
   syncedCount: number
   staleSince: number | null
   onRefresh: () => void
 }) {
   const cfg = {
-    offline:     { bg: 'rgba(239,68,68,.12)',   border: 'rgba(239,68,68,.3)',   dot: '#ef4444',  pulse: true,  spin: false },
-    'server-down': { bg: 'rgba(245,158,11,.1)', border: 'rgba(245,158,11,.3)', dot: '#f59e0b',  pulse: true,  spin: false },
-    syncing:     { bg: 'rgba(91,163,245,.1)',   border: 'rgba(91,163,245,.3)', dot: '#5ba3f5',  pulse: false, spin: true  },
-    synced:      { bg: 'rgba(34,197,94,.1)',    border: 'rgba(34,197,94,.3)',  dot: '#22c55e',  pulse: false, spin: false },
-    hidden:      { bg: '', border: '', dot: '', pulse: false, spin: false },
+    offline:      { bg: 'rgba(239,68,68,.12)',  border: 'rgba(239,68,68,.3)',  dot: '#ef4444', pulse: true,  spin: false },
+    'server-down':{ bg: 'rgba(245,158,11,.1)',  border: 'rgba(245,158,11,.3)',  dot: '#f59e0b', pulse: true,  spin: false },
+    syncing:      { bg: 'rgba(91,163,245,.1)',  border: 'rgba(91,163,245,.3)', dot: '#5ba3f5', pulse: false, spin: true  },
+    synced:       { bg: 'rgba(34,197,94,.1)',   border: 'rgba(34,197,94,.3)',  dot: '#22c55e', pulse: false, spin: false },
   }[mode]
 
   const message =
@@ -238,37 +246,25 @@ function StatusPill({
         ? `Server unreachable — cached data from ${timeAgo(staleSince)}`
         : 'Server unreachable — viewing cached data'
     : mode === 'syncing'
-      ? `Syncing ${pending > 0 ? `${pending} change${pending !== 1 ? 's' : ''}` : ''}…`.trim()
-    : /* synced */
-      `${syncedCount} change${syncedCount !== 1 ? 's' : ''} synced`
+      ? `Syncing${pending > 0 ? ` ${pending} change${pending !== 1 ? 's' : ''}` : ''}…`
+    : `${syncedCount} change${syncedCount !== 1 ? 's' : ''} synced`
 
   return (
     <div style={{
-      position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-      zIndex: 9999, display: 'flex', alignItems: 'center', gap: 8,
-      padding: '9px 14px',
+      position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px',
       background: cfg.bg, border: `1px solid ${cfg.border}`,
-      borderRadius: 10, backdropFilter: 'blur(8px)',
-      boxShadow: '0 4px 20px rgba(0,0,0,.4)', whiteSpace: 'nowrap',
+      borderRadius: 10, backdropFilter: 'blur(8px)', boxShadow: '0 4px 20px rgba(0,0,0,.4)', whiteSpace: 'nowrap',
     }}>
       {cfg.spin ? (
         <span style={{ width: 9, height: 9, border: `2px solid ${cfg.dot}`, borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'wf-spin .7s linear infinite', flexShrink: 0 }} />
       ) : (
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.dot, flexShrink: 0, animation: cfg.pulse ? 'wf-pulse 1.4s ease-in-out infinite' : 'none' }} />
       )}
-
-      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2, #e2e8f0)' }}>
-        {message}
-      </span>
-
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2, #e2e8f0)' }}>{message}</span>
       {mode === 'synced' && (
-        <button
-          onClick={onRefresh}
-          style={{
-            padding: '4px 10px', background: 'rgba(34,197,94,.2)',
-            border: '1px solid rgba(34,197,94,.4)',
-            borderRadius: 6, color: '#22c55e', fontSize: 11, fontWeight: 700, cursor: 'pointer',
-          }}>
+        <button onClick={onRefresh}
+          style={{ padding: '4px 10px', background: 'rgba(34,197,94,.2)', border: '1px solid rgba(34,197,94,.4)', borderRadius: 6, color: '#22c55e', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
           Refresh
         </button>
       )}

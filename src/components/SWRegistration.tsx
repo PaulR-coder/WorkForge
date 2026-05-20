@@ -6,34 +6,52 @@ export function SWRegistration() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
 
+    let reg: ServiceWorkerRegistration | null = null
+
     navigator.serviceWorker.register('/sw.js', { scope: '/' })
-      .then((reg) => {
-        // When a new SW installs, prompt it to activate immediately
-        reg.addEventListener('updatefound', () => {
-          const next = reg.installing
+      .then((r) => {
+        reg = r
+
+        // When a new SW installs, tell it to skip waiting immediately
+        r.addEventListener('updatefound', () => {
+          const next = r.installing
           if (!next) return
           next.addEventListener('statechange', () => {
             if (next.state === 'installed' && navigator.serviceWorker.controller) {
-              // New SW is ready — tell it to skip waiting, then notify UI
               next.postMessage({ type: 'SKIP_WAITING' })
             }
           })
         })
-
-        // Flush queued offline mutations when connectivity returns
-        const flush = () => {
-          reg.active?.postMessage({ type: 'FLUSH_QUEUE' })
-        }
-        window.addEventListener('online', flush)
-        return () => window.removeEventListener('online', flush)
       })
       .catch(() => {})
 
-    // When a new SW takes over, let the user decide when to reload —
-    // never auto-reload mid-shift and wipe in-progress forms.
+    // When the controller changes (new SW took over), let the user decide
+    // when to reload — never auto-reload and wipe in-progress forms.
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       window.dispatchEvent(new CustomEvent('wf-update-available'))
     })
+
+    const flush = () => {
+      const ctrl = navigator.serviceWorker.controller
+      if (ctrl) ctrl.postMessage({ type: 'FLUSH_QUEUE' })
+    }
+
+    // Flush queued mutations when the device goes back online
+    window.addEventListener('online', flush)
+
+    // iOS Safari does not support Background Sync in the background.
+    // Flushing on visibilitychange covers the common field scenario:
+    // tech completes a job in a dead zone, drives somewhere with signal,
+    // opens the app — mutations sync immediately on app foreground.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) flush()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      window.removeEventListener('online', flush)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   return null
