@@ -13,6 +13,7 @@ export async function GET() {
   const tenantFilter = getTenantFilter(session)
   const where = {
     ...tenantFilter,
+    archivedAt: null,
     ...(session.role === 'tech' ? { techId: session.id } : {}),
   }
 

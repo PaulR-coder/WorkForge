@@ -133,6 +133,7 @@ export async function runMigrations() {
   }
 
   await addColumn('User', 'phone', 'TEXT')
+  await addColumn('Job', 'archivedAt', 'TIMESTAMP(3)')
 
   // --- Auth columns ---
   await addColumn('User', 'emailVerified', 'BOOLEAN NOT NULL DEFAULT true')

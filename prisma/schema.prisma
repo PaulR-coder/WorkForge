@@ -155,6 +155,8 @@ model Job {
   tenantId   String?
   tenant     Tenant?   @relation(fields: [tenantId], references: [id])
 
+  archivedAt DateTime?
+
   invoices  Invoice[]
   payments  Payment[]
   messages  Message[]

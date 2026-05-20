@@ -8,6 +8,7 @@ import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 import JobDrawer from './JobDrawer'
 import PaymentOverlay from './PaymentOverlay'
+import { useToast } from '@/components/Toast'
 
 type Job = {
   id: string
@@ -48,6 +49,7 @@ export default function JobsBoard({ initialJobs, users, session }: {
   const [lastSync, setLastSync] = useState(Date.now())
   const { t } = useLang()
   const isMobile = useIsMobile()
+  const { toast } = useToast()
 
   const pollJobs = useCallback(async () => {
     try {
@@ -87,18 +89,30 @@ export default function JobsBoard({ initialJobs, users, session }: {
       setJobs(prev => [job, ...prev])
       setShowCreate(false)
       setForm({ client: '', address: '', type: 'HVAC', priority: 'normal', description: '', techId: '' })
+      toast('Work order created', 'success')
+    } else {
+      toast('Failed to create job', 'error')
     }
     setSaving(false)
   }
 
   async function deleteJob(id: string) {
     if (!confirm(t('deleteJob'))) return
-    await fetch(`/api/jobs/${id}`, { method: 'DELETE' })
-    setJobs(prev => prev.filter(j => j.id !== id))
+    const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setJobs(prev => prev.filter(j => j.id !== id))
+      toast('Job deleted', 'info')
+    } else {
+      toast('Failed to delete job', 'error')
+    }
   }
 
-  function handleJobUpdate(updated: { id: string; status: string; tech: Job['tech'] }) {
-    setJobs(prev => prev.map(j => j.id === updated.id ? { ...j, ...updated } : j))
+  function handleJobUpdate(updated: { id: string; status: string; tech: Job['tech']; archived?: boolean }) {
+    if (updated.archived) {
+      setJobs(prev => prev.filter(j => j.id !== updated.id))
+    } else {
+      setJobs(prev => prev.map(j => j.id === updated.id ? { ...j, ...updated } : j))
+    }
   }
 
   const inp = (style?: React.CSSProperties): React.CSSProperties => ({

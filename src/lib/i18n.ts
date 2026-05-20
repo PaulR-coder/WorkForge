@@ -15,6 +15,7 @@ const T = {
     auditLog: 'Audit Log',
     billing: 'Billing',
     commandCenter: 'Command Center',
+    jobHistory: 'Job History',
     signOut: 'Sign Out',
 
     // Auth
@@ -186,6 +187,18 @@ const T = {
     completeAction: '✓ Complete Job',
     updating: 'Updating...',
 
+    // History
+    archive: 'Archive',
+    archived: 'Archived',
+    restore: 'Restore to Board',
+    jobComplete: 'Job Complete!',
+    createInvoice: 'Create Invoice →',
+    notNow: 'Not Now',
+    exportCsv: '⬇ Export CSV',
+    noHistory: 'No completed jobs yet',
+    searchHistory: 'Search by client or type...',
+    completedOn: 'Completed',
+
     // Roles
     superadmin: 'Super Admin',
     admin: 'Admin',
@@ -208,6 +221,7 @@ const T = {
     auditLog: 'Registro de Auditoría',
     billing: 'Facturación',
     commandCenter: 'Centro de Mando',
+    jobHistory: 'Historial de Trabajos',
     signOut: 'Cerrar Sesión',
 
     // Auth
@@ -378,6 +392,18 @@ const T = {
     onMyWayAction: '🚗 En Camino',
     completeAction: '✓ Completar Trabajo',
     updating: 'Actualizando...',
+
+    // History
+    archive: 'Archivar',
+    archived: 'Archivado',
+    restore: 'Restaurar al Tablero',
+    jobComplete: '¡Trabajo Completado!',
+    createInvoice: 'Crear Factura →',
+    notNow: 'Ahora No',
+    exportCsv: '⬇ Exportar CSV',
+    noHistory: 'No hay trabajos completados aún',
+    searchHistory: 'Buscar por cliente o tipo...',
+    completedOn: 'Completado',
 
     // Roles
     superadmin: 'Super Admin',

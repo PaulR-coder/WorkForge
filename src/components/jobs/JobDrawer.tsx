@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import type { SessionUser } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
+import { useToast } from '@/components/Toast'
+import { DrawerSkeleton } from '@/components/Skeleton'
 
 type Message = {
   id: string
@@ -32,6 +35,7 @@ type DetailJob = {
   createdAt: string
   scheduledAt: string | null
   completedAt: string | null
+  archivedAt: string | null
   tech: { id: string; name: string; initials: string } | null
   invoices: { id: string; number: string; total: number; status: string }[]
   equipment: { id: string; name: string; brand: string; icon: string }[]
@@ -68,7 +72,7 @@ export default function JobDrawer({
   users: User[]
   session: SessionUser
   onClose: () => void
-  onJobUpdate: (updated: { id: string; status: string; tech: { id: string; name: string; initials: string } | null }) => void
+  onJobUpdate: (updated: { id: string; status: string; tech: { id: string; name: string; initials: string } | null; archived?: boolean }) => void
   onOpenPayment: (jobId: string, client: string) => void
 }) {
   const [job, setJob] = useState<DetailJob | null>(null)
@@ -81,15 +85,22 @@ export default function JobDrawer({
   const [savingDetails, setSavingDetails] = useState(false)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState(false)
+  const [showInvoicePrompt, setShowInvoicePrompt] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const chatRef = useRef<HTMLDivElement>(null)
   const msgInputRef = useRef<HTMLInputElement>(null)
   const { t } = useLang()
   const isMobile = useIsMobile()
+  const { toast } = useToast()
 
   useEffect(() => {
+    setLoading(true)
+    setLoadError(false)
     fetch(`/api/jobs/${jobId}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error('not found'); return r.json() })
       .then(data => { setJob(data); setLoading(false) })
+      .catch(() => { setLoadError(true); setLoading(false) })
     fetch(`/api/jobs/${jobId}/photos`)
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setPhotos(data) })
@@ -111,6 +122,10 @@ export default function JobDrawer({
       const updated = await res.json()
       setJob(prev => prev ? { ...prev, status: updated.status, completedAt: updated.completedAt } : null)
       onJobUpdate({ id: job.id, status: updated.status, tech: updated.tech })
+      toast(`Job marked ${status === 'done' ? 'complete' : status.replace('_', ' ')}`, 'success')
+      if (status === 'done') setShowInvoicePrompt(true)
+    } else {
+      toast('Failed to update status', 'error')
     }
   }
 
@@ -125,6 +140,9 @@ export default function JobDrawer({
     if (res.ok) {
       setJob(prev => prev ? { ...prev, tech: tech ? { id: tech.id, name: tech.name, initials: tech.initials } : null } : null)
       onJobUpdate({ id: job.id, status: job.status, tech: tech ? { id: tech.id, name: tech.name, initials: tech.initials } : null })
+      toast(tech ? `Assigned to ${tech.name}` : 'Tech unassigned', 'success')
+    } else {
+      toast('Failed to assign tech', 'error')
     }
     setEditingTech(false)
   }
@@ -166,8 +184,29 @@ export default function JobDrawer({
       setJob(prev => prev ? { ...prev, client: updated.client, address: updated.address, type: updated.type, priority: updated.priority, description: updated.description ?? '' } : null)
       onJobUpdate({ id: job.id, status: job.status, tech: job.tech })
       setEditingDetails(false)
+      toast('Details saved', 'success')
+    } else {
+      toast('Failed to save details', 'error')
     }
     setSavingDetails(false)
+  }
+
+  async function archiveJob() {
+    if (!job) return
+    setArchiving(true)
+    const res = await fetch(`/api/jobs/${job.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'archive' }),
+    })
+    if (res.ok) {
+      toast('Job archived — find it in Job History', 'info')
+      onJobUpdate({ id: job.id, status: job.status, tech: job.tech, archived: true })
+      onClose()
+    } else {
+      toast('Failed to archive job', 'error')
+    }
+    setArchiving(false)
   }
 
   async function sendMessage() {
@@ -182,6 +221,8 @@ export default function JobDrawer({
       const msg = await res.json()
       setJob(prev => prev ? { ...prev, messages: [...prev.messages, msg] } : null)
       setMsgText('')
+    } else {
+      toast('Failed to send message', 'error')
     }
     setSending(false)
     msgInputRef.current?.focus()
@@ -192,8 +233,30 @@ export default function JobDrawer({
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 900, display: 'flex', justifyContent: 'flex-end' }}>
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)' }} onClick={onClose} />
-      <div style={{ width: drawerWidth, background: 'var(--bg2)', borderLeft: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text4)', fontSize: 12 }}>
-        {t('loading')}
+      <div style={{ width: drawerWidth, background: 'var(--bg2)', borderLeft: isMobile ? 'none' : '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text4)', padding: 4 }}>✕</button>
+        </div>
+        <DrawerSkeleton />
+      </div>
+    </div>
+  )
+
+  if (loadError) return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 900, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,.5)' }} onClick={onClose} />
+      <div style={{ width: drawerWidth, background: 'var(--bg2)', borderLeft: isMobile ? 'none' : '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
+        <div style={{ fontSize: 36 }}>⚠️</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>Failed to load job</div>
+        <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center' }}>Check your connection and try again.</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onClose} style={{ padding: '9px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text3)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Close</button>
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); fetch(`/api/jobs/${jobId}`).then(r => r.json()).then(data => { setJob(data); setLoading(false) }).catch(() => { setLoadError(true); setLoading(false) }) }}
+            style={{ padding: '9px 16px', background: 'var(--amber)', border: 'none', borderRadius: 8, color: '#080c1a', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            Try Again
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -487,21 +550,57 @@ export default function JobDrawer({
         </div>
 
         {/* Footer actions */}
-        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6, flexShrink: 0 }}>
-          {can(session.role, 'collectPayment') && (
-            <button onClick={() => onOpenPayment(job.id, job.client)}
-              style={{ flex: 1, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '10px 0', cursor: 'pointer' }}>
-              {t('collectPayment')}
-            </button>
-          )}
-          {can(session.role, 'editJob') && job.status !== 'done' && (
-            <button onClick={() => updateStatus('done')}
-              style={{ flex: 1, background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '10px 0', cursor: 'pointer' }}>
-              {t('markComplete')}
+        <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: can(session.role, 'archiveJob') && job.status === 'done' && !job.archivedAt ? 8 : 0 }}>
+            {can(session.role, 'collectPayment') && (
+              <button onClick={() => onOpenPayment(job.id, job.client)}
+                style={{ flex: 1, background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '10px 0', cursor: 'pointer' }}>
+                {t('collectPayment')}
+              </button>
+            )}
+            {can(session.role, 'editJob') && job.status !== 'done' && (
+              <button onClick={() => updateStatus('done')}
+                style={{ flex: 1, background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, padding: '10px 0', cursor: 'pointer' }}>
+                {t('markComplete')}
+              </button>
+            )}
+          </div>
+          {can(session.role, 'archiveJob') && job.status === 'done' && !job.archivedAt && (
+            <button
+              onClick={archiveJob}
+              disabled={archiving}
+              style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text4)', fontSize: 12, fontWeight: 600, padding: '8px 0', cursor: archiving ? 'wait' : 'pointer', opacity: archiving ? 0.6 : 1 }}>
+              {archiving ? 'Archiving…' : `📋 ${t('archive')} — move to history`}
             </button>
           )}
         </div>
       </div>
+
+      {/* Invoice prompt modal */}
+      {showInvoicePrompt && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, background: 'rgba(0,0,0,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 18, padding: 28, maxWidth: 340, width: '100%', textAlign: 'center', animation: 'fadeIn .2s ease', boxShadow: '0 20px 60px rgba(0,0,0,.5)' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>{t('jobComplete')}</div>
+            <div style={{ fontSize: 13, color: 'var(--text4)', lineHeight: 1.5, marginBottom: 22 }}>
+              Would you like to create an invoice for <strong style={{ color: 'var(--text)' }}>{job.client}</strong>?
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setShowInvoicePrompt(false)}
+                style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text3)', fontSize: 13, fontWeight: 700, padding: '11px 0', cursor: 'pointer' }}>
+                {t('notNow')}
+              </button>
+              <Link
+                href="/invoices"
+                onClick={() => setShowInvoicePrompt(false)}
+                style={{ flex: 2, background: 'var(--amber)', border: 'none', borderRadius: 9, color: '#080c1a', fontSize: 13, fontWeight: 800, padding: '11px 0', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {t('createInvoice')}
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes slideIn {

@@ -13,7 +13,7 @@ export default async function JobsPage() {
 
   const [jobs, users] = await Promise.all([
     prisma.job.findMany({
-      where: { ...tenantFilter, ...techFilter },
+      where: { ...tenantFilter, ...techFilter, archivedAt: null },
       include: { tech: { select: { id: true, name: true, initials: true } } },
       orderBy: { createdAt: 'desc' },
     }),

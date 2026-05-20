@@ -1,0 +1,27 @@
+import { getSession } from '@/lib/auth'
+import { can } from '@/lib/permissions'
+import { prisma } from '@/lib/prisma'
+import { getTenantFilter } from '@/lib/tenant'
+
+export async function GET() {
+  const session = await getSession()
+  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!can(session.role, 'viewHistory')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+
+  const tenantFilter = getTenantFilter(session)
+
+  const jobs = await prisma.job.findMany({
+    where: {
+      ...tenantFilter,
+      OR: [{ status: 'done' }, { archivedAt: { not: null } }],
+    },
+    include: {
+      tech: { select: { id: true, name: true, initials: true } },
+      invoices: { select: { total: true, status: true } },
+    },
+    orderBy: { completedAt: 'desc' },
+    take: 500,
+  })
+
+  return Response.json(jobs)
+}

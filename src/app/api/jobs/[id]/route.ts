@@ -35,8 +35,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json()
   const tenantFilter = getTenantFilter(session)
 
-  const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true } })
+  const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true } })
   if (!prev) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  // Archive / restore actions
+  if (body.action === 'archive') {
+    if (!can(session.role, 'archiveJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    await prisma.job.update({ where: { id }, data: { archivedAt: new Date() } })
+    void prisma.auditLog.create({
+      data: { icon: '📋', action: 'Job archived', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
+    })
+    return Response.json({ ok: true })
+  }
+  if (body.action === 'restore') {
+    if (!can(session.role, 'archiveJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    await prisma.job.update({ where: { id }, data: { archivedAt: null } })
+    void prisma.auditLog.create({
+      data: { icon: '📋', action: 'Job restored', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
+    })
+    return Response.json({ ok: true })
+  }
 
   // Validate the technician belongs to this tenant before assigning
   if (body.techId !== undefined && body.techId !== null) {

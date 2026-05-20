@@ -21,6 +21,7 @@ const NAV_ITEMS: { href: string; icon: string; labelKey: TKeys; perm: string | n
   { href: '/equipment', icon: '⚙', labelKey: 'equipment', perm: 'viewEquipment' },
   { href: '/contracts', icon: '📑', labelKey: 'contracts', perm: 'viewContracts' },
   { href: '/team', icon: '👥', labelKey: 'team', perm: 'manageSettings' },
+  { href: '/history', icon: '📋', labelKey: 'jobHistory', perm: 'viewHistory' },
   { href: '/audit', icon: '🛡', labelKey: 'auditLog', perm: 'viewAudit' },
   { href: '/billing', icon: '💳', labelKey: 'billing', perm: 'manageBilling' },
 ]
