@@ -35,8 +35,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const body = await req.json()
   const tenantFilter = getTenantFilter(session)
 
-  const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true } })
+  const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true, updatedAt: true } })
   if (!prev) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  // Optimistic lock check — when a mutation was queued offline, the SW stamps
+  // x-wf-queued-at with the time it was queued. If another write landed after
+  // that time, a conflict occurred and we return 409 so the client can notify
+  // the user instead of silently overwriting someone else's work.
+  if (!body.action) {
+    const queuedAt = req.headers.get('x-wf-queued-at')
+    if (queuedAt) {
+      const queuedDate = new Date(queuedAt)
+      if (!isNaN(queuedDate.getTime()) && prev.updatedAt > queuedDate) {
+        return Response.json({
+          error: 'conflict',
+          message: 'This job was updated while you were offline',
+        }, { status: 409 })
+      }
+    }
+  }
 
   // Archive / restore actions
   if (body.action === 'archive') {

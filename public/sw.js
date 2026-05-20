@@ -1,10 +1,14 @@
-// WorkForge Service Worker — offline-first PWA
-// Bump CACHE_VERSION on each deploy to evict stale caches
-const CACHE_VERSION = 'wf-v1'
-const STATIC_CACHE = `${CACHE_VERSION}-static`
-const PAGE_CACHE   = `${CACHE_VERSION}-pages`
+// WorkForge Service Worker
+// CACHE_VERSION is stamped by scripts/patch-sw.mjs after each `next build`.
+// Never edit 'wf-NiywwJkKCI8uAMUfrq71J' — it is replaced automatically.
+const CACHE_VERSION = 'wf-NiywwJkKCI8uAMUfrq71J'
+const STATIC_CACHE  = `${CACHE_VERSION}-static`
+const PAGE_CACHE    = `${CACHE_VERSION}-pages`
 
-// These paths are never intercepted: auth state, billing, push subscription
+const PAGE_MAX_AGE_MS = 7  * 24 * 60 * 60 * 1000  // 7 days
+const API_MAX_AGE_MS  = 24 * 60 * 60 * 1000        // 24 hours
+
+// Never intercept these paths — auth state, payments, push sub, file uploads
 const BYPASS_PREFIXES = [
   '/api/auth/',
   '/api/push/',
@@ -12,13 +16,31 @@ const BYPASS_PREFIXES = [
   '/api/seed',
   '/api/register',
   '/api/invites/accept',
+  '/api/invoices/',  // PDFs, complex blobs
 ]
 
-// ─── IndexedDB helpers (no ES modules in SW) ─────────────────────────────────
+// Headers to strip when replaying queued mutations (browser-computed or Next.js-internal)
+const STRIP_REPLAY_HEADERS = new Set([
+  'cookie', 'content-length', 'host',
+  'next-action', 'next-router-state-tree', 'next-router-prefetch', 'next-url',
+  'rsc', 'next-action-upload-token',
+])
+
+// ─── Network Information API — adaptive timeout ────────────────────────────
+
+function getPageTimeout() {
+  try {
+    const conn = self.navigator?.connection
+    if (!conn?.effectiveType) return 6000
+    return { '4g': 5000, '3g': 10000, '2g': 14000, 'slow-2g': 20000 }[conn.effectiveType] ?? 6000
+  } catch { return 6000 }
+}
+
+// ─── IndexedDB helpers ─────────────────────────────────────────────────────
 
 function openIDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('workforge-offline', 1)
+    const req = indexedDB.open('workforge-offline', 2)
     req.onupgradeneeded = (e) => {
       const db = e.target.result
       if (!db.objectStoreNames.contains('api-cache')) {
@@ -30,88 +52,57 @@ function openIDB() {
       }
     }
     req.onsuccess = (e) => resolve(e.target.result)
-    req.onerror  = ()  => reject(req.error)
+    req.onerror   = ()  => reject(req.error)
   })
 }
 
-function idbStore(db, name, mode = 'readonly') {
+function idbTx(db, name, mode = 'readonly') {
   return db.transaction([name], mode).objectStore(name)
 }
-
 function idbGet(db, store, key) {
-  return new Promise((resolve, reject) => {
-    const r = idbStore(db, store).get(key)
-    r.onsuccess = () => resolve(r.result)
-    r.onerror   = () => reject(r.error)
-  })
+  return new Promise((r, j) => { const q = idbTx(db, store).get(key); q.onsuccess = () => r(q.result); q.onerror = () => j(q.error) })
 }
-
-function idbPut(db, store, value) {
-  return new Promise((resolve, reject) => {
-    const r = idbStore(db, store, 'readwrite').put(value)
-    r.onsuccess = () => resolve(r.result)
-    r.onerror   = () => reject(r.error)
-  })
+function idbPut(db, store, val) {
+  return new Promise((r, j) => { const q = idbTx(db, store, 'readwrite').put(val); q.onsuccess = () => r(q.result); q.onerror = () => j(q.error) })
 }
-
-function idbAdd(db, store, value) {
-  return new Promise((resolve, reject) => {
-    const r = idbStore(db, store, 'readwrite').add(value)
-    r.onsuccess = () => resolve(r.result)
-    r.onerror   = () => reject(r.error)
-  })
+function idbAdd(db, store, val) {
+  return new Promise((r, j) => { const q = idbTx(db, store, 'readwrite').add(val); q.onsuccess = () => r(q.result); q.onerror = () => j(q.error) })
 }
-
 function idbGetAll(db, store) {
-  return new Promise((resolve, reject) => {
-    const r = idbStore(db, store).getAll()
-    r.onsuccess = () => resolve(r.result)
-    r.onerror   = () => reject(r.error)
-  })
+  return new Promise((r, j) => { const q = idbTx(db, store).getAll(); q.onsuccess = () => r(q.result); q.onerror = () => j(q.error) })
 }
-
 function idbDelete(db, store, key) {
-  return new Promise((resolve, reject) => {
-    const r = idbStore(db, store, 'readwrite').delete(key)
-    r.onsuccess = () => resolve()
-    r.onerror   = () => reject(r.error)
-  })
+  return new Promise((r, j) => { const q = idbTx(db, store, 'readwrite').delete(key); q.onsuccess = () => r(); q.onerror = () => j(q.error) })
 }
 
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
+// ─── Lifecycle ─────────────────────────────────────────────────────────────
 
-self.addEventListener('install', () => {
-  self.skipWaiting()
-})
+self.addEventListener('install', () => { self.skipWaiting() })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys
-          .filter(k => k.startsWith('wf-') && !k.startsWith(CACHE_VERSION))
-          .map(k => caches.delete(k))
+        keys.filter(k => k.startsWith('wf-') && !k.startsWith(CACHE_VERSION))
+            .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   )
 })
 
-// ─── Fetch interception ───────────────────────────────────────────────────────
+// ─── Fetch interception ────────────────────────────────────────────────────
 
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
-
-  // Only handle same-origin
   if (url.origin !== self.location.origin) return
 
-  // Immutable content-hashed Next.js chunks — cache forever
+  // Immutable content-hashed Next.js chunks — cache-first, no expiry
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(cacheFirst(request))
     return
   }
 
-  // API routes
   if (url.pathname.startsWith('/api/')) {
     if (BYPASS_PREFIXES.some(p => url.pathname.startsWith(p))) return
     if (request.method === 'GET') {
@@ -122,19 +113,17 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Page navigations — network-first, stale HTML on failure
   if (request.mode === 'navigate') {
     event.respondWith(pageNetworkFirst(request))
-    return
   }
 })
 
-// ─── Caching strategies ───────────────────────────────────────────────────────
+// ─── Strategies ────────────────────────────────────────────────────────────
 
 async function cacheFirst(request) {
-  const cache = await caches.open(STATIC_CACHE)
-  const hit = await cache.match(request)
-  if (hit) return hit
+  const cache  = await caches.open(STATIC_CACHE)
+  const cached = await cache.match(request)
+  if (cached) return cached
   try {
     const res = await fetch(request)
     if (res.ok) cache.put(request, res.clone())
@@ -144,23 +133,45 @@ async function cacheFirst(request) {
   }
 }
 
+// Network-first with adaptive timeout. Stale content served on slow/dead
+// connections, but the background network fetch still runs to refresh the
+// cache so the NEXT load is always fresh.
 async function pageNetworkFirst(request) {
   const cache = await caches.open(PAGE_CACHE)
-  try {
-    const ctrl = new AbortController()
-    const tid  = setTimeout(() => ctrl.abort(), 5000)
-    const res  = await fetch(request, { signal: ctrl.signal })
-    clearTimeout(tid)
-    if (res.ok) cache.put(request.url, res.clone())
-    return res
-  } catch {
-    const stale = await cache.match(request.url)
-    if (stale) return stale
-    return new Response(OFFLINE_PAGE, {
-      status: 200,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+
+  // Start the network fetch unconditionally — let it run in the background
+  const networkFetch = fetch(request)
+    .then(res => {
+      if (res.ok) cache.put(request.url, res.clone())
+      return res
     })
+    .catch(() => null)
+
+  // Race network against an adaptive timeout
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), getPageTimeout()))
+  const fast    = await Promise.race([networkFetch, timeout])
+
+  if (fast?.ok) return fast
+
+  // Timeout or offline — try stale cache
+  const stale = await cache.match(request.url)
+  if (stale) {
+    // Reject entries older than PAGE_MAX_AGE_MS
+    const dateStr  = stale.headers.get('date')
+    const cacheAge = dateStr ? Date.now() - new Date(dateStr).getTime() : Infinity
+    if (cacheAge <= PAGE_MAX_AGE_MS) {
+      // Notify clients they're seeing stale content
+      notifyAll({ type: 'WF_STALE_PAGE', cachedAt: dateStr ? new Date(dateStr).getTime() : null })
+      return stale
+    }
+    await cache.delete(request.url)
   }
+
+  // Nothing usable — wait a bit longer for the network before giving up
+  const networkRes = await networkFetch
+  if (networkRes?.ok) return networkRes
+
+  return new Response(OFFLINE_PAGE, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 }
 
 async function apiNetworkFirst(request) {
@@ -180,14 +191,11 @@ async function apiNetworkFirst(request) {
     try {
       const db     = await openIDB()
       const cached = await idbGet(db, 'api-cache', key)
-      if (cached) {
+      if (cached && Date.now() - cached.cachedAt <= API_MAX_AGE_MS) {
+        notifyAll({ type: 'WF_STALE_API', url: key, cachedAt: cached.cachedAt })
         return new Response(JSON.stringify(cached.data), {
           status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-WF-Offline': '1',
-            'X-WF-Cached-At': new Date(cached.cachedAt).toISOString(),
-          },
+          headers: { 'Content-Type': 'application/json', 'X-WF-Offline': '1' },
         })
       }
     } catch {}
@@ -198,7 +206,8 @@ async function apiNetworkFirst(request) {
   }
 }
 
-// Queue non-GET mutations when offline; pass through when online
+// Try network; if offline, queue the mutation and return 202 so the client's
+// optimistic update path runs as if it succeeded.
 async function handleMutation(request) {
   try {
     const ctrl = new AbortController()
@@ -207,11 +216,17 @@ async function handleMutation(request) {
     clearTimeout(tid)
     return res
   } catch {
-    // Offline — persist the mutation
     try {
-      const body    = await request.text()
-      const headers = {}
-      request.headers.forEach((v, k) => { headers[k] = v })
+      const body = await request.text()
+
+      // Capture safe headers + stamp the time the mutation was queued.
+      // x-wf-queued-at lets the server detect optimistic-lock conflicts.
+      const headers = { 'content-type': 'application/json' }
+      request.headers.forEach((v, k) => {
+        if (!STRIP_REPLAY_HEADERS.has(k.toLowerCase())) headers[k] = v
+      })
+      headers['x-wf-queued-at'] = new Date().toISOString()
+
       const db = await openIDB()
       await idbAdd(db, 'mutations', {
         url: request.url,
@@ -220,10 +235,12 @@ async function handleMutation(request) {
         headers,
         queuedAt: Date.now(),
       })
+
       if ('sync' in self.registration) {
         self.registration.sync.register('wf-sync').catch(() => {})
       }
     } catch {}
+
     return new Response(JSON.stringify({ ok: true, queued: true, offline: true }), {
       status: 202,
       headers: { 'Content-Type': 'application/json' },
@@ -231,7 +248,7 @@ async function handleMutation(request) {
   }
 }
 
-// ─── Background Sync ──────────────────────────────────────────────────────────
+// ─── Background Sync ───────────────────────────────────────────────────────
 
 self.addEventListener('sync', (event) => {
   if (event.tag === 'wf-sync') event.waitUntil(flushMutations())
@@ -246,20 +263,29 @@ async function flushMutations() {
 
   all.sort((a, b) => a.queuedAt - b.queuedAt)
 
-  const done = []
+  const done      = []
+  const conflicts = []
+
   for (const m of all) {
     try {
-      const res = await fetch(m.url, {
-        method:  m.method,
-        headers: m.headers,
-        body:    m.body || undefined,
-      })
-      // 404/409 means the resource is gone or conflicted — remove from queue anyway
-      if (res.ok || res.status === 404 || res.status === 409) {
+      const res = await fetch(m.url, { method: m.method, headers: m.headers, body: m.body || undefined })
+
+      if (res.ok) {
+        done.push(m.id)
+      } else if (res.status === 404 || res.status === 403) {
+        // Resource gone or permission revoked — can't retry, discard silently
+        done.push(m.id)
+      } else if (res.status === 409) {
+        // Optimistic lock conflict — notify clients so they can inform the user
+        const body = await res.json().catch(() => ({}))
+        conflicts.push({ mutation: { url: m.url, method: m.method, queuedAt: m.queuedAt }, server: body })
         done.push(m.id)
       }
+      // 5xx: leave in queue, server is unhealthy — stop and retry on next sync
+      else { break }
+
     } catch {
-      break // still offline, stop and retry on next sync event
+      break // Network failure — still offline, stop here
     }
   }
 
@@ -267,23 +293,27 @@ async function flushMutations() {
     await idbDelete(db, 'mutations', id).catch(() => {})
   }
 
+  if (conflicts.length > 0) {
+    notifyAll({ type: 'WF_CONFLICTS', conflicts })
+  }
+
   if (done.length > 0) {
-    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' })
-    for (const c of clients) {
-      c.postMessage({ type: 'WF_SYNC_COMPLETE', synced: done.length })
-    }
+    const remaining = (await idbGetAll(db, 'mutations').catch(() => [])).length
+    notifyAll({ type: 'WF_SYNC_COMPLETE', synced: done.length, conflicts: conflicts.length, remaining })
   }
 }
 
-// ─── Client messaging ─────────────────────────────────────────────────────────
+// ─── Client messaging ──────────────────────────────────────────────────────
+
+function notifyAll(msg) {
+  self.clients.matchAll({ includeUncontrolled: true, type: 'window' })
+    .then(clients => clients.forEach(c => c.postMessage(msg)))
+    .catch(() => {})
+}
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting()
-  }
-  if (event.data?.type === 'FLUSH_QUEUE') {
-    event.waitUntil(flushMutations())
-  }
+  if (event.data?.type === 'SKIP_WAITING')   self.skipWaiting()
+  if (event.data?.type === 'FLUSH_QUEUE')    event.waitUntil(flushMutations())
   if (event.data?.type === 'GET_QUEUE_COUNT') {
     openIDB()
       .then(db => idbGetAll(db, 'mutations'))
@@ -292,7 +322,7 @@ self.addEventListener('message', (event) => {
   }
 })
 
-// ─── Push Notifications ───────────────────────────────────────────────────────
+// ─── Push Notifications ────────────────────────────────────────────────────
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {}
@@ -322,7 +352,7 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-// ─── Offline fallback page ────────────────────────────────────────────────────
+// ─── Offline fallback ──────────────────────────────────────────────────────
 
 const OFFLINE_PAGE = `<!DOCTYPE html>
 <html lang="en">
@@ -335,16 +365,18 @@ const OFFLINE_PAGE = `<!DOCTYPE html>
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#080c1a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center}
     .icon{font-size:52px;margin-bottom:20px}
     h1{font-size:22px;font-weight:800;color:#f59e0b;margin-bottom:10px}
-    p{font-size:13px;color:#94a3b8;line-height:1.7;max-width:320px;margin:0 auto 24px}
-    button{padding:11px 24px;background:#f59e0b;color:#080c1a;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer}
+    p{font-size:13px;color:#94a3b8;line-height:1.7;max-width:340px;margin:0 auto 24px}
+    .btn{display:inline-block;padding:11px 24px;background:#f59e0b;color:#080c1a;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;text-decoration:none;margin:4px}
+    .btn-ghost{background:transparent;border:1px solid #334155;color:#94a3b8}
   </style>
 </head>
 <body>
   <div>
     <div class="icon">⚡</div>
     <h1>You're offline</h1>
-    <p>Open a page you've already visited to keep working. Any changes you make will sync automatically when you reconnect.</p>
-    <button onclick="history.back()">Go back</button>
+    <p>Open a page you've already visited to keep working — your changes queue automatically and sync the moment you reconnect.</p>
+    <button class="btn" onclick="history.back()">Go back</button>
+    <button class="btn btn-ghost" onclick="location.reload()">Try again</button>
   </div>
 </body>
 </html>`
