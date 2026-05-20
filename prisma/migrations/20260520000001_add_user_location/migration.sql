@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "lat"             DOUBLE PRECISION;
+ALTER TABLE "User" ADD COLUMN "lng"             DOUBLE PRECISION;
+ALTER TABLE "User" ADD COLUMN "locatedAt"       TIMESTAMP(3);
+ALTER TABLE "User" ADD COLUMN "sharingLocation" BOOLEAN NOT NULL DEFAULT false;

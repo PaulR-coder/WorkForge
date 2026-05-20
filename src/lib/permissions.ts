@@ -7,6 +7,7 @@ const PERMISSIONS: Partial<Record<Role, Record<string, boolean>>> = {
     collectPayment: true, viewAudit: true, manageUsers: true, manageSettings: true,
     viewEquipment: true, editEquipment: true, viewContracts: true, editContracts: true,
     manageBilling: true, superAdminView: true, archiveJob: true, viewHistory: true,
+    viewTeamMap: true,
   },
   admin: {
     viewDashboard: true, createJob: true, editJob: true, deleteJob: true,
@@ -14,6 +15,7 @@ const PERMISSIONS: Partial<Record<Role, Record<string, boolean>>> = {
     collectPayment: true, viewAudit: true, manageUsers: true, manageSettings: true,
     viewEquipment: true, editEquipment: true, viewContracts: true, editContracts: true,
     manageBilling: true, archiveJob: true, viewHistory: true,
+    viewTeamMap: true,
   },
   dispatcher: {
     viewDashboard: false, createJob: true, editJob: true, deleteJob: false,
@@ -21,6 +23,7 @@ const PERMISSIONS: Partial<Record<Role, Record<string, boolean>>> = {
     collectPayment: false, viewAudit: false, manageUsers: false, manageSettings: false,
     viewEquipment: true, editEquipment: false, viewContracts: true, editContracts: false,
     archiveJob: true, viewHistory: true,
+    viewTeamMap: true,
   },
   tech: {
     viewDashboard: false, createJob: false, editJob: true, deleteJob: false,
@@ -28,6 +31,7 @@ const PERMISSIONS: Partial<Record<Role, Record<string, boolean>>> = {
     collectPayment: true, viewAudit: false, manageUsers: false, manageSettings: false,
     viewEquipment: true, editEquipment: false, viewContracts: false, editContracts: false,
     archiveJob: false, viewHistory: true,
+    shareLocation: true,
   },
   readonly: {
     viewDashboard: true, createJob: false, editJob: false, deleteJob: false,

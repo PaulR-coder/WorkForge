@@ -2,10 +2,13 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import TeamCard from './TeamCard'
 import InviteButton from './InviteButton'
 import PendingInvites from './PendingInvites'
 import { getTenantFilter } from '@/lib/tenant'
+
+const TeamMap = dynamic(() => import('./TeamMap'), { ssr: false })
 
 export default async function TeamPage() {
   const session = await getSession()
@@ -13,6 +16,8 @@ export default async function TeamPage() {
 
   const tenantFilter = getTenantFilter(session)
   const canEdit = can(session.role, 'manageUsers')
+
+  const canViewMap = can(session.role, 'viewTeamMap')
 
   const [users, invites] = await Promise.all([
     prisma.user.findMany({
@@ -48,6 +53,8 @@ export default async function TeamPage() {
       {canEdit && invites.length > 0 && (
         <PendingInvites initialInvites={invites.map(i => ({ ...i, createdAt: i.createdAt.toISOString(), expiresAt: i.expiresAt.toISOString() }))} />
       )}
+
+      {canViewMap && <TeamMap />}
     </div>
   )
 }

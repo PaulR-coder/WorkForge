@@ -100,9 +100,13 @@ model User {
   company   String   @default("")
   specialty String   @default("")
   phone     String?
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  active          Boolean   @default(true)
+  lat             Float?
+  lng             Float?
+  locatedAt       DateTime?
+  sharingLocation Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   emailVerified    Boolean   @default(true)
   verifyToken      String?   @unique

@@ -67,11 +67,85 @@ export default function FieldView({ initialJobs, session }: {
   const [photos, setPhotos] = useState<Record<string, Photo[]>>({})
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
-  const msgBottomRef = useRef<HTMLDivElement>(null)
+  const [onDuty, setOnDuty] = useState(false)
+  const [geoError, setGeoError] = useState<string | null>(null)
+  const msgBottomRef  = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const watchIdRef    = useRef<number | null>(null)
+  const lastSentRef   = useRef<{ lat: number; lng: number; at: number } | null>(null)
   const { t } = useLang()
 
   useEffect(() => subscribePendingJobs(setPendingIds), [])
+
+  // Restore On Duty state + watch from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return
+    const stored = localStorage.getItem('wf-on-duty') === '1'
+    if (!stored) return
+    setOnDuty(true)
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => sendLocation(pos.coords.latitude, pos.coords.longitude),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 30_000 },
+    )
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function sendLocation(lat: number, lng: number) {
+    const last = lastSentRef.current
+    const now  = Date.now()
+    // Throttle: skip if < 60s elapsed AND moved < ~44m
+    if (last && now - last.at < 60_000 && Math.abs(lat - last.lat) < 0.0004 && Math.abs(lng - last.lng) < 0.0004) return
+    lastSentRef.current = { lat, lng, at: now }
+    fetch('/api/users/me/location', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng }),
+    }).catch(() => {})
+  }
+
+  async function toggleOnDuty() {
+    if (onDuty) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      lastSentRef.current = null
+      localStorage.removeItem('wf-on-duty')
+      setOnDuty(false)
+      setGeoError(null)
+      fetch('/api/users/me/location', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sharing: false }),
+      }).catch(() => {})
+    } else {
+      if (!navigator.geolocation) { setGeoError('Geolocation not supported on this device'); return }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          sendLocation(pos.coords.latitude, pos.coords.longitude)
+          watchIdRef.current = navigator.geolocation.watchPosition(
+            (p) => sendLocation(p.coords.latitude, p.coords.longitude),
+            () => {},
+            { enableHighAccuracy: true, maximumAge: 30_000 },
+          )
+          localStorage.setItem('wf-on-duty', '1')
+          setOnDuty(true)
+          setGeoError(null)
+        },
+        (err) => {
+          setGeoError(err.code === 1 ? 'Location permission denied — enable it in browser settings' : 'Could not get your location')
+        },
+        { timeout: 10_000 },
+      )
+    }
+  }
 
   // Fetch messages when a job is expanded, then poll every 15s
   useEffect(() => {
@@ -193,7 +267,7 @@ export default function FieldView({ initialJobs, session }: {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 12px', minHeight: '100vh' }}>
       {/* Field header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: geoError ? 8 : 16 }}>
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
             {session.role === 'tech' ? t('myJobs') : t('fieldView')}
@@ -202,12 +276,37 @@ export default function FieldView({ initialJobs, session }: {
             {jobs.length} {t('activeTap')}
           </div>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {session.role === 'tech' && (
+            <button
+              onClick={toggleOnDuty}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 12px', borderRadius: 9, border: '1px solid',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
+                background: onDuty ? 'rgba(34,197,94,.12)' : 'var(--bg3)',
+                borderColor: onDuty ? 'rgba(34,197,94,.35)' : 'var(--border)',
+                color: onDuty ? '#22c55e' : 'var(--text4)',
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: onDuty ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0, animation: onDuty ? 'pulse 2s ease infinite' : 'none' }} />
+              {onDuty ? 'On Duty' : 'Off Duty'}
+            </button>
+          )}
           <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>
             {session.initials}
           </div>
         </div>
       </div>
+
+      {/* Geolocation error */}
+      {geoError && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 9, marginBottom: 14, fontSize: 12, color: '#fca5a5' }}>
+          <span style={{ flexShrink: 0 }}>⚠</span>
+          <span style={{ flex: 1 }}>{geoError}</span>
+          <button onClick={() => setGeoError(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>✕</button>
+        </div>
+      )}
 
       {/* Priority legend */}
       {(grouped.urgent.length > 0 || grouped.high.length > 0) && (
