@@ -100,6 +100,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
+  await prisma.message.deleteMany({ where: { jobId: id } })
+  await prisma.photo.deleteMany({ where: { jobId: id } })
+  await prisma.invoice.updateMany({ where: { jobId: id }, data: { jobId: null } })
+  await prisma.payment.updateMany({ where: { jobId: id }, data: { jobId: null } })
   await prisma.job.delete({ where: { id } })
   await prisma.auditLog.create({
     data: { icon: '🗑', action: 'Job deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
