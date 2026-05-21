@@ -6,7 +6,8 @@ const SECURITY_HEADERS = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-XSS-Protection', value: '1; mode=block' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+  // geolocation=(self) allows the On Duty location toggle; camera/mic remain blocked
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
   {
     key: 'Content-Security-Policy',
@@ -15,8 +16,12 @@ const SECURITY_HEADERS = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob:",
-      "connect-src 'self' https://o*.ingest.sentry.io",
+      // blob: for photo capture; data: for inline images; CartoDB for team map tiles
+      "img-src 'self' data: blob: https://*.basemaps.cartocdn.com",
+      // CartoDB tile requests from Leaflet; Sentry error ingestion
+      "connect-src 'self' https://*.basemaps.cartocdn.com https://o*.ingest.sentry.io",
+      // Allow service worker script
+      "worker-src 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
