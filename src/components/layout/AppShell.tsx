@@ -33,7 +33,6 @@ const BOTTOM_TABS: Record<string, { href: string; icon: string; labelKey: TKeys 
     { href: '/schedule', icon: '📅', labelKey: 'schedule'    },
   ],
   dispatcher: [
-    { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
     { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
     { href: '/schedule',  icon: '📅', labelKey: 'schedule'   },
     { href: '/team',      icon: '👥', labelKey: 'team'       },

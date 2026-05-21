@@ -41,7 +41,7 @@ export default function LoginPage() {
         }
         return
       }
-      const dest = data.role === 'tech' ? '/field' : '/dashboard'
+      const dest = data.role === 'tech' ? '/field' : data.role === 'dispatcher' ? '/jobs' : '/dashboard'
       router.push(dest)
       router.refresh()
     } catch {

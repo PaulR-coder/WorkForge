@@ -51,9 +51,11 @@ export async function POST(req: Request) {
     tenantId: user.tenantId,
   })
 
-  await prisma.auditLog.create({
-    data: { icon: '🔐', action: 'Login', detail: `${user.name} (${user.role})`, severity: 'info', userId: user.id, tenantId: user.tenantId },
-  })
+  try {
+    await prisma.auditLog.create({
+      data: { icon: '🔐', action: 'Login', detail: `${user.name} (${user.role})`, severity: 'info', userId: user.id, tenantId: user.tenantId },
+    })
+  } catch { /* non-fatal — RLS may block this on unpatched DB */ }
 
   return Response.json({ id: user.id, name: user.name, email: user.email, role: user.role, initials: user.initials, company: user.company, tenantId: user.tenantId })
 }
