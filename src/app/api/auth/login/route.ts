@@ -41,6 +41,18 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Please verify your email before signing in.', needsVerification: true, email: user.email }, { status: 403 })
   }
 
+  // Recover tenantId at login time if DB record is missing it
+  let effectiveTenantId = user.tenantId
+  if (!effectiveTenantId && user.role !== 'superadmin' && user.company) {
+    try {
+      const tenant = await prisma.tenant.findFirst({ where: { name: user.company } })
+      if (tenant) {
+        effectiveTenantId = tenant.id
+        prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id } }).catch(() => {})
+      }
+    } catch {}
+  }
+
   await setSession({
     id: user.id,
     email: user.email,
@@ -48,7 +60,7 @@ export async function POST(req: Request) {
     role: user.role,
     initials: user.initials,
     company: user.company,
-    tenantId: user.tenantId,
+    tenantId: effectiveTenantId,
   })
 
   try {
@@ -57,5 +69,5 @@ export async function POST(req: Request) {
     })
   } catch { /* non-fatal — RLS may block this on unpatched DB */ }
 
-  return Response.json({ id: user.id, name: user.name, email: user.email, role: user.role, initials: user.initials, company: user.company, tenantId: user.tenantId })
+  return Response.json({ id: user.id, name: user.name, email: user.email, role: user.role, initials: user.initials, company: user.company, tenantId: effectiveTenantId })
 }
