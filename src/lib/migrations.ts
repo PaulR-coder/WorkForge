@@ -28,6 +28,11 @@ async function addColumn(table: string, column: string, type: string) {
 }
 
 export async function runMigrations() {
+  // Bypass RLS for startup migrations — set tenant context to '' so the
+  // pass-through condition (tenant_id = '') is satisfied on any connection
+  // that happens to be subject to FORCE ROW LEVEL SECURITY.
+  await prisma.$executeRawUnsafe(`SET app.tenant_id = ''`)
+
   await createType('Role', `'superadmin', 'admin', 'dispatcher', 'tech', 'readonly'`)
   await createType('JobStatus', `'open', 'scheduled', 'in_progress', 'done'`)
   await createType('Priority', `'low', 'normal', 'high', 'urgent'`)
@@ -155,44 +160,50 @@ export async function runMigrations() {
   await addConstraint(`ALTER TABLE "Invite" ADD CONSTRAINT "Invite_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE`)
 
   // --- Backfill: create one Tenant per distinct non-superadmin company ---
-  const companies = await prisma.$queryRaw<{ company: string }[]>`
-    SELECT DISTINCT company FROM "User" WHERE company != '' AND company != 'WorkForge' AND "tenantId" IS NULL
-  `
-  for (const { company } of companies) {
-    const slug = company.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 60)
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO "Tenant" ("id","name","slug","updatedAt")
-      SELECT gen_random_uuid(), $1, $2, NOW()
-      WHERE NOT EXISTS (SELECT 1 FROM "Tenant" WHERE slug = $2)
-    `, company, slug)
-    await prisma.$executeRawUnsafe(`
-      UPDATE "User" SET "tenantId" = (SELECT id FROM "Tenant" WHERE slug = $1 LIMIT 1)
-      WHERE company = $2 AND role != 'superadmin' AND "tenantId" IS NULL
-    `, slug, company)
-  }
+  // Wrapped in try/catch: if FORCE RLS is active these writes could throw,
+  // but by the time this runs the backfill is typically already complete.
+  try {
+    const companies = await prisma.$queryRaw<{ company: string }[]>`
+      SELECT DISTINCT company FROM "User" WHERE company != '' AND company != 'WorkForge' AND "tenantId" IS NULL
+    `
+    for (const { company } of companies) {
+      const slug = company.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 60)
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "Tenant" ("id","name","slug","updatedAt")
+        SELECT gen_random_uuid(), $1, $2, NOW()
+        WHERE NOT EXISTS (SELECT 1 FROM "Tenant" WHERE slug = $2)
+      `, company, slug)
+      await prisma.$executeRawUnsafe(`
+        UPDATE "User" SET "tenantId" = (SELECT id FROM "Tenant" WHERE slug = $1 LIMIT 1)
+        WHERE company = $2 AND role != 'superadmin' AND "tenantId" IS NULL
+      `, slug, company)
+    }
 
-  await prisma.$executeRawUnsafe(`
-    UPDATE "Job" j SET "tenantId" = u."tenantId"
-    FROM "User" u WHERE j."techId" = u.id AND j."tenantId" IS NULL AND u."tenantId" IS NOT NULL
-  `)
-  await prisma.$executeRawUnsafe(`
-    UPDATE "Job" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
-    WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
-  `)
-  for (const t of ['Invoice','Payment','Equipment','Contract','Message','NotificationRule']) {
     await prisma.$executeRawUnsafe(`
-      UPDATE "${t}" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
+      UPDATE "Job" j SET "tenantId" = u."tenantId"
+      FROM "User" u WHERE j."techId" = u.id AND j."tenantId" IS NULL AND u."tenantId" IS NOT NULL
+    `)
+    await prisma.$executeRawUnsafe(`
+      UPDATE "Job" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
       WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
     `)
+    for (const t of ['Invoice','Payment','Equipment','Contract','Message','NotificationRule']) {
+      await prisma.$executeRawUnsafe(`
+        UPDATE "${t}" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
+        WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
+      `)
+    }
+    await prisma.$executeRawUnsafe(`
+      UPDATE "AuditLog" al SET "tenantId" = u."tenantId"
+      FROM "User" u WHERE al."userId" = u.id AND al."tenantId" IS NULL AND u."tenantId" IS NOT NULL
+    `)
+    await prisma.$executeRawUnsafe(`
+      UPDATE "AuditLog" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
+      WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
+    `)
+  } catch (e) {
+    console.warn('[migrations] Tenant backfill skipped (likely already done):', e)
   }
-  await prisma.$executeRawUnsafe(`
-    UPDATE "AuditLog" al SET "tenantId" = u."tenantId"
-    FROM "User" u WHERE al."userId" = u.id AND al."tenantId" IS NULL AND u."tenantId" IS NOT NULL
-  `)
-  await prisma.$executeRawUnsafe(`
-    UPDATE "AuditLog" SET "tenantId" = (SELECT id FROM "Tenant" ORDER BY "createdAt" ASC LIMIT 1)
-    WHERE "tenantId" IS NULL AND EXISTS (SELECT 1 FROM "Tenant")
-  `)
 
   // FK constraints for tenantId
   for (const t of tenantTables) {

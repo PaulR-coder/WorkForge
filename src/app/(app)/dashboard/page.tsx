@@ -316,10 +316,8 @@ export default async function DashboardPage() {
                     padding: '10px 16px', textDecoration: 'none',
                     borderLeft: `3px solid ${priColor}`,
                     marginLeft: -1,
-                    transition: 'background 120ms',
                   }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    className="dashboard-row-link"
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -381,10 +379,8 @@ export default async function DashboardPage() {
                   <Link key={inv.id} href="/invoices" style={{
                     display: 'flex', alignItems: 'center', gap: 12,
                     padding: '10px 16px', textDecoration: 'none',
-                    transition: 'background 120ms',
                   }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    className="dashboard-row-link"
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

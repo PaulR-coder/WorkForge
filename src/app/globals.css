@@ -310,6 +310,9 @@ html, body {
   flex-shrink: 0;
 }
 
+/* ── Dashboard row hover ─────────────────── */
+.dashboard-row-link:hover { background: var(--bg3); }
+
 /* ── Responsive overrides ─────────────────── */
 @media (max-width: 767px) {
   .responsive-kpi-grid     { grid-template-columns: 1fr 1fr !important; }
