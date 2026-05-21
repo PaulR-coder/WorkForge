@@ -1,6 +1,6 @@
 // WorkForge Service Worker
 // CACHE_VERSION is stamped by scripts/patch-sw.mjs after each `next build`.
-const CACHE_VERSION = 'wf-fk1RHEUDvpxoMc3TTboUP'
+const CACHE_VERSION = 'wf-elZjGsTFo99iqvbZbQc78'
 const STATIC_CACHE  = `${CACHE_VERSION}-static`
 const PAGE_CACHE    = `${CACHE_VERSION}-pages`
 

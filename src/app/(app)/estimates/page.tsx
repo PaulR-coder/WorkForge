@@ -15,7 +15,10 @@ export default async function EstimatesPage() {
 
   const estimates = await db.estimate.findMany({
     where: tenantFilter,
-    include: { createdBy: { select: { name: true, initials: true } } },
+    include: {
+      createdBy: { select: { name: true, initials: true } },
+      job: { select: { id: true, status: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 

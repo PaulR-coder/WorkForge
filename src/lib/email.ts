@@ -188,3 +188,119 @@ export async function emailInvoiceUpdate(
     `),
   }).catch(console.error)
 }
+
+type EstimateLineItem = { description: string; hours?: number; qty?: number; unitPrice: number; total: number }
+
+export async function emailEstimate(
+  to: string,
+  companyName: string,
+  estimate: { number: string; client: string; jobType: string; description: string; lineItems: EstimateLineItem[]; subtotal: number },
+  approvalUrl: string,
+) {
+  if (!resend) return
+  const lineItemsHtml = `
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:13px">
+      <thead>
+        <tr style="background:#f5f7fa">
+          <th style="text-align:left;padding:8px 10px;font-weight:700;color:#64748b">Description</th>
+          <th style="text-align:right;padding:8px 10px;font-weight:700;color:#64748b">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${estimate.lineItems.map(item => `
+          <tr style="border-bottom:1px solid #f0f0f0">
+            <td style="padding:9px 10px">
+              ${item.description}
+              ${item.hours ? `<span style="color:#94a3b8;font-size:11px"> · ${item.hours}hr</span>` : ''}
+              ${item.qty ? `<span style="color:#94a3b8;font-size:11px"> · qty ${item.qty}</span>` : ''}
+            </td>
+            <td style="padding:9px 10px;text-align:right;font-weight:600">$${item.total.toFixed(2)}</td>
+          </tr>
+        `).join('')}
+        <tr style="background:#f8fafc">
+          <td style="padding:12px 10px;font-weight:800;font-size:15px">Total</td>
+          <td style="padding:12px 10px;text-align:right;font-weight:800;font-size:15px;color:#16a34a">$${estimate.subtotal.toFixed(2)}</td>
+        </tr>
+      </tbody>
+    </table>
+  `
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `${companyName} sent you an estimate — $${estimate.subtotal.toFixed(2)}`,
+    html: baseTemplate(`
+      <div style="background:#f59e0b;border-radius:10px;padding:20px 24px;margin-bottom:24px">
+        <div style="font-size:11px;font-weight:700;color:#080c1a;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Service Estimate</div>
+        <div style="font-size:22px;font-weight:800;color:#080c1a">${companyName}</div>
+        <div style="font-size:13px;color:#1a1a2e;margin-top:4px;opacity:.8">${estimate.number}</div>
+      </div>
+
+      <p style="font-size:14px;color:#334155;line-height:1.6">Hi ${estimate.client},</p>
+      <p style="font-size:14px;color:#334155;line-height:1.6">
+        We've prepared a <strong>${estimate.jobType || 'service'}</strong> estimate for you.
+        ${estimate.description ? `Here's what we'll be working on: <em>${estimate.description}</em>` : ''}
+      </p>
+
+      ${lineItemsHtml}
+
+      <p style="font-size:13px;color:#64748b;margin-bottom:24px">
+        Please review the estimate above and let us know if you'd like to proceed.
+      </p>
+
+      <div style="display:flex;gap:12px;margin-bottom:28px">
+        <a href="${approvalUrl}?action=approve" style="display:inline-block;padding:14px 28px;background:#16a34a;color:#fff;border-radius:10px;font-weight:800;font-size:14px;text-decoration:none;margin-right:10px">
+          ✓ Approve Estimate
+        </a>
+        <a href="${approvalUrl}?action=decline" style="display:inline-block;padding:14px 20px;background:#f1f5f9;color:#64748b;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none">
+          Decline
+        </a>
+      </div>
+
+      <p style="font-size:11px;color:#94a3b8">
+        This estimate expires in 30 days. Questions? Reply to this email or contact us directly.
+      </p>
+    `),
+  }).catch(console.error)
+}
+
+export async function emailInvoiceToClient(
+  to: string,
+  companyName: string,
+  invoice: { number: string; client: string; labor: number; parts: number; surcharge: number; total: number; dueDate: Date | string },
+) {
+  if (!resend) return
+  const due = new Date(invoice.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Invoice ${invoice.number} from ${companyName} — $${invoice.total.toFixed(2)} due ${due}`,
+    html: baseTemplate(`
+      <div style="background:#1e293b;border-radius:10px;padding:20px 24px;margin-bottom:24px">
+        <div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Invoice</div>
+        <div style="font-size:22px;font-weight:800;color:#f8fafc">${companyName}</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:4px">${invoice.number} · Due ${due}</div>
+      </div>
+
+      <p style="font-size:14px;color:#334155;line-height:1.6">Hi ${invoice.client},</p>
+      <p style="font-size:14px;color:#334155;line-height:1.6;margin-bottom:20px">
+        Thank you for choosing ${companyName}. Please find your invoice details below.
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px">
+        ${invoice.labor > 0 ? `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 12px;background:#f8fafc;font-weight:600;color:#475569">Labor</td><td style="padding:10px 12px;text-align:right">$${invoice.labor.toFixed(2)}</td></tr>` : ''}
+        ${invoice.parts > 0 ? `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 12px;background:#f8fafc;font-weight:600;color:#475569">Parts &amp; Materials</td><td style="padding:10px 12px;text-align:right">$${invoice.parts.toFixed(2)}</td></tr>` : ''}
+        ${invoice.surcharge > 0 ? `<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:10px 12px;background:#f8fafc;font-weight:600;color:#475569">Service Surcharge</td><td style="padding:10px 12px;text-align:right">$${invoice.surcharge.toFixed(2)}</td></tr>` : ''}
+        <tr style="background:#f0fdf4">
+          <td style="padding:14px 12px;font-weight:800;font-size:15px;color:#15803d">Total Due</td>
+          <td style="padding:14px 12px;text-align:right;font-weight:800;font-size:15px;color:#15803d">$${invoice.total.toFixed(2)}</td>
+        </tr>
+      </table>
+
+      <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#854d0e">
+        <strong>Payment due:</strong> ${due} — Please contact us to arrange payment via card, check, or bank transfer.
+      </div>
+
+      <p style="font-size:12px;color:#94a3b8">Questions about this invoice? Reply to this email or contact us directly.</p>
+    `),
+  }).catch(console.error)
+}

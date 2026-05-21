@@ -189,10 +189,11 @@ model Job {
 }
 
 model Invoice {
-  id        String        @id @default(cuid())
-  number    String        @unique
-  client    String
-  jobId     String?
+  id          String        @id @default(cuid())
+  number      String        @unique
+  client      String
+  clientEmail String        @default("")
+  jobId       String?
   job       Job?          @relation(fields: [jobId], references: [id])
   labor     Float         @default(0)
   parts     Float         @default(0)
@@ -357,17 +358,20 @@ model Photo {
 }
 
 model Estimate {
-  id          String         @id @default(cuid())
-  number      String         @unique
-  client      String
-  jobType     String         @default("")
-  description String         @default("")
-  lineItems   Json           @default("[]")
-  subtotal    Float          @default(0)
-  status      EstimateStatus @default(draft)
-  notes       String         @default("")
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id                  String         @id @default(cuid())
+  number              String         @unique
+  client              String
+  clientEmail         String         @default("")
+  jobType             String         @default("")
+  description         String         @default("")
+  lineItems           Json           @default("[]")
+  subtotal            Float          @default(0)
+  status              EstimateStatus @default(draft)
+  notes               String         @default("")
+  approvalToken       String?        @unique
+  approvalTokenExpiry DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   tenantId    String?
   tenant      Tenant?        @relation(fields: [tenantId], references: [id])
@@ -379,6 +383,7 @@ model Estimate {
   @@index([tenantId])
   @@index([tenantId, createdAt])
   @@index([createdById])
+  @@index([approvalToken])
 }
 
 model TimeEntry {

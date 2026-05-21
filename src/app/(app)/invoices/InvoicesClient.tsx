@@ -8,7 +8,7 @@ import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 
 type Invoice = {
-  id: string; number: string; client: string; total: number; status: string
+  id: string; number: string; client: string; clientEmail: string; total: number; status: string
   dueDate: string; labor: number; parts: number; surcharge: number
   job: { client: string; type: string } | null
 }
@@ -29,17 +29,22 @@ const lbl: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4,
 }
 
-function ActionButtons({ inv, c, loadingId, onUpdateStatus, t }: {
-  inv: Invoice; c: string; loadingId: string | null
+function ActionButtons({ inv, c, loadingId, emailSendingId, onUpdateStatus, onEmailInvoice, t }: {
+  inv: Invoice; c: string; loadingId: string | null; emailSendingId: string | null
   onUpdateStatus: (id: string, status: string) => void
+  onEmailInvoice: (id: string, currentEmail: string) => void
   t: (k: TKeys) => string
 }) {
   const busy = loadingId === inv.id
+  const emailing = emailSendingId === inv.id
   return (
-    <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+    <div style={{ display: 'flex', gap: 5, flexShrink: 0, flexWrap: 'wrap' }}>
       {inv.status === 'draft' && <button onClick={() => onUpdateStatus(inv.id, 'sent')} disabled={busy} style={{ background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? '…' : t('sendInvoice')}</button>}
       {inv.status === 'sent' && <button onClick={() => onUpdateStatus(inv.id, 'paid')} disabled={busy} style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? '…' : t('markPaid')}</button>}
       {inv.status === 'overdue' && <button onClick={() => onUpdateStatus(inv.id, 'sent')} disabled={busy} style={{ background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>{busy ? '…' : t('remind')}</button>}
+      <button onClick={() => onEmailInvoice(inv.id, inv.clientEmail ?? '')} disabled={emailing} style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: emailing ? 'wait' : 'pointer', opacity: emailing ? 0.6 : 1 }}>
+        {emailing ? '…' : '📧 Email'}
+      </button>
       <button onClick={() => window.open(`/api/invoices/${inv.id}/pdf`, '_blank')} style={{ background: 'var(--bg3)', color: 'var(--text3)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 10, fontWeight: 700, padding: '5px 10px', cursor: 'pointer' }}>{t('pdf')}</button>
     </div>
   )
@@ -49,8 +54,25 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
   const [invoices, setInvoices] = useState(initialInvoices)
   const [tab, setTab] = useState('all')
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [emailPrompt, setEmailPrompt] = useState<{ id: string; current: string } | null>(null)
+  const [emailSendingId, setEmailSendingId] = useState<string | null>(null)
   const { t } = useLang()
   const isMobile = useIsMobile()
+
+  async function sendInvoiceEmail(id: string, email: string) {
+    if (!email.trim()) return
+    setEmailSendingId(id)
+    setEmailPrompt(null)
+    const res = await fetch(`/api/invoices/${id}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientEmail: email }),
+    })
+    if (res.ok) {
+      setInvoices(prev => prev.map(i => i.id === id ? { ...i, clientEmail: email, status: i.status === 'draft' ? 'sent' : i.status } : i))
+    }
+    setEmailSendingId(null)
+  }
 
   const canCreate = can(session.role, 'createInvoice')
 
@@ -184,7 +206,7 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <ActionButtons inv={inv} c={c} loadingId={loadingId} onUpdateStatus={updateStatus} t={t} />
+                  <ActionButtons inv={inv} c={c} loadingId={loadingId} emailSendingId={emailSendingId} onUpdateStatus={updateStatus} onEmailInvoice={(id, email) => setEmailPrompt({ id, current: email })} t={t} />
                 </div>
               </div>
             )
@@ -204,7 +226,7 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
               <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: `${c}18`, color: c, border: `1px solid ${c}33` }}>
                 {t(inv.status as TKeys)}
               </span>
-              <ActionButtons inv={inv} c={c} loadingId={loadingId} onUpdateStatus={updateStatus} t={t} />
+              <ActionButtons inv={inv} c={c} loadingId={loadingId} emailSendingId={emailSendingId} onUpdateStatus={updateStatus} onEmailInvoice={(id, email) => setEmailPrompt({ id, current: email })} t={t} />
             </div>
           )
         })}
@@ -298,6 +320,43 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Email invoice prompt */}
+      {emailPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={e => { if (e.target === e.currentTarget) setEmailPrompt(null) }}>
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Email Invoice</h3>
+            <p style={{ fontSize: 12, color: 'var(--text4)', marginBottom: 16 }}>Enter the client&apos;s email to send the invoice.</p>
+            <input
+              id="inv-email-input"
+              type="email"
+              autoFocus
+              defaultValue={emailPrompt.current}
+              placeholder="client@example.com"
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const input = document.getElementById('inv-email-input') as HTMLInputElement
+                  sendInvoiceEmail(emailPrompt.id, input.value)
+                }
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setEmailPrompt(null)} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button
+                onClick={() => {
+                  const input = document.getElementById('inv-email-input') as HTMLInputElement
+                  sendInvoiceEmail(emailPrompt.id, input.value)
+                }}
+                style={{ flex: 2, padding: '9px 0', borderRadius: 8, background: '#3b82f6', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Send Invoice
+              </button>
+            </div>
           </div>
         </div>
       )}
