@@ -138,7 +138,13 @@ async function cacheFirst(request) {
 async function pageNetworkFirst(request) {
   const cache = await caches.open(PAGE_CACHE)
 
-  const networkFetch = fetch(request)
+  // Navigate-mode requests use redirect:'manual' per the Fetch spec.
+  // Server-side auth redirects (307→/login) return an opaque redirect with
+  // status:0 / ok:false, which would trigger OFFLINE_PAGE. Override to
+  // redirect:'follow' so the final destination page is returned instead.
+  const followReq = new Request(request, { redirect: 'follow' })
+
+  const networkFetch = fetch(followReq)
     .then(res => { if (res.ok) cache.put(request.url, res.clone()); return res })
     .catch(() => null)
 
