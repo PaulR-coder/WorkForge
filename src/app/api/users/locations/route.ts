@@ -16,6 +16,7 @@ export async function GET() {
       sharingLocation: true,
       lat: { not: null },
       lng: { not: null },
+      locatedAt: { not: null },
       active: true,
       ...tenantFilter,
     },
@@ -23,5 +24,11 @@ export async function GET() {
     orderBy: { name: 'asc' },
   })
 
-  return Response.json(techs)
+  // Cast nulls away — the where clause guarantees these fields are non-null
+  return Response.json(techs.map(t => ({
+    ...t,
+    lat: t.lat!,
+    lng: t.lng!,
+    locatedAt: t.locatedAt!.toISOString(),
+  })))
 }

@@ -50,8 +50,9 @@ export default function TeamMap() {
   const [locs, setLocs]         = useState<TechLoc[]>([])
   const [mapReady, setMapReady] = useState(false)
   const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(false)
   const [lastPoll, setLastPoll] = useState<number | null>(null)
-  const [, setTick]             = useState(0)
+  const [tick, setTick]         = useState(0)
 
   // Initialize Leaflet once on mount
   useEffect(() => {
@@ -69,6 +70,9 @@ export default function TeamMap() {
         maxZoom: 19,
       }).addTo(map)
 
+      // Correct any sizing mismatch if the container wasn't fully laid out at init time
+      setTimeout(() => { if (!cancelled) map.invalidateSize() }, 100)
+
       mapRef.current = { map, L }
       setMapReady(true)
     })
@@ -80,7 +84,8 @@ export default function TeamMap() {
     }
   }, [])
 
-  // Sync markers whenever locations or mapReady changes
+  // Sync markers whenever locations, mapReady, or tick changes.
+  // tick is included so open popups get fresh "X ago" text every 30s.
   useEffect(() => {
     if (!mapReady || !mapRef.current) return
     const { map, L } = mapRef.current
@@ -109,30 +114,42 @@ export default function TeamMap() {
       remaining.delete(tech.id)
     }
 
-    // Remove markers for techs who stopped sharing
     for (const id of remaining) {
       markersRef.current[id].remove()
       delete markersRef.current[id]
     }
 
-    // Fit to all markers only on first load — don't fight manual pan/zoom after that
     if (locs.length > 0 && !initialFitRef.current) {
-      const group = L.featureGroup(Object.values(markersRef.current))
-      map.fitBounds(group.getBounds().pad(0.4))
+      const markerList = Object.values(markersRef.current)
+      if (markerList.length === 1) {
+        // fitBounds on a single point zooms to max level — use setView instead
+        map.setView(markerList[0].getLatLng(), 12)
+      } else {
+        const group = L.featureGroup(markerList)
+        map.fitBounds(group.getBounds().pad(0.4))
+      }
       initialFitRef.current = true
     }
-  }, [locs, mapReady])
+  }, [locs, mapReady, tick])
 
-  // Poll every 30s
+  // Poll every 30s — always call setLoading(false) via finally so the
+  // loading overlay never gets stuck on API errors or non-200 responses
   const poll = useCallback(async () => {
     try {
       const res = await fetch('/api/users/locations')
-      if (!res.ok) return
-      const data: TechLoc[] = await res.json()
-      setLocs(data)
-      setLastPoll(Date.now())
-    } catch {}
-    setLoading(false)
+      if (res.ok) {
+        const data: TechLoc[] = await res.json()
+        setLocs(data)
+        setLastPoll(Date.now())
+        setError(false)
+      } else {
+        setError(true)
+      }
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -141,7 +158,7 @@ export default function TeamMap() {
     return () => clearInterval(id)
   }, [poll])
 
-  // Tick every 30s so "X min ago" labels stay fresh
+  // Tick every 30s so roster timestamps and open popup "X ago" text stay fresh
   useEffect(() => {
     const id = setInterval(() => setTick(n => n + 1), 30_000)
     return () => clearInterval(id)
@@ -151,23 +168,23 @@ export default function TeamMap() {
 
   return (
     <div style={{ marginTop: 28 }}>
-      {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
           <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>Team Locations</h2>
           <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>
             {loading
               ? 'Loading…'
-              : locs.length === 0
-                ? 'No techs sharing location right now'
-                : `${onDutyCount} of ${locs.length} tech${locs.length !== 1 ? 's' : ''} active`}
-            {lastPoll && !loading && (
+              : error
+                ? 'Could not load locations'
+                : locs.length === 0
+                  ? 'No techs sharing location right now'
+                  : `${onDutyCount} of ${locs.length} tech${locs.length !== 1 ? 's' : ''} active`}
+            {lastPoll && !loading && !error && (
               <span style={{ marginLeft: 8, opacity: 0.6 }}>· updated {timeAgo(new Date(lastPoll).toISOString())}</span>
             )}
           </div>
         </div>
 
-        {/* Legend */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: 'var(--text4)' }}>
           {[
             { color: '#22c55e', label: '< 15m' },
@@ -182,28 +199,33 @@ export default function TeamMap() {
         </div>
       </div>
 
-      {/* Map container */}
       <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border)', height: 440 }}>
         <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
 
-        {/* Overlay states */}
         {loading && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(8,12,26,.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ fontSize: 12, color: 'var(--text4)' }}>Loading map…</div>
           </div>
         )}
 
-        {!loading && locs.length === 0 && (
+        {!loading && error && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 500, pointerEvents: 'none' }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>Could not load locations</div>
+            <div style={{ fontSize: 11, color: 'var(--text4)' }}>Will retry automatically</div>
+          </div>
+        )}
+
+        {!loading && !error && locs.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 500, pointerEvents: 'none' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📍</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>No techs on duty</div>
             <div style={{ fontSize: 11, color: 'var(--text4)', textAlign: 'center', maxWidth: 240 }}>
-              Techs tap "On Duty" in Field View to share their location
+              Techs tap &quot;On Duty&quot; in Field View to share their location
             </div>
           </div>
         )}
 
-        {/* Live roster — overlaid bottom-left */}
         {locs.length > 0 && (
           <div style={{
             position: 'absolute', bottom: 12, left: 12, zIndex: 500,
