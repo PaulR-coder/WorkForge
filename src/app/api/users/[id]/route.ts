@@ -1,21 +1,22 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const body = await req.json()
   const tenantFilter = getTenantFilter(session)
 
-  const target = await prisma.user.findFirst({ where: { id, ...tenantFilter } })
+  const target = await db.user.findFirst({ where: { id, ...tenantFilter } })
   if (!target) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const user = await prisma.user.update({
+  const user = await db.user.update({
     where: { id },
     data: {
       ...(body.phone !== undefined && { phone: body.phone || null }),
@@ -25,7 +26,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     select: { id: true, name: true, email: true, phone: true, role: true, initials: true, company: true, specialty: true, active: true },
   })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '👤', action: 'User updated', detail: `${user.name}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
@@ -36,21 +37,22 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   if (id === session.id) return Response.json({ error: 'Cannot delete your own account' }, { status: 400 })
 
   const tenantFilter = getTenantFilter(session)
-  const target = await prisma.user.findFirst({ where: { id, ...tenantFilter } })
+  const target = await db.user.findFirst({ where: { id, ...tenantFilter } })
   if (!target) return Response.json({ error: 'Not found' }, { status: 404 })
 
   // Clear nullable foreign keys before deleting
-  await prisma.job.updateMany({ where: { techId: id }, data: { techId: null } })
-  await prisma.auditLog.updateMany({ where: { userId: id }, data: { userId: null } })
-  await prisma.message.deleteMany({ where: { authorId: id } })
-  await prisma.user.delete({ where: { id } })
+  await db.job.updateMany({ where: { techId: id }, data: { techId: null } })
+  await db.auditLog.updateMany({ where: { userId: id }, data: { userId: null } })
+  await db.message.deleteMany({ where: { authorId: id } })
+  await db.user.delete({ where: { id } })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '👤', action: 'User deleted', detail: `${target.name} (${target.email})`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
   })
 

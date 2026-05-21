@@ -1,6 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 
 export async function GET() {
@@ -9,9 +9,10 @@ export async function GET() {
   if (!can(session.role, 'viewFinancials') && session.role !== 'dispatcher') {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
+  const db = tenantPrisma(session)
 
   const tenantFilter = getTenantFilter(session)
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await db.invoice.findMany({
     where: tenantFilter,
     include: { job: { select: { id: true, client: true, type: true } } },
     orderBy: { createdAt: 'desc' },
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'createInvoice')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const body = await req.json()
   const tenantId = requireTenantId(session)
@@ -39,10 +41,10 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Client name is required' }, { status: 400 })
   }
 
-  const count = await prisma.invoice.count({ where: tenantFilter })
+  const count = await db.invoice.count({ where: tenantFilter })
   const number = `INV-${String(count + 100).padStart(3, '0')}`
 
-  const invoice = await prisma.invoice.create({
+  const invoice = await db.invoice.create({
     data: {
       number,
       client: body.client.trim(),
@@ -57,7 +59,7 @@ export async function POST(req: Request) {
     },
   })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '💰', action: 'Invoice created', detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id, tenantId },
   })
 

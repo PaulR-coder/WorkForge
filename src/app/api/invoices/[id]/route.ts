@@ -1,6 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { emailInvoiceUpdate } from '@/lib/email'
 
@@ -8,12 +8,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'editInvoice')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const body = await req.json()
   const tenantFilter = getTenantFilter(session)
 
-  const existing = await prisma.invoice.findFirst({ where: { id, ...tenantFilter }, select: { updatedAt: true, number: true, client: true } })
+  const existing = await db.invoice.findFirst({ where: { id, ...tenantFilter }, select: { updatedAt: true, number: true, client: true } })
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
   const queuedAt = req.headers.get('x-wf-queued-at')
@@ -24,7 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
-  const invoice = await prisma.invoice.update({
+  const invoice = await db.invoice.update({
     where: { id },
     data: {
       ...(body.status !== undefined && { status: body.status }),
@@ -32,12 +33,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     },
   })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '💰', action: `Invoice ${body.status}`, detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
   if (body.status === 'sent' || body.status === 'paid') {
-    const admins = await prisma.user.findMany({
+    const admins = await db.user.findMany({
       where: { role: { in: ['admin'] }, active: true, ...tenantFilter },
       select: { email: true },
     })
@@ -51,16 +52,17 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'editInvoice')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
 
-  const existing = await prisma.invoice.findFirst({ where: { id, ...tenantFilter } })
+  const existing = await db.invoice.findFirst({ where: { id, ...tenantFilter } })
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  await prisma.invoice.delete({ where: { id } })
+  await db.invoice.delete({ where: { id } })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '🗑', action: 'Invoice deleted', detail: `${existing.number} — ${existing.client}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
   })
 

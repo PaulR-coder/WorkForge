@@ -1,15 +1,16 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 
 export async function GET() {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'viewEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const tenantFilter = getTenantFilter(session)
-  const equipment = await prisma.equipment.findMany({ where: tenantFilter, orderBy: { client: 'asc' } })
+  const equipment = await db.equipment.findMany({ where: tenantFilter, orderBy: { client: 'asc' } })
   return Response.json(equipment)
 }
 
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'editEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const body = await req.json()
   const tenantId = requireTenantId(session)
@@ -29,7 +31,7 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid installation date' }, { status: 400 })
   }
 
-  const eq = await prisma.equipment.create({
+  const eq = await db.equipment.create({
     data: {
       client: body.client,
       name: body.name,
@@ -45,7 +47,7 @@ export async function POST(req: Request) {
     },
   })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '⚙', action: 'Equipment added', detail: `${eq.name} — ${eq.client}`, severity: 'info', userId: session.id, tenantId },
   })
 

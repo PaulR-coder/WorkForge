@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { sendPushToUser } from '@/lib/push'
 import { Role } from '@/generated/prisma/client'
@@ -7,13 +7,14 @@ import { Role } from '@/generated/prisma/client'
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
-  const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
+  const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const messages = await prisma.message.findMany({
+  const messages = await db.message.findMany({
     where: { jobId: id },
     include: { author: { select: { name: true, initials: true, role: true } } },
     orderBy: { createdAt: 'asc' },
@@ -25,16 +26,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const { body } = await req.json()
   if (!body?.trim()) return Response.json({ error: 'Empty message' }, { status: 400 })
 
   const tenantFilter = getTenantFilter(session)
-  const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
+  const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const message = await prisma.message.create({
+  const message = await db.message.create({
     data: { jobId: id, authorId: session.id, body: body.trim(), tenantId: session.tenantId },
     include: { author: { select: { name: true, initials: true, role: true } } },
   })
@@ -46,7 +48,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     : job.techId ? { id: job.techId } : null
 
   if (recipientFilter) {
-    prisma.pushSubscription.findMany({
+    db.pushSubscription.findMany({
       where: { user: recipientFilter },
     }).then(subs => {
       if (subs.length === 0) return

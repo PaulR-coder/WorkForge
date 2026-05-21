@@ -1,6 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 
 export async function GET() {
@@ -12,9 +12,10 @@ export async function GET() {
 
   // Techs and readonly have no need to browse the team list
   if (!canManage && !canAssign) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const tenantFilter = getTenantFilter(session)
-  const users = await prisma.user.findMany({
+  const users = await db.user.findMany({
     where: tenantFilter,
     select: {
       id: true,

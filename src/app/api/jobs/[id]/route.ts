@@ -1,6 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { emailJobAssigned, emailJobCompleted } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
@@ -9,10 +9,11 @@ import { sendPushToUser } from '@/lib/push'
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
-  const job = await prisma.job.findFirst({
+  const job = await db.job.findFirst({
     where: { id, ...tenantFilter },
     include: {
       tech: { select: { id: true, name: true, initials: true } },
@@ -30,12 +31,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'editJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const body = await req.json()
   const tenantFilter = getTenantFilter(session)
 
-  const prev = await prisma.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true, updatedAt: true } })
+  const prev = await db.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true, updatedAt: true } })
   if (!prev) return Response.json({ error: 'Not found' }, { status: 404 })
 
   // Optimistic lock check — when a mutation was queued offline, the SW stamps
@@ -58,16 +60,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Archive / restore actions
   if (body.action === 'archive') {
     if (!can(session.role, 'archiveJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
-    await prisma.job.update({ where: { id }, data: { archivedAt: new Date() } })
-    void prisma.auditLog.create({
+    await db.job.update({ where: { id }, data: { archivedAt: new Date() } })
+    void db.auditLog.create({
       data: { icon: '📋', action: 'Job archived', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
     })
     return Response.json({ ok: true })
   }
   if (body.action === 'restore') {
     if (!can(session.role, 'archiveJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
-    await prisma.job.update({ where: { id }, data: { archivedAt: null } })
-    void prisma.auditLog.create({
+    await db.job.update({ where: { id }, data: { archivedAt: null } })
+    void db.auditLog.create({
       data: { icon: '📋', action: 'Job restored', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
     })
     return Response.json({ ok: true })
@@ -75,11 +77,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   // Validate the technician belongs to this tenant before assigning
   if (body.techId !== undefined && body.techId !== null) {
-    const tech = await prisma.user.findFirst({ where: { id: body.techId, ...tenantFilter } })
+    const tech = await db.user.findFirst({ where: { id: body.techId, ...tenantFilter } })
     if (!tech) return Response.json({ error: 'Invalid technician' }, { status: 400 })
   }
 
-  const job = await prisma.job.update({
+  const job = await db.job.update({
     where: { id },
     data: {
       ...(body.client !== undefined && { client: body.client }),
@@ -95,7 +97,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     include: { tech: { select: { id: true, name: true, initials: true, email: true, phone: true } } },
   })
 
-  await prisma.auditLog.create({
+  await db.auditLog.create({
     data: { icon: '✏️', action: 'Job updated', detail: `${job.client} → ${job.status}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
@@ -104,7 +106,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const jobData = { client: job.client, address: job.address, type: job.type, priority: job.priority }
     void emailJobAssigned(job.tech.email, job.tech.name, jobData)
     if (job.tech.phone) void smsJobAssigned(job.tech.phone, jobData)
-    const subs = await prisma.pushSubscription.findMany({ where: { userId: job.tech.id } })
+    const subs = await db.pushSubscription.findMany({ where: { userId: job.tech.id } })
     if (subs.length > 0) {
       void sendPushToUser(subs, {
         title: 'New Job Assigned',
@@ -115,7 +117,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   if (body.status === 'done' && prev?.status !== 'done') {
-    const admins = await prisma.user.findMany({
+    const admins = await db.user.findMany({
       where: { role: { in: ['admin'] }, active: true, ...tenantFilter },
       select: { email: true },
     })
@@ -129,18 +131,19 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'deleteJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
-  const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
+  const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  await prisma.message.deleteMany({ where: { jobId: id } })
-  await prisma.photo.deleteMany({ where: { jobId: id } })
-  await prisma.invoice.updateMany({ where: { jobId: id }, data: { jobId: null } })
-  await prisma.payment.updateMany({ where: { jobId: id }, data: { jobId: null } })
-  await prisma.job.delete({ where: { id } })
-  await prisma.auditLog.create({
+  await db.message.deleteMany({ where: { jobId: id } })
+  await db.photo.deleteMany({ where: { jobId: id } })
+  await db.invoice.updateMany({ where: { jobId: id }, data: { jobId: null } })
+  await db.payment.updateMany({ where: { jobId: id }, data: { jobId: null } })
+  await db.job.delete({ where: { id } })
+  await db.auditLog.create({
     data: { icon: '🗑', action: 'Job deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
   })
 

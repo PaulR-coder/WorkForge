@@ -1,15 +1,16 @@
 import { getSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 
 export async function PATCH(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = tenantPrisma(session)
 
   const body = await req.json()
 
   // Toggle off — clear location data
   if (body.sharing === false) {
-    await prisma.user.update({
+    await db.user.update({
       where: { id: session.id },
       data: { sharingLocation: false, lat: null, lng: null, locatedAt: null },
     })
@@ -24,7 +25,7 @@ export async function PATCH(req: Request) {
     return Response.json({ error: 'Invalid coordinates' }, { status: 400 })
   }
 
-  await prisma.user.update({
+  await db.user.update({
     where: { id: session.id },
     data: { lat, lng, locatedAt: new Date(), sharingLocation: true },
   })

@@ -1,17 +1,18 @@
 import { getSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
-  const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
+  const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const photos = await prisma.photo.findMany({
+  const photos = await db.photo.findMany({
     where: { jobId: id },
     select: { id: true, data: true, mimeType: true, createdAt: true, author: { select: { name: true, initials: true } } },
     orderBy: { createdAt: 'asc' },
@@ -25,6 +26,7 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const db = tenantPrisma(session)
 
   const { id } = await params
   const { data } = await req.json()
@@ -47,10 +49,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   const tenantFilter = getTenantFilter(session)
-  const job = await prisma.job.findFirst({ where: { id, ...tenantFilter } })
+  const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  const photo = await prisma.photo.create({
+  const photo = await db.photo.create({
     data: {
       jobId: id,
       authorId: session.id,
