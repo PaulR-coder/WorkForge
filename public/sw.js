@@ -138,13 +138,19 @@ async function cacheFirst(request) {
 async function pageNetworkFirst(request) {
   const cache = await caches.open(PAGE_CACHE)
 
-  // Navigate-mode requests use redirect:'manual' per the Fetch spec.
-  // Server-side auth redirects (307→/login) return an opaque redirect with
-  // status:0 / ok:false, which would trigger OFFLINE_PAGE. Override to
-  // redirect:'follow' so the final destination page is returned instead.
-  const followReq = new Request(request, { redirect: 'follow' })
+  // Navigate-mode requests inherit redirect:'manual' in WebKit and Chrome,
+  // meaning server redirects (307 auth redirects etc.) come back as opaque
+  // redirect responses (status:0, ok:false).  Chrome then served OFFLINE_PAGE;
+  // WebKit rejected the response entirely with "has redirections".
+  //
+  // Fix: fetch by URL (not by Request) so mode defaults to 'same-origin'
+  // and redirect defaults to 'follow'.  credentials:'include' ensures the
+  // session cookie is sent so the server can evaluate auth state correctly.
+  const fetchReq = request.mode === 'navigate'
+    ? new Request(request.url, { credentials: 'include', redirect: 'follow' })
+    : request
 
-  const networkFetch = fetch(followReq)
+  const networkFetch = fetch(fetchReq)
     .then(res => { if (res.ok) cache.put(request.url, res.clone()); return res })
     .catch(() => null)
 
