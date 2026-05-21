@@ -67,12 +67,33 @@ export async function seedDatabase() {
     ],
   })
 
+  const ago = (days: number) => new Date(Date.now() - days * 86400000)
+  const monthAgo = (m: number, day = 15) => new Date(new Date().getFullYear(), new Date().getMonth() - m, day)
+
   await prisma.invoice.createMany({
     data: [
+      // Current month
       { number: 'INV-047', client: 'MetalPack Industries', labor: 332.50, parts: 48, surcharge: 75, total: 455, status: 'sent', dueDate: new Date(Date.now() + 15 * 86400000), tenantId: acme.id },
-      { number: 'INV-046', client: 'BioFarm Processing', labor: 570, parts: 185, surcharge: 65, total: 820, status: 'paid', dueDate: new Date(Date.now() - 5 * 86400000), paidAt: new Date(), tenantId: acme.id },
-      { number: 'INV-044', client: 'Industrial Air Co.', labor: 920, parts: 245, surcharge: 75, total: 1240, status: 'overdue', dueDate: new Date(Date.now() - 20 * 86400000), tenantId: acme.id },
+      { number: 'INV-046', client: 'BioFarm Processing', labor: 570, parts: 185, surcharge: 65, total: 820, status: 'paid', dueDate: ago(5), paidAt: new Date(), tenantId: acme.id },
+      { number: 'INV-044', client: 'Industrial Air Co.', labor: 920, parts: 245, surcharge: 75, total: 1240, status: 'overdue', dueDate: ago(20), tenantId: acme.id },
       { number: 'INV-050', client: 'North Medical Center', labor: 760, parts: 115, surcharge: 75, total: 950, status: 'draft', dueDate: new Date(Date.now() + 15 * 86400000), tenantId: acme.id },
+      // 1 month ago
+      { number: 'INV-043', client: 'MetalPack Industries', labor: 480, parts: 120, surcharge: 75, total: 675, status: 'paid', dueDate: monthAgo(1, 20), paidAt: monthAgo(1, 18), createdAt: monthAgo(1, 10), tenantId: acme.id },
+      { number: 'INV-042', client: 'North Medical Center', labor: 760, parts: 115, surcharge: 75, total: 950, status: 'paid', dueDate: monthAgo(1, 25), paidAt: monthAgo(1, 22), createdAt: monthAgo(1, 5), tenantId: acme.id },
+      { number: 'INV-041', client: 'Gulf Coast Cooling', labor: 320, parts: 85, surcharge: 65, total: 470, status: 'paid', dueDate: monthAgo(1, 28), paidAt: monthAgo(1, 26), createdAt: monthAgo(1, 12), tenantId: acme.id },
+      // 2 months ago
+      { number: 'INV-038', client: 'BioFarm Processing', labor: 570, parts: 185, surcharge: 65, total: 820, status: 'paid', dueDate: monthAgo(2, 20), paidAt: monthAgo(2, 18), createdAt: monthAgo(2, 8), tenantId: acme.id },
+      { number: 'INV-037', client: 'MetalPack Industries', labor: 1200, parts: 380, surcharge: 100, total: 1680, status: 'paid', dueDate: monthAgo(2, 15), paidAt: monthAgo(2, 12), createdAt: monthAgo(2, 3), tenantId: acme.id },
+      { number: 'INV-036', client: 'North Medical Center', labor: 760, parts: 115, surcharge: 75, total: 950, status: 'paid', dueDate: monthAgo(2, 28), paidAt: monthAgo(2, 25), createdAt: monthAgo(2, 14), tenantId: acme.id },
+      // 3 months ago
+      { number: 'INV-033', client: 'Industrial Air Co.', labor: 640, parts: 210, surcharge: 75, total: 925, status: 'paid', dueDate: monthAgo(3, 18), paidAt: monthAgo(3, 15), createdAt: monthAgo(3, 5), tenantId: acme.id },
+      { number: 'INV-032', client: 'MetalPack Industries', labor: 480, parts: 120, surcharge: 75, total: 675, status: 'paid', dueDate: monthAgo(3, 22), paidAt: monthAgo(3, 19), createdAt: monthAgo(3, 9), tenantId: acme.id },
+      // 4 months ago
+      { number: 'INV-028', client: 'BioFarm Processing', labor: 570, parts: 185, surcharge: 65, total: 820, status: 'paid', dueDate: monthAgo(4, 20), paidAt: monthAgo(4, 17), createdAt: monthAgo(4, 7), tenantId: acme.id },
+      { number: 'INV-027', client: 'North Medical Center', labor: 760, parts: 115, surcharge: 75, total: 950, status: 'paid', dueDate: monthAgo(4, 25), paidAt: monthAgo(4, 22), createdAt: monthAgo(4, 12), tenantId: acme.id },
+      // 5 months ago
+      { number: 'INV-022', client: 'MetalPack Industries', labor: 890, parts: 275, surcharge: 100, total: 1265, status: 'paid', dueDate: monthAgo(5, 18), paidAt: monthAgo(5, 16), createdAt: monthAgo(5, 4), tenantId: acme.id },
+      { number: 'INV-021', client: 'Gulf Coast Cooling', labor: 320, parts: 85, surcharge: 65, total: 470, status: 'paid', dueDate: monthAgo(5, 22), paidAt: monthAgo(5, 20), createdAt: monthAgo(5, 9), tenantId: acme.id },
     ],
   })
 

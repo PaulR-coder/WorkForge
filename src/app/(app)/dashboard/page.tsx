@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
 import { getTenantFilter } from '@/lib/tenant'
 import Link from 'next/link'
+import { RevenueBarChart, JobsDonutChart } from '@/components/charts/RevenueChart'
 
 // ── Tiny stat card ────────────────────────────────────────────────────────────
 
@@ -136,6 +137,32 @@ export default async function DashboardPage() {
   const hasAlerts      = overdueInv.length > 0 || pmAlerts.length > 0 || urgentJobs.length > 0
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+  // ── Chart data ──────────────────────────────────────────────────────────────
+
+  const monthlyRevenue = (() => {
+    const now = new Date()
+    const months: { month: string; revenue: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const label = d.toLocaleDateString('en-US', { month: 'short' })
+      const revenue = invoices
+        .filter(inv => {
+          const c = new Date(inv.createdAt)
+          return c.getFullYear() === d.getFullYear() && c.getMonth() === d.getMonth()
+        })
+        .reduce((s, inv) => s + inv.total, 0)
+      months.push({ month: label, revenue: Math.round(revenue) })
+    }
+    return months
+  })()
+
+  const jobStatusData = [
+    { status: 'open', count: jobs.filter(j => j.status === 'open').length, color: '#5ba3f5' },
+    { status: 'scheduled', count: jobs.filter(j => j.status === 'scheduled').length, color: '#f59e0b' },
+    { status: 'in_progress', count: jobs.filter(j => j.status === 'in_progress').length, color: '#a78bfa' },
+    { status: 'done', count: jobs.filter(j => j.status === 'done').length, color: '#22c55e' },
+  ].filter(d => d.count > 0)
 
   // ── Invoice status badge ────────────────────────────────────────────────────
 
@@ -278,6 +305,20 @@ export default async function DashboardPage() {
           color={contractMRR > 0 ? 'var(--purple)' : 'var(--text4)'}
           sub={contracts.length > 0 ? `${contracts.length} active contract${contracts.length !== 1 ? 's' : ''}` : 'No contracts yet'}
         />
+      </div>
+
+      {/* ── Charts row ───────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Revenue — Last 6 Months</div>
+          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 14 }}>Total invoice value by month</div>
+          <RevenueBarChart data={monthlyRevenue} />
+        </div>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Jobs by Status</div>
+          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 16 }}>Current job breakdown</div>
+          <JobsDonutChart data={jobStatusData} />
+        </div>
       </div>
 
       {/* ── Main content grid ────────────────────────────────────────────── */}

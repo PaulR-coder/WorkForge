@@ -36,6 +36,13 @@ enum InvoiceStatus {
   overdue
 }
 
+enum EstimateStatus {
+  draft
+  sent
+  approved
+  declined
+}
+
 enum PaymentMethod {
   card
   cash
@@ -73,6 +80,8 @@ model Tenant {
   auditLogs         AuditLog[]
   notificationRules NotificationRule[]
   invites           Invite[]
+  estimates         Estimate[]
+  timeEntries       TimeEntry[]
 }
 
 model Invite {
@@ -123,6 +132,8 @@ model User {
   messages          Message[]
   photos            Photo[]
   pushSubscriptions PushSubscription[]
+  estimates         Estimate[]         @relation("EstimateCreatedBy")
+  timeEntries       TimeEntry[]        @relation("TechTimeEntries")
 
   @@index([tenantId])
 }
@@ -161,11 +172,13 @@ model Job {
 
   archivedAt DateTime?
 
-  invoices  Invoice[]
-  payments  Payment[]
-  messages  Message[]
-  photos    Photo[]
-  equipment Equipment[] @relation("JobEquipment")
+  invoices    Invoice[]
+  payments    Payment[]
+  messages    Message[]
+  photos      Photo[]
+  equipment   Equipment[] @relation("JobEquipment")
+  estimate    Estimate?
+  timeEntries TimeEntry[]
 
   @@index([tenantId])
   @@index([techId])
@@ -341,4 +354,49 @@ model Photo {
   createdAt DateTime @default(now())
 
   @@index([jobId])
+}
+
+model Estimate {
+  id          String         @id @default(cuid())
+  number      String         @unique
+  client      String
+  jobType     String         @default("")
+  description String         @default("")
+  lineItems   Json           @default("[]")
+  subtotal    Float          @default(0)
+  status      EstimateStatus @default(draft)
+  notes       String         @default("")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenantId    String?
+  tenant      Tenant?        @relation(fields: [tenantId], references: [id])
+  createdById String
+  createdBy   User           @relation("EstimateCreatedBy", fields: [createdById], references: [id])
+  jobId       String?        @unique
+  job         Job?           @relation(fields: [jobId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([createdById])
+}
+
+model TimeEntry {
+  id        String    @id @default(cuid())
+  jobId     String
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  techId    String
+  tech      User      @relation("TechTimeEntries", fields: [techId], references: [id])
+  startedAt DateTime
+  endedAt   DateTime?
+  minutes   Int?
+  notes     String    @default("")
+  createdAt DateTime  @default(now())
+
+  tenantId  String?
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id])
+
+  @@index([jobId])
+  @@index([techId])
+  @@index([tenantId])
 }

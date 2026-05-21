@@ -16,6 +16,7 @@ const T = {
     billing: 'Billing',
     commandCenter: 'Command Center',
     jobHistory: 'Job History',
+    estimates: 'Estimates',
     signOut: 'Sign Out',
 
     // Auth
@@ -222,6 +223,7 @@ const T = {
     billing: 'Facturación',
     commandCenter: 'Centro de Mando',
     jobHistory: 'Historial de Trabajos',
+    estimates: 'Presupuestos',
     signOut: 'Cerrar Sesión',
 
     // Auth

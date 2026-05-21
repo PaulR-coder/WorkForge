@@ -17,6 +17,14 @@ type Photo = {
   author: { name: string; initials: string }
 }
 
+type TimeEntry = {
+  id: string
+  startedAt: string
+  endedAt: string | null
+  minutes: number | null
+  tech: { name: string; initials: string }
+}
+
 type Job = {
   id: string
   client: string
@@ -69,6 +77,9 @@ export default function FieldView({ initialJobs, session }: {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const [onDuty, setOnDuty] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
+  const [timeEntries, setTimeEntries] = useState<Record<string, TimeEntry[]>>({})
+  const [clockingIn, setClockingIn] = useState(false)
+  const [tick, setTick] = useState(0)
   const msgBottomRef  = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const watchIdRef    = useRef<number | null>(null)
@@ -173,6 +184,21 @@ export default function FieldView({ initialJobs, session }: {
       .catch(() => {})
   }, [expandedId, photos])
 
+  // Fetch time entries when a job is expanded
+  useEffect(() => {
+    if (!expandedId) return
+    fetch(`/api/jobs/${expandedId}/time`)
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setTimeEntries(prev => ({ ...prev, [expandedId!]: data })) })
+      .catch(() => {})
+  }, [expandedId])
+
+  // Tick every second to update the running clock display
+  useEffect(() => {
+    const id = setInterval(() => setTick(n => n + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   // Scroll to latest message when thread loads or new message arrives
   useEffect(() => {
     msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -195,6 +221,32 @@ export default function FieldView({ initialJobs, session }: {
       setMsgInput('')
     }
     setSendingMsg(false)
+  }
+
+  async function toggleClock(jobId: string) {
+    if (clockingIn) return
+    setClockingIn(true)
+    const entries = timeEntries[jobId] ?? []
+    const open = entries.find(e => !e.endedAt)
+    const action = open ? 'stop' : 'start'
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setTimeEntries(prev => {
+          const existing = prev[jobId] ?? []
+          if (action === 'stop') {
+            return { ...prev, [jobId]: existing.map(e => e.id === updated.id ? updated : e) }
+          }
+          return { ...prev, [jobId]: [...existing, updated] }
+        })
+      }
+    } catch {}
+    setClockingIn(false)
   }
 
   async function handlePhotoFile(file: File) {
@@ -430,6 +482,49 @@ export default function FieldView({ initialJobs, session }: {
                       </button>
                     </div>
                   </div>
+
+                  {/* Time tracking */}
+                  {(() => {
+                    const entries = timeEntries[job.id] ?? []
+                    const open = entries.find(e => !e.endedAt)
+                    const totalMin = entries.reduce((s, e) => s + (e.minutes ?? 0), 0)
+                    const runSec = open ? Math.floor((Date.now() - new Date(open.startedAt).getTime()) / 1000 + tick * 0) : 0
+                    // tick used to force re-render
+                    void tick
+                    const liveSec = open ? Math.floor((Date.now() - new Date(open.startedAt).getTime()) / 1000) : 0
+                    const liveMin = Math.floor(liveSec / 60)
+                    const liveSecs = liveSec % 60
+                    return (
+                      <div style={{ marginBottom: 12, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: open || totalMin > 0 ? 8 : 0 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                            Time on Job {totalMin > 0 && !open ? `· ${Math.floor(totalMin / 60)}h ${totalMin % 60}m total` : ''}
+                          </div>
+                          <button
+                            onClick={() => toggleClock(job.id)}
+                            disabled={clockingIn}
+                            style={{
+                              marginLeft: 'auto', padding: '5px 12px', borderRadius: 20, border: 'none',
+                              background: open ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.15)',
+                              color: open ? 'var(--red)' : 'var(--green)',
+                              fontSize: 11, fontWeight: 800, cursor: clockingIn ? 'wait' : 'pointer',
+                            }}
+                          >
+                            {open ? '⏹ Clock Out' : '▶ Clock In'}
+                          </button>
+                        </div>
+                        {open && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', fontVariantNumeric: 'tabular-nums' }}>
+                              {String(liveMin).padStart(2, '0')}:{String(liveSecs).padStart(2, '0')}
+                            </span>
+                            <span style={{ fontSize: 10, color: 'var(--text4)' }}>running</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Photo section */}
                   <div style={{ marginBottom: 12 }}>
