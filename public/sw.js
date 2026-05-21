@@ -151,7 +151,23 @@ async function pageNetworkFirst(request) {
     : request
 
   const networkFetch = fetch(fetchReq)
-    .then(res => { if (res.ok) cache.put(request.url, res.clone()); return res })
+    .then(async res => {
+      if (!res.ok) return res
+      // WebKit rejects any Response with redirected:true served to a navigate
+      // event ("Response served by service worker has redirections").
+      // Buffer the body and re-wrap in a clean Response so the flag is gone.
+      if (res.redirected) {
+        try {
+          const body = await res.arrayBuffer()
+          const ct = res.headers.get('content-type') || 'text/html; charset=utf-8'
+          // Don't cache — this is the redirect target (e.g. /login), not the
+          // originally-requested page. The cache entry stays clean.
+          return new Response(body, { status: res.status, headers: { 'content-type': ct } })
+        } catch { return res }
+      }
+      cache.put(request.url, res.clone())
+      return res
+    })
     .catch(() => null)
 
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), getPageTimeout()))
