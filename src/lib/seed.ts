@@ -3,6 +3,9 @@ import { hashPassword } from './auth'
 import type { Role } from '@/generated/prisma/client'
 
 export async function seedDatabase() {
+  // Bypass RLS so seed queries work under FORCE ROW LEVEL SECURITY
+  await prisma.$executeRawUnsafe(`SET app.tenant_id = ''`)
+
   // Ensure the Acme tenant exists
   let acme = await prisma.tenant.findFirst({ where: { slug: 'acme-field-services' } })
   if (!acme) {
@@ -25,6 +28,8 @@ export async function seedDatabase() {
       await prisma.user.create({
         data: { ...u, password: await hashPassword(u.password), emailVerified: true },
       })
+    } else if (u.tenantId && !existing.tenantId) {
+      await prisma.user.update({ where: { email: u.email }, data: { tenantId: u.tenantId } })
     }
   }
 

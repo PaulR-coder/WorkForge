@@ -1,8 +1,9 @@
 import type { SessionUser } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 
 export function getTenantFilter(session: SessionUser): { tenantId: string } | undefined {
   if (session.role === 'superadmin') return undefined
-  if (!session.tenantId) throw new Error('Session missing tenantId — please log out and log back in.')
+  if (!session.tenantId) redirect('/login')
   return { tenantId: session.tenantId }
 }
 
