@@ -88,8 +88,8 @@ export default function SupportChat({ onClose }: { onClose: () => void }) {
       }
     : {
         position: 'fixed',
-        left: 16,
-        bottom: 80,
+        right: 20,
+        bottom: 16,
         width: 348,
         height: 460,
         borderRadius: 18,

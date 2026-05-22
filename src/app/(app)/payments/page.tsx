@@ -17,14 +17,24 @@ export default async function PaymentsPage() {
   if (!can(session.role, 'viewFinancials')) redirect('/jobs')
 
   const tenantFilter = getTenantFilter(session)
-  const payments = await prisma.payment.findMany({
-    where: tenantFilter,
-    include: {
-      collectedBy: { select: { name: true, initials: true } },
-      job: { select: { client: true, type: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let payments: any[] = []
+  let dbError = false
+
+  try {
+    payments = await prisma.payment.findMany({
+      where: tenantFilter,
+      include: {
+        collectedBy: { select: { name: true, initials: true } },
+        job: { select: { client: true, type: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+  } catch (err) {
+    console.error('[PaymentsPage] DB error:', err)
+    dbError = true
+  }
 
   const total = payments.reduce((s, p) => s + p.amount, 0)
 
@@ -35,6 +45,21 @@ export default async function PaymentsPage() {
         <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px', marginBottom: 3 }}>Payment Ledger</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)' }}>All collected payments, ordered by date</div>
       </div>
+
+      {/* DB error banner */}
+      {dbError && (
+        <div style={{
+          background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)',
+          borderRadius: 10, padding: '14px 18px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)', marginBottom: 2 }}>Unable to load payment data</div>
+            <div style={{ fontSize: 12, color: 'var(--text4)' }}>The database could not be reached. Please try refreshing the page.</div>
+          </div>
+        </div>
+      )}
 
       {/* Total collected KPI box */}
       <div style={{

@@ -9,7 +9,7 @@ export async function POST() {
   if (!session || !['admin', 'superadmin'].includes(session.role)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  if (!session.tenantId) return Response.json({ error: 'No tenant' }, { status: 400 })
+  if (!session.tenantId) return Response.json({ error: 'No tenant context — impersonate a tenant first' }, { status: 400 })
 
   const tenant = await prisma.tenant.findUnique({ where: { id: session.tenantId } })
   if (!tenant?.stripeCustomerId) {

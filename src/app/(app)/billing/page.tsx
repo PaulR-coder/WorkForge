@@ -10,6 +10,9 @@ export default async function BillingPage() {
   if (!session) redirect('/login')
   if (!can(session.role, 'manageBilling')) redirect('/dashboard')
 
+  // Non-impersonating superadmin has no tenant billing context — redirect to Command Center
+  if (session.role === 'superadmin' && !session.impersonating) redirect('/superadmin')
+
   const tenant = session.tenantId
     ? await prisma.tenant.findUnique({
         where: { id: session.tenantId },

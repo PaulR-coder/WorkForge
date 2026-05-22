@@ -29,6 +29,9 @@ export default async function TeamPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  // Non-impersonating superadmin has no tenant context — redirect to Command Center
+  if (session.role === 'superadmin' && !session.impersonating) redirect('/superadmin')
+
   const tenantFilter = getTenantFilter(session)
   const canEdit    = can(session.role, 'manageUsers')
   const canViewMap = can(session.role, 'viewTeamMap')

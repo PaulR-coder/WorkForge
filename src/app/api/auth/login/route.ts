@@ -4,15 +4,15 @@ import { rateLimit, getIp } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
   const ip = getIp(req)
-  const rl = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000) // 10 attempts per 15 min per IP
+  const { email, password } = await req.json()
+  const rl = rateLimit(`login:${ip}:${email}`, 15, 15 * 60 * 1000) // 15 attempts per 15 min per IP+account
   if (!rl.ok) {
+    const minutes = Math.ceil(rl.retryAfter / 60)
     return Response.json(
-      { error: `Too many login attempts. Try again in ${rl.retryAfter} seconds.` },
+      { error: `Too many attempts for this account. Try again in ${minutes} minutes.` },
       { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
     )
   }
-
-  const { email, password } = await req.json()
 
   const user = await prisma.user.findUnique({
     where: { email },

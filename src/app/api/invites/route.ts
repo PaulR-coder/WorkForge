@@ -11,6 +11,7 @@ export async function GET() {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
   const db = tenantPrisma(session)
 
   const tenantId = requireTenantId(session)
@@ -27,6 +28,7 @@ export async function DELETE(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
   const db = tenantPrisma(session)
 
   const { id } = await req.json()
@@ -49,6 +51,7 @@ export async function POST(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
   const db = tenantPrisma(session)
 
   const { email, role } = await req.json()

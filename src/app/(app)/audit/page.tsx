@@ -22,12 +22,22 @@ export default async function AuditPage() {
   if (!can(session.role, 'viewAudit')) redirect('/jobs')
 
   const tenantFilter = getTenantFilter(session)
-  const logs = await prisma.auditLog.findMany({
-    where: tenantFilter,
-    include: { user: { select: { name: true, initials: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let logs: any[] = []
+  let dbError = false
+
+  try {
+    logs = await prisma.auditLog.findMany({
+      where: tenantFilter,
+      include: { user: { select: { name: true, initials: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+  } catch (err) {
+    console.error('[AuditPage] DB error:', err)
+    dbError = true
+  }
 
   return (
     <div style={{ padding: 20, maxWidth: 1000, margin: '0 auto' }}>
@@ -36,6 +46,21 @@ export default async function AuditPage() {
         <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px', marginBottom: 3 }}>Audit Log</h1>
         <div style={{ fontSize: 12, color: 'var(--text4)' }}>Immutable record of all system actions</div>
       </div>
+
+      {/* DB error banner */}
+      {dbError && (
+        <div style={{
+          background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)',
+          borderRadius: 10, padding: '14px 18px', marginBottom: 20,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)', marginBottom: 2 }}>Unable to load audit log</div>
+            <div style={{ fontSize: 12, color: 'var(--text4)' }}>The database could not be reached. Please try refreshing the page.</div>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         {/* Column header row */}
