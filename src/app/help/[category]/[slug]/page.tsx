@@ -170,29 +170,18 @@ function WasHelpful() {
         {['Yes, it helped', 'Not really'].map(label => (
           <button
             key={label}
+            className="wf-helpful-btn"
             style={{
               padding: '8px 20px',
               background: 'var(--bg3)',
               border: '1px solid var(--border)',
               borderRadius: 8,
-              color: 'var(--text2)',
+              color: 'var(--text3)',
               fontSize: 13,
               fontWeight: 600,
               cursor: 'pointer',
-              fontFamily: 'var(--font-body)',
-              transition: 'background 150ms, border-color 150ms',
-            }}
-            onMouseEnter={e => {
-              const t = e.currentTarget
-              t.style.background = 'var(--amber)'
-              t.style.color = '#060a17'
-              t.style.borderColor = 'var(--amber)'
-            }}
-            onMouseLeave={e => {
-              const t = e.currentTarget
-              t.style.background = 'var(--bg3)'
-              t.style.color = 'var(--text2)'
-              t.style.borderColor = 'var(--border)'
+              fontFamily: 'inherit',
+              transition: 'background 150ms, border-color 150ms, color 150ms',
             }}
           >
             {label}
@@ -222,6 +211,12 @@ export default async function ArticlePage({ params }: { params: Promise<PagePara
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-body)' }}>
+      <style>{`
+        .wf-helpful-btn:hover { background: var(--amber) !important; color: #060a17 !important; border-color: var(--amber) !important; }
+        .wf-related-link:hover { border-color: rgba(245,158,11,.5) !important; background: var(--bg3) !important; }
+        .wf-toc-link:hover { color: var(--amber) !important; background: rgba(245,158,11,.08) !important; }
+        @media (max-width: 768px) { .hide-mobile { display: none !important; } }
+      `}</style>
       {/* Topbar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -309,19 +304,12 @@ export default async function ArticlePage({ params }: { params: Promise<PagePara
                   <Link
                     key={related.slug}
                     href={`/help/${categorySlug}/${related.slug}`}
+                    className="wf-related-link"
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       gap: 16, padding: '14px 16px', background: 'var(--bg2)',
                       border: '1px solid var(--border)', borderRadius: 10, textDecoration: 'none',
                       transition: 'border-color 150ms, background 150ms',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'var(--amber-border)'
-                      e.currentTarget.style.background = 'var(--bg3)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = 'var(--border)'
-                      e.currentTarget.style.background = 'var(--bg2)'
                     }}
                   >
                     <div>
@@ -391,19 +379,12 @@ export default async function ArticlePage({ params }: { params: Promise<PagePara
                   <a
                     key={h.id}
                     href={`#${h.id}`}
+                    className="wf-toc-link"
                     style={{
                       fontSize: 12, fontWeight: 500, color: 'var(--text3)',
                       textDecoration: 'none', padding: '5px 8px', borderRadius: 6,
                       lineHeight: 1.4, transition: 'color 120ms, background 120ms',
                       display: 'block',
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.color = 'var(--amber)'
-                      e.currentTarget.style.background = 'rgba(245,158,11,.08)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.color = 'var(--text3)'
-                      e.currentTarget.style.background = 'transparent'
                     }}
                   >
                     {h.text}
