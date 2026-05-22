@@ -440,6 +440,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
                 </div>
                 {/* Menu items */}
                 {[
+                  { icon: '🔐', label: 'Security (2FA)', action: () => { setUserMenuOpen(false); router.push('/settings/2fa') }, danger: false },
                   { icon: '💬', label: 'Support', action: () => { setUserMenuOpen(false); setSupportOpen(true) }, danger: false },
                   { icon: '🚪', label: t('signOut'), action: () => { setUserMenuOpen(false); handleLogout() }, danger: true },
                 ].map(item => (
@@ -571,12 +572,21 @@ export default function AppShell({ session, children }: { session: SessionUser; 
         <main
           id="main-content"
           tabIndex={-1}
+          className={isMobile ? 'wf-mobile-main' : undefined}
           style={{ flex: 1, overflow: 'auto', background: 'var(--bg)' }}
           onClick={() => { setUserMenuOpen(false) }}
         >
           {children}
         </main>
       </div>
+
+      {/* ── AppShell mobile styles ───────────────────────────────────── */}
+      <style>{`
+        /* Bottom padding so content isn't hidden behind the tab bar */
+        .wf-mobile-main {
+          padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+        }
+      `}</style>
 
       {/* ── Mobile bottom tab bar ─────────────────────────────────────── */}
       {isMobile && (
@@ -585,7 +595,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           style={{
             background: 'var(--bg2)', borderTop: '1px solid var(--border)',
             display: 'flex', flexShrink: 0,
-            paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 100,
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)', zIndex: 100,
             boxShadow: '0 -4px 20px rgba(0,0,0,.4)',
           }}
         >

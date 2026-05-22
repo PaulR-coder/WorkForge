@@ -123,6 +123,10 @@ model User {
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
 
+  twoFactorSecret    String?
+  twoFactorEnabled   Boolean  @default(false)
+  twoFactorBackupCodes String[] @default([])
+
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 

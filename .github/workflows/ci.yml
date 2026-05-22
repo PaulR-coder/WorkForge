@@ -32,10 +32,23 @@ jobs:
       - run: npm run lint
         continue-on-error: true  # lint failures are warnings, not blockers for now
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test -- --passWithNoTests --ci --forceExit
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: typecheck
+    needs: [typecheck, test]
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workforge_test
       NEXTAUTH_SECRET: ci-secret-for-build-only

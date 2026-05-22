@@ -163,6 +163,38 @@ export default function EquipmentClient({
 
   return (
     <div style={{ padding: '24px 20px', maxWidth: 860, margin: '0 auto' }}>
+      <style>{`
+        /* Equipment stats grid: 2x2 on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-stats-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+        /* Equipment action footer: ensure 44px touch targets */
+        @media (max-width: 639px) {
+          .wf-mobile-eq-footer button {
+            min-height: 44px;
+          }
+        }
+        /* Add equipment modal: single column on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-eq-modal-2col {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        /* Modal: full width on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-eq-modal-box {
+            max-width: 100% !important;
+            border-radius: 16px 16px 0 0 !important;
+            max-height: 92vh;
+          }
+          .wf-mobile-eq-modal-wrap {
+            align-items: flex-end !important;
+            padding: 0 !important;
+          }
+        }
+      `}</style>
       {/* Page Header */}
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
         <div>
@@ -259,7 +291,7 @@ export default function EquipmentClient({
                     </div>
 
                     {/* Stats Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
+                    <div className="wf-mobile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
                       {[
                         { n: eq.totalServices.toString(), l: 'Total Services', color: undefined },
                         { n: `${eq.lastPMDaysAgo}d`, l: 'Since Last PM', color: undefined },
@@ -373,7 +405,7 @@ export default function EquipmentClient({
 
                   {/* Action Footer */}
                   {canEdit && editingId !== eq.id && confirmDelete !== eq.id && (
-                    <div style={{
+                    <div className="wf-mobile-eq-footer" style={{
                       display: 'flex', gap: 6, borderTop: '1px solid var(--border)',
                       padding: '12px 18px', background: 'var(--bg3)',
                     }}>
@@ -419,13 +451,14 @@ export default function EquipmentClient({
       {/* Add Equipment Modal */}
       {createOpen && (
         <div
+          className="wf-mobile-eq-modal-wrap"
           onClick={e => { if (e.target === e.currentTarget) { setCreateOpen(false); resetCreateForm() } }}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)',
             zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
           }}
         >
-          <div style={{
+          <div className="wf-mobile-eq-modal-box" style={{
             background: 'var(--bg2)', borderRadius: 16, width: '100%',
             maxWidth: 'min(520px,92vw)', overflowY: 'auto', maxHeight: '92vh',
             border: '1px solid var(--border)', boxShadow: 'var(--shadow-xl)',
@@ -445,7 +478,7 @@ export default function EquipmentClient({
 
             <div style={{ padding: '0 24px 24px' }}>
               {/* Row: Icon + Client */}
-              <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="wf-mobile-eq-modal-2col" style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={lbl}>Icon</label>
                   <input value={createIcon} onChange={e => setCreateIcon(e.target.value)} placeholder="⚙" style={inp} />
@@ -463,7 +496,7 @@ export default function EquipmentClient({
               </div>
 
               {/* Row: Brand + Model */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="wf-mobile-eq-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={lbl}>Brand</label>
                   <input value={createBrand} onChange={e => setCreateBrand(e.target.value)} placeholder="e.g. Carrier" style={inp} />
@@ -475,7 +508,7 @@ export default function EquipmentClient({
               </div>
 
               {/* Row: Serial + PM Interval */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="wf-mobile-eq-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={lbl}>Serial Number</label>
                   <input value={createSerial} onChange={e => setCreateSerial(e.target.value)} placeholder="S/N" style={inp} />
@@ -487,7 +520,7 @@ export default function EquipmentClient({
               </div>
 
               {/* Row: Installed + Warranty */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="wf-mobile-eq-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={lbl}>Installed At</label>
                   <input type="date" value={createInstalledAt} onChange={e => setCreateInstalledAt(e.target.value)} style={inp} />

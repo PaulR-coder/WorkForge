@@ -58,6 +58,7 @@ function ActionButtons({ inv, c, loadingId, emailSendingId, onUpdateStatus, onEm
     border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700,
     padding: '5px 10px', cursor: busy ? 'wait' : 'pointer', flexShrink: 0,
     fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px',
+    minHeight: 44,
   }
   return (
     <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -213,6 +214,27 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
 
   return (
     <div style={{ padding: isMobile ? '16px' : '20px 24px', maxWidth: 1000 }}>
+      <style>{`
+        /* KPI strip: 2 columns on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-kpi-strip {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+        /* Create/edit modal: single column on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-billing-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        /* Action buttons: ensure touch targets */
+        @media (max-width: 639px) {
+          .wf-mobile-action-row {
+            flex-wrap: wrap !important;
+          }
+        }
+      `}</style>
 
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -235,7 +257,7 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
       </div>
 
       {/* KPI strip */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      <div className="wf-mobile-kpi-strip" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div style={kpiStyle}>
           <div style={kpiLabel}>Total Invoiced</div>
           <div style={{ ...kpiValue, color: 'var(--text)' }}>${totalInvoiced.toLocaleString()}</div>
@@ -362,9 +384,9 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
       {createOpen && (
         <div
           onClick={e => { if (e.target === e.currentTarget) { setCreateOpen(false); resetCreateForm() } }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 0 : 16, overflowY: 'auto' }}
         >
-          <div style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 16, width: '100%', maxWidth: 'min(480px,90vw)', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.7)' }}>
+          <div style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 16, width: '100%', maxWidth: isMobile ? '100%' : 'min(480px,90vw)', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.7)' }}>
             {/* Amber top border strip */}
             <div style={{ height: 3, background: 'linear-gradient(90deg, var(--amber), #f97316)' }} />
             <div style={{ padding: 24 }}>
@@ -398,7 +420,7 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
               </div>
 
               {/* Billing fields row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+              <div className="wf-mobile-billing-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
                 <div>
                   <label style={lbl}>Labor $</label>
                   <input type="number" min={0} value={createLabor} onChange={e => setCreateLabor(Number(e.target.value))} style={{ ...inp, fontFamily: 'var(--font-mono, monospace)' }} />

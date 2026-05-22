@@ -5,6 +5,7 @@ import { getTenantFilter } from '@/lib/tenant'
 import { emailJobAssigned, emailJobCompleted } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push'
+import { cache } from '@/lib/cache'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -64,6 +65,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     void db.auditLog.create({
       data: { icon: '📋', action: 'Job archived', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
     })
+    await cache.flush(`jobs:${session.tenantId}*`)
     return Response.json({ ok: true })
   }
   if (body.action === 'restore') {
@@ -72,6 +74,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     void db.auditLog.create({
       data: { icon: '📋', action: 'Job restored', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
     })
+    await cache.flush(`jobs:${session.tenantId}*`)
     return Response.json({ ok: true })
   }
   if (body.action === 'undelete') {
@@ -80,6 +83,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     void db.auditLog.create({
       data: { icon: '♻️', action: 'job_restored', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
     })
+    await cache.flush(`jobs:${session.tenantId}*`)
     return Response.json({ ok: true })
   }
 
@@ -132,6 +136,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     void emailJobCompleted(admins.map(a => a.email), { client: job.client, address: job.address, type: job.type })
   }
 
+  // Invalidate cached job list so all clients see the updated state immediately.
+  await cache.flush(`jobs:${session.tenantId}*`)
+
   return Response.json({ ...job, tech: job.tech ? { id: job.tech.id, name: job.tech.name, initials: job.tech.initials } : null })
 }
 
@@ -152,6 +159,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   await db.auditLog.create({
     data: { icon: '🗑', action: 'job_deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
   })
+
+  // Invalidate cached job list so the deleted job disappears immediately.
+  await cache.flush(`jobs:${session.tenantId}*`)
 
   return Response.json({ ok: true })
 }

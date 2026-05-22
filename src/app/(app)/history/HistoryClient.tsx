@@ -114,6 +114,44 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
 
   return (
     <div style={{ padding: isMobile ? 12 : 24, maxWidth: 1000, margin: '0 auto' }}>
+      <style>{`
+        /* KPI boxes: 2x2 grid on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-kpi-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            flex-wrap: unset !important;
+          }
+          .wf-mobile-kpi-grid > div {
+            flex: unset !important;
+            min-width: unset !important;
+          }
+        }
+        /* Filter pills: allow horizontal scroll on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-filter-row {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+          }
+          .wf-mobile-filter-row button {
+            flex-shrink: 0;
+            white-space: nowrap;
+            min-height: 44px;
+          }
+        }
+        /* Data table: horizontal scroll wrapper */
+        @media (max-width: 639px) {
+          .wf-mobile-table-scroll {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          .wf-mobile-table-scroll > div {
+            min-width: 600px;
+          }
+        }
+      `}</style>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }}>
@@ -128,7 +166,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
             display: 'flex', alignItems: 'center', gap: 7,
             padding: '9px 16px', background: 'var(--bg2)', border: '1px solid var(--border)',
             borderRadius: 9, color: 'var(--text3)', fontSize: 12, fontWeight: 700,
-            cursor: 'pointer', transition: 'border-color .15s',
+            cursor: 'pointer', transition: 'border-color .15s', minHeight: 44,
           }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.18)')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
@@ -141,7 +179,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
       </div>
 
       {/* KPI Boxes */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="wf-mobile-kpi-grid" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         {kpiBoxes.filter(b => b.show !== false).map(b => (
           <div key={b.label} style={{
             background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
@@ -158,7 +196,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
       </div>
 
       {/* Search + Filters */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="wf-mobile-filter-row" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         {/* Search input with icon */}
         <div style={{ flex: 1, minWidth: 200, position: 'relative', display: 'flex', alignItems: 'center' }}>
           <svg
@@ -199,6 +237,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
       </div>
 
       {/* Table */}
+      <div className={isMobile ? 'wf-mobile-table-scroll' : undefined}>
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '72px 0', color: 'var(--text4)' }}>
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
@@ -310,7 +349,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
                         borderRadius: 7, color: 'var(--text3)', fontSize: 11, fontWeight: 700,
                         cursor: restoringId === job.id ? 'wait' : 'pointer',
                         opacity: restoringId === job.id ? 0.5 : 1, whiteSpace: 'nowrap',
-                        fontFamily: 'inherit',
+                        fontFamily: 'inherit', minHeight: 44,
                       }}>
                       {restoringId === job.id ? '…' : t('restore')}
                     </button>
@@ -325,7 +364,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
                         borderRadius: 7, color: 'var(--red)', fontSize: 11, fontWeight: 700,
                         cursor: undeletingId === job.id ? 'wait' : 'pointer',
                         opacity: undeletingId === job.id ? 0.5 : 1, whiteSpace: 'nowrap',
-                        fontFamily: 'inherit',
+                        fontFamily: 'inherit', minHeight: 44,
                       }}>
                       {undeletingId === job.id ? '…' : t('restoreDeleted')}
                     </button>
@@ -336,6 +375,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
           })}
         </div>
       )}
+      </div>{/* end wf-mobile-table-scroll */}
 
       <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text4)', textAlign: 'center' }}>
         Showing {filtered.length} of {jobs.length} jobs

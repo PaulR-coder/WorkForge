@@ -323,7 +323,59 @@ export default function EstimatesClient({
   estimates.forEach(e => { counts[e.status] = (counts[e.status] ?? 0) + 1 })
 
   return (
-    <div style={{ padding: '20px 24px 80px', maxWidth: 1000 }}>
+    <div style={{ padding: '20px 16px 80px', maxWidth: 1000 }}>
+      <style>{`
+        /* Workflow pipeline: horizontal scroll on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-pipeline {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap !important;
+            padding-bottom: 4px;
+          }
+          .wf-mobile-pipeline > div {
+            flex-wrap: nowrap !important;
+          }
+        }
+        /* Estimate card: stack left/middle/right vertically on mobile */
+        @media (max-width: 639px) {
+          .wf-mobile-est-card-inner {
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+          .wf-mobile-est-right {
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+          }
+          .wf-mobile-est-right > div:first-child {
+            font-size: 20px !important;
+          }
+        }
+        /* Modal line items table: horizontal scroll */
+        @media (max-width: 639px) {
+          .wf-mobile-lineitems-scroll {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          .wf-mobile-lineitems-scroll > div {
+            min-width: 480px;
+          }
+          /* Modal two-column grids: single column */
+          .wf-mobile-modal-2col {
+            grid-template-columns: 1fr !important;
+          }
+          .wf-mobile-modal-status-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        /* Ensure all buttons are minimum 44px touch target */
+        @media (max-width: 639px) {
+          .wf-mobile-est-actions button {
+            min-height: 44px;
+          }
+        }
+      `}</style>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
@@ -339,9 +391,9 @@ export default function EstimatesClient({
       </div>
 
       {/* Workflow pipeline indicator */}
-      <div style={{ marginBottom: 20, padding: '12px 16px', background: '#0a0f1e', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <div className="wf-mobile-pipeline" style={{ marginBottom: 20, padding: '12px 16px', background: '#0a0f1e', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.7px', fontFamily: 'var(--font-display, system-ui)', flexShrink: 0 }}>Workflow</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'nowrap' }}>
           {PIPELINE_STAGES.map((stage, i) => (
             <div key={stage} style={{ display: 'flex', alignItems: 'center' }}>
               <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(255,255,255,.05)', color: 'var(--text3)', border: '1px solid rgba(255,255,255,.08)', fontFamily: 'var(--font-display, system-ui)' }}>{stage}</span>
@@ -397,7 +449,7 @@ export default function EstimatesClient({
                 {/* Left accent bar colored by status */}
                 <div style={{ display: 'flex' }}>
                   <div style={{ width: 3, background: ss.color, flexShrink: 0 }} />
-                  <div style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                  <div className="wf-mobile-est-card-inner" style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
 
                     {/* Left: number + status + job type */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0, minWidth: 80 }}>
@@ -431,7 +483,7 @@ export default function EstimatesClient({
                     </div>
 
                     {/* Right: amount + actions */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                    <div className="wf-mobile-est-right" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
                       <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono, monospace)', lineHeight: 1 }}>
                         ${est.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
@@ -540,7 +592,7 @@ export default function EstimatesClient({
               </div>
 
               {/* Client + Email */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div className="wf-mobile-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
                 <div>
                   <label style={formLbl}>Client *</label>
                   <input value={client} onChange={e => setClient(e.target.value)} placeholder="Client name" style={formInp} />
@@ -575,9 +627,9 @@ export default function EstimatesClient({
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
                   <label style={{ ...formLbl, marginBottom: 0 }}>Line Items</label>
                   <button onClick={() => setLineItems(prev => [...prev, newItem()])}
-                    style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)' }}>+ Add</button>
+                    style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)', minHeight: 44 }}>+ Add</button>
                 </div>
-                <div style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 10, overflow: 'hidden' }}>
+                <div className="wf-mobile-lineitems-scroll" style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 10, overflow: 'hidden' }}>
                   {/* Table header */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 32px', background: '#141d2e', padding: '8px 12px', fontSize: 9, fontWeight: 700, color: 'var(--text4)', letterSpacing: '.5px', fontFamily: 'var(--font-display, system-ui)' }}>
                     <span>DESCRIPTION</span>
@@ -615,7 +667,7 @@ export default function EstimatesClient({
               </div>
 
               {/* Status + Notes */}
-              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 12, marginBottom: 24 }}>
+              <div className="wf-mobile-modal-status-grid" style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 12, marginBottom: 24 }}>
                 <div>
                   <label style={formLbl}>Status</label>
                   <select value={status} onChange={e => setStatus(e.target.value as Estimate['status'])} style={formInp}>

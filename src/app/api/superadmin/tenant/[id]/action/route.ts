@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { cache } from '@/lib/cache'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -17,6 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       data: { active: !tenant.active },
     })
+    await cache.del(`tenant:${id}`)
     return Response.json({ active: updated.active })
   }
 
@@ -29,6 +31,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       data: { trialEndsAt, subscriptionStatus: 'trialing' },
     })
+    await cache.del(`tenant:${id}`)
     return Response.json({ trialEndsAt: trialEndsAt.toISOString() })
   }
 

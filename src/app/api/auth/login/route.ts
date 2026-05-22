@@ -17,6 +17,7 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({
     where: { email },
     include: { tenant: { select: { active: true, subscriptionStatus: true } } },
+    // Include 2FA fields so we can gate the session cookie
   })
   if (!user || !user.active) {
     return Response.json({ error: 'Invalid credentials' }, { status: 401 })
@@ -51,6 +52,12 @@ export async function POST(req: Request) {
         prisma.user.update({ where: { id: user.id }, data: { tenantId: tenant.id } }).catch(() => {})
       }
     } catch {}
+  }
+
+  // If 2FA is enabled, return a challenge instead of setting the session cookie.
+  // The client will complete auth via /api/auth/2fa/challenge.
+  if (user.twoFactorEnabled) {
+    return Response.json({ requires2FA: true, userId: user.id })
   }
 
   await setSession({

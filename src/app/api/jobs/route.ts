@@ -5,10 +5,22 @@ import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 import { emailJobAssigned } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push'
+import { cache } from '@/lib/cache'
 
 export async function GET() {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Per-tenant cache key.  Techs see a filtered subset, so we include their
+  // id in the key to prevent cross-user cache collisions.
+  const cacheKey =
+    session.role === 'tech'
+      ? `jobs:${session.tenantId}:tech:${session.id}`
+      : `jobs:${session.tenantId}`
+
+  const cached = await cache.get(cacheKey)
+  if (cached !== null) return Response.json(cached)
+
   const db = tenantPrisma(session)
 
   const tenantFilter = getTenantFilter(session)
@@ -24,6 +36,10 @@ export async function GET() {
     include: { tech: { select: { id: true, name: true, initials: true } } },
     orderBy: { createdAt: 'desc' },
   })
+
+  // TTL 30 s — short enough that a job status change feels near-instant,
+  // long enough to absorb repeated page-loads / polling from multiple clients.
+  await cache.set(cacheKey, jobs, 30)
 
   return Response.json(jobs)
 }
@@ -74,6 +90,11 @@ export async function POST(req: Request) {
       })
     }
   }
+
+  // Invalidate the jobs list for this tenant (all roles) so the next GET
+  // reflects the new job.  Tech-scoped keys share the same prefix so we use
+  // flush() rather than a single del().
+  await cache.flush(`jobs:${tenantId}*`)
 
   return Response.json({ ...job, tech: job.tech ? { id: job.tech.id, name: job.tech.name, initials: job.tech.initials } : null }, { status: 201 })
 }
