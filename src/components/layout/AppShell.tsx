@@ -20,6 +20,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: '/jobs',      icon: '🔧', labelKey: 'workOrders', perm: null },
       { href: '/estimates', icon: '📝', labelKey: 'estimates',  perm: 'createEstimate' },
+      { href: '/import',    icon: '📥', labelKey: 'importDocs', perm: 'importData' },
       { href: '/schedule',  icon: '📅', labelKey: 'schedule',   perm: 'assignTech' },
       { href: '/field',     icon: '📱', labelKey: 'fieldView',  perm: null },
     ],

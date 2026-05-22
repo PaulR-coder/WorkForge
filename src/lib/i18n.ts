@@ -17,6 +17,7 @@ const T = {
     commandCenter: 'Command Center',
     jobHistory: 'Job History',
     estimates: 'Estimates',
+    importDocs: 'Import',
     signOut: 'Sign Out',
 
     // Auth
@@ -224,6 +225,7 @@ const T = {
     commandCenter: 'Centro de Mando',
     jobHistory: 'Historial de Trabajos',
     estimates: 'Presupuestos',
+    importDocs: 'Importar',
     signOut: 'Cerrar Sesión',
 
     // Auth
