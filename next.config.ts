@@ -30,6 +30,16 @@ const SECURITY_HEADERS = [
 ]
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.getworkforge.com' }],
+        destination: 'https://getworkforge.com/:path*',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {
