@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -64,6 +65,11 @@
   /* ── Spacing ─────────────────────────────────────────────────────────── */
   --page-pad:    28px;
   --page-pad-sm: 16px;
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-display: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+  --font-mono:    'DM Mono', 'Fira Mono', monospace;
 }
 
 @theme inline {
@@ -88,7 +94,7 @@ body {
   background: var(--bg);
   color: var(--text);
   /* Slightly more readable than system-ui at body size */
-  font-family: -apple-system, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;            /* up from 13px — more readable for business owners */
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
