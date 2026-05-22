@@ -50,6 +50,8 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { href: '/billing',   icon: '💳', labelKey: 'billing',       perm: 'manageBilling' },
       { href: '/marketing', icon: '📣', labelKey: 'marketing',     perm: 'manageSettings' },
       { href: '/cron',      icon: '⏱', labelKey: 'scheduledJobs', perm: 'manageSettings' },
+      { href: '/referral',  icon: '🎁', labelKey: 'referral',      perm: 'manageBilling' },
+      { href: '/help',      icon: '❓', labelKey: 'helpCenter',     perm: null },
     ],
   },
 ]

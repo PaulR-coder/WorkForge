@@ -83,6 +83,7 @@ model Tenant {
   estimates         Estimate[]
   timeEntries       TimeEntry[]
   featureRequests   FeatureRequest[]
+  referralCode      ReferralCode?
 }
 
 model Invite {
@@ -145,6 +146,7 @@ model User {
   timeEntries       TimeEntry[]        @relation("TechTimeEntries")
   featureRequests   FeatureRequest[]
   featureVotes      FeatureVote[]
+  referralCode      ReferralCode?
 
   @@index([tenantId])
 }
@@ -447,4 +449,24 @@ model FeatureVote {
   @@unique([featureRequestId, userId])
   @@index([featureRequestId])
   @@index([userId])
+}
+
+model ReferralCode {
+  id        String        @id @default(cuid())
+  tenantId  String        @unique
+  userId    String        @unique
+  code      String        @unique
+  createdAt DateTime      @default(now())
+  uses      ReferralUse[]
+  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReferralUse {
+  id             String       @id @default(cuid())
+  referralCodeId String
+  newTenantId    String?
+  createdAt      DateTime     @default(now())
+  status         String       @default("pending")
+  referralCode   ReferralCode @relation(fields: [referralCodeId], references: [id], onDelete: Cascade)
 }

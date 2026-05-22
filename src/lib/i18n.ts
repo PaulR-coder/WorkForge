@@ -207,6 +207,8 @@ const T = {
     featureRequests: 'Feature Requests',
     marketing: 'Marketing',
     scheduledJobs: 'Scheduled Jobs',
+    referral: 'Referral Program',
+    helpCenter: 'Help Center',
 
     // Roles
     superadmin: 'Super Admin',
@@ -422,6 +424,8 @@ const T = {
     featureRequests: 'Solicitudes de Función',
     marketing: 'Marketing',
     scheduledJobs: 'Trabajos Programados',
+    referral: 'Programa de Referidos',
+    helpCenter: 'Centro de Ayuda',
 
     // Roles
     superadmin: 'Super Admin',
