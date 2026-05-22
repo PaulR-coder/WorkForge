@@ -39,7 +39,7 @@ export default async function TeamPage() {
   const [users, invites] = await Promise.all([
     prisma.user.findMany({
       where: tenantFilter,
-      select: { id: true, name: true, email: true, phone: true, role: true, initials: true, company: true, specialty: true, active: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, initials: true, company: true, specialty: true, active: true, failedLoginAttempts: true, lockedUntil: true },
       orderBy: { name: 'asc' },
     }),
     canEdit
@@ -146,7 +146,13 @@ export default async function TeamPage() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
               gap: 12,
             }}>
-              {group.map(u => <TeamCard key={u.id} user={u} canEdit={canEdit} />)}
+              {group.map(u => (
+                <TeamCard
+                  key={u.id}
+                  user={{ ...u, lockedUntil: u.lockedUntil?.toISOString() ?? null }}
+                  canEdit={canEdit}
+                />
+              ))}
             </div>
           </div>
         )

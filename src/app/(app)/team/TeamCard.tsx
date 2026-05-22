@@ -21,14 +21,29 @@ const ROLE_LABEL: Record<string, string> = {
 type User = {
   id: string; name: string; email: string; phone: string | null
   role: string; initials: string; company: string; specialty: string; active: boolean
+  lockedUntil?: string | null; failedLoginAttempts?: number
 }
 
 export default function TeamCard({ user, canEdit }: { user: User; canEdit: boolean }) {
-  const [phone, setPhone]     = useState(user.phone ?? '')
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving]   = useState(false)
-  const [hovered, setHovered] = useState(false)
+  const [phone, setPhone]         = useState(user.phone ?? '')
+  const [editing, setEditing]     = useState(false)
+  const [saving, setSaving]       = useState(false)
+  const [hovered, setHovered]     = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [locked, setLocked]       = useState(() =>
+    !!(user.lockedUntil && new Date(user.lockedUntil) > new Date())
+  )
   const rc = ROLE_COLOR[user.role] ?? 'var(--text3)'
+
+  async function handleUnlock() {
+    setUnlocking(true)
+    try {
+      const res = await fetch(`/api/admin/unlock/${user.id}`, { method: 'POST' })
+      if (res.ok) setLocked(false)
+    } finally {
+      setUnlocking(false)
+    }
+  }
 
   async function savePhone() {
     setSaving(true)
@@ -111,6 +126,16 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
                   Inactive
                 </span>
               )}
+              {/* Locked badge */}
+              {locked && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                  background: 'rgba(239,68,68,.15)', color: 'var(--red)',
+                  border: '1px solid rgba(239,68,68,.3)', letterSpacing: '.3px',
+                }}>
+                  🔒 Locked
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -137,6 +162,25 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: 'var(--text4)', width: 14, textAlign: 'center', flexShrink: 0 }}>⚙</span>
               <span style={{ fontSize: 11, color: 'var(--text4)' }}>{user.specialty}</span>
+            </div>
+          )}
+
+          {/* Unlock button for admins */}
+          {locked && canEdit && (
+            <div style={{ paddingTop: 4 }}>
+              <button
+                onClick={handleUnlock}
+                disabled={unlocking}
+                style={{
+                  fontSize: 11, padding: '5px 12px', borderRadius: 7,
+                  background: 'rgba(239,68,68,.1)', color: 'var(--red)',
+                  border: '1px solid rgba(239,68,68,.25)', cursor: unlocking ? 'wait' : 'pointer',
+                  fontWeight: 700, fontFamily: 'var(--font-body)',
+                  opacity: unlocking ? .6 : 1,
+                }}
+              >
+                {unlocking ? 'Unlocking…' : '🔓 Unlock Account'}
+              </button>
             </div>
           )}
 

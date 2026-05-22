@@ -23,8 +23,26 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid credentials' }, { status: 401 })
   }
 
+  // Account lockout check
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000)
+    return Response.json(
+      { error: `Account locked. Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'} or contact your administrator.` },
+      { status: 423 },
+    )
+  }
+
   const valid = await verifyPassword(password, user.password)
   if (!valid) {
+    const newFailCount = user.failedLoginAttempts + 1
+    const shouldLock = newFailCount >= 10
+    void prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: { increment: 1 },
+        ...(shouldLock ? { lockedUntil: new Date(Date.now() + 15 * 60 * 1000) } : {}),
+      },
+    })
     void prisma.auditLog.create({
       data: { icon: '🔐', action: 'Login failed', detail: `${user.email} — wrong password`, severity: 'warn', userId: user.id, tenantId: user.tenantId },
     })
@@ -59,6 +77,12 @@ export async function POST(req: Request) {
   if (user.twoFactorEnabled) {
     return Response.json({ requires2FA: true, userId: user.id })
   }
+
+  // Reset failed login attempts on successful login
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { failedLoginAttempts: 0, lockedUntil: null },
+  })
 
   await setSession({
     id: user.id,

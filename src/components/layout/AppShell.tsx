@@ -18,11 +18,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Operations',
     items: [
-      { href: '/jobs',      icon: '🔧', labelKey: 'workOrders', perm: null },
-      { href: '/estimates', icon: '📝', labelKey: 'estimates',  perm: 'createEstimate' },
-      { href: '/import',    icon: '📥', labelKey: 'importDocs', perm: 'importData' },
-      { href: '/schedule',  icon: '📅', labelKey: 'schedule',   perm: 'assignTech' },
-      { href: '/field',     icon: '📱', labelKey: 'fieldView',  perm: null },
+      { href: '/jobs',      icon: '🔧', labelKey: 'workOrders',     perm: null },
+      { href: '/estimates', icon: '📝', labelKey: 'estimates',       perm: 'createEstimate' },
+      { href: '/import',    icon: '📥', labelKey: 'importDocs',      perm: 'importData' },
+      { href: '/schedule',  icon: '📅', labelKey: 'schedule',        perm: 'assignTech' },
+      { href: '/field',     icon: '📱', labelKey: 'fieldView',       perm: null },
+      { href: '/feedback',  icon: '💡', labelKey: 'featureRequests', perm: null },
     ],
   },
   {
@@ -43,10 +44,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Reports',
     items: [
-      { href: '/dashboard', icon: '📊', labelKey: 'dashboard', perm: 'viewDashboard' },
-      { href: '/history',   icon: '📋', labelKey: 'jobHistory', perm: 'viewHistory' },
-      { href: '/audit',     icon: '🛡', labelKey: 'auditLog',  perm: 'viewAudit' },
-      { href: '/billing',   icon: '💳', labelKey: 'billing',   perm: 'manageBilling' },
+      { href: '/dashboard', icon: '📊', labelKey: 'dashboard',     perm: 'viewDashboard' },
+      { href: '/history',   icon: '📋', labelKey: 'jobHistory',    perm: 'viewHistory' },
+      { href: '/audit',     icon: '🛡', labelKey: 'auditLog',      perm: 'viewAudit' },
+      { href: '/billing',   icon: '💳', labelKey: 'billing',       perm: 'manageBilling' },
+      { href: '/marketing', icon: '📣', labelKey: 'marketing',     perm: 'manageSettings' },
+      { href: '/cron',      icon: '⏱', labelKey: 'scheduledJobs', perm: 'manageSettings' },
     ],
   },
 ]
@@ -441,6 +444,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
                 {/* Menu items */}
                 {[
                   { icon: '🔐', label: 'Security (2FA)', action: () => { setUserMenuOpen(false); router.push('/settings/2fa') }, danger: false },
+                  { icon: '🖥️', label: 'Active Sessions', action: () => { setUserMenuOpen(false); router.push('/settings/sessions') }, danger: false },
                   { icon: '💬', label: 'Support', action: () => { setUserMenuOpen(false); setSupportOpen(true) }, danger: false },
                   { icon: '🚪', label: t('signOut'), action: () => { setUserMenuOpen(false); handleLogout() }, danger: true },
                 ].map(item => (

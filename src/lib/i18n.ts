@@ -203,6 +203,11 @@ const T = {
     searchHistory: 'Search by client or type...',
     completedOn: 'Completed',
 
+    // Feature Requests & Nav extras
+    featureRequests: 'Feature Requests',
+    marketing: 'Marketing',
+    scheduledJobs: 'Scheduled Jobs',
+
     // Roles
     superadmin: 'Super Admin',
     admin: 'Admin',
@@ -412,6 +417,11 @@ const T = {
     noHistory: 'No hay trabajos completados aún',
     searchHistory: 'Buscar por cliente o tipo...',
     completedOn: 'Completado',
+
+    // Feature Requests & Nav extras
+    featureRequests: 'Solicitudes de Función',
+    marketing: 'Marketing',
+    scheduledJobs: 'Trabajos Programados',
 
     // Roles
     superadmin: 'Super Admin',
