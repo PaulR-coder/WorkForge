@@ -53,27 +53,146 @@ const SECTIONS = [
 
 export default function PrivacyPage() {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '48px 24px', color: 'var(--text)', fontFamily: 'inherit' }}>
-      <Link href="/register" style={{ fontSize: 12, color: 'var(--amber)', fontWeight: 700, textDecoration: 'none', display: 'inline-block', marginBottom: 32 }}>← Back</Link>
+    <>
+      <style>{`
+        .legal-page {
+          min-height: 100vh;
+          background: var(--bg);
+          color: var(--text);
+          font-family: var(--font-body);
+          padding-bottom: 80px;
+        }
+        .legal-header {
+          border-bottom: 1px solid var(--border);
+          padding: 20px 0;
+          margin-bottom: 0;
+        }
+        .legal-header-inner {
+          max-width: 760px;
+          margin: 0 auto;
+          padding: 0 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        .legal-logo {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          text-decoration: none;
+        }
+        .legal-logo-mark {
+          width: 30px;
+          height: 30px;
+          background: var(--amber);
+          border-radius: 7px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .legal-logo-text {
+          font-family: var(--font-display);
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: .04em;
+          text-transform: uppercase;
+          color: var(--text);
+        }
+        .legal-logo-text span { color: var(--amber); }
+        .legal-back {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text4);
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          transition: color .15s;
+        }
+        .legal-back:hover { color: var(--text2); }
+        .legal-body {
+          max-width: 760px;
+          margin: 0 auto;
+          padding: 52px 24px 0;
+        }
+        .legal-title {
+          font-family: var(--font-display);
+          font-size: clamp(36px, 6vw, 52px);
+          font-weight: 800;
+          text-transform: uppercase;
+          color: var(--text);
+          letter-spacing: -.01em;
+          margin-bottom: 6px;
+          line-height: 1;
+        }
+        .legal-date {
+          font-size: 12px;
+          color: var(--text4);
+          margin-bottom: 48px;
+          display: block;
+        }
+        .legal-divider {
+          border: none;
+          border-top: 1px solid var(--border);
+          margin: 0 0 48px;
+        }
+        .legal-section {
+          padding: 28px 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .legal-section:last-child { border-bottom: none; }
+        .legal-section-title {
+          font-family: var(--font-display);
+          font-size: 17px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .04em;
+          color: var(--text);
+          margin-bottom: 12px;
+        }
+        .legal-section-body {
+          font-size: 14px;
+          color: var(--text3);
+          line-height: 1.75;
+          white-space: pre-line;
+        }
+      `}</style>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-        <div style={{ width: 36, height: 36, background: 'var(--amber)', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg viewBox="-44 -44 88 88" style={{ width: 18, height: 18 }}>
-            <path d="M -10 -28 L -22 6 L -2 6 L -8 30 L 22 -8 L 4 -8 L 12 -28 Z" fill="#080c1a" />
-          </svg>
+      <div className="legal-page">
+        <header className="legal-header">
+          <div className="legal-header-inner">
+            <Link href="/" className="legal-logo">
+              <div className="legal-logo-mark">
+                <svg viewBox="-44 -44 88 88" width="16" height="16">
+                  <path d="M -10 -28 L -22 6 L -2 6 L -8 30 L 22 -8 L 4 -8 L 12 -28 Z" fill="#080c1a" />
+                </svg>
+              </div>
+              <span className="legal-logo-text">Work<span>Forge</span></span>
+            </Link>
+            <Link href="/register" className="legal-back">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M12 7H2M6 3L2 7l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Back
+            </Link>
+          </div>
+        </header>
+
+        <div className="legal-body">
+          <h1 className="legal-title">Privacy Policy</h1>
+          <span className="legal-date">Last updated: May 18, 2026</span>
+          <hr className="legal-divider" />
+
+          {SECTIONS.map(({ title, body }) => (
+            <div key={title} className="legal-section">
+              <h2 className="legal-section-title">{title}</h2>
+              <p className="legal-section-body">{body}</p>
+            </div>
+          ))}
         </div>
-        <span style={{ fontSize: 20, fontWeight: 800 }}><span style={{ color: 'var(--text)' }}>Work</span><span style={{ color: 'var(--amber)' }}>Forge</span></span>
       </div>
-
-      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Privacy Policy</h1>
-      <p style={{ fontSize: 13, color: 'var(--text4)', marginBottom: 40 }}>Last updated: May 18, 2026</p>
-
-      {SECTIONS.map(({ title, body }) => (
-        <div key={title} style={{ marginBottom: 28 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{title}</h2>
-          <p style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-line' }}>{body}</p>
-        </div>
-      ))}
-    </div>
+    </>
   )
 }

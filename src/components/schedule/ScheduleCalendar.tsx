@@ -75,6 +75,23 @@ function fmtDateTime(iso: string): string {
   })
 }
 
+// SVG chevron icons
+function ChevronLeft() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 11L5 7L9 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ChevronRight() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 3L9 7L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function ScheduleCalendar({
   session,
   users,
@@ -180,35 +197,39 @@ export default function ScheduleCalendar({
         }}
         onDragEnd={() => { setDragging(null); setDropHover(null) }}
         onClick={() => setOpenJobId(job.id)}
+        className="cal-card"
         style={{
           position: 'relative',
           background: `${pColor}12`,
-          border: `1px solid ${pColor}30`,
+          border: `1px solid ${pColor}28`,
           borderLeft: `3px solid ${pColor}`,
-          borderRadius: 5,
-          padding: compact ? '3px 5px' : '8px 10px',
+          borderRadius: 6,
+          padding: compact ? '3px 6px 3px 5px' : '8px 10px',
           cursor: can(session.role, 'editJob') ? 'grab' : 'pointer',
-          opacity: isDragging ? 0.35 : 1,
+          opacity: isDragging ? 0.3 : 1,
           marginBottom: compact ? 2 : 0,
           userSelect: 'none',
           minWidth: 0,
-          transition: 'opacity .1s',
+          transition: 'opacity .15s, transform .1s, box-shadow .15s',
         }}
       >
         {job.scheduledAt && can(session.role, 'editJob') && (
           <button
             onClick={e => { e.stopPropagation(); patchSchedule(job.id, null) }}
+            className="cal-unschedule-btn"
             style={{
               position: 'absolute',
               top: 3,
               right: 4,
-              fontSize: 10,
+              fontSize: 11,
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               color: 'var(--text4)',
               lineHeight: 1,
-              padding: 2,
+              padding: '1px 3px',
+              borderRadius: 3,
+              transition: 'color .12s, background .12s',
             }}
             title="Unschedule"
           >
@@ -219,6 +240,7 @@ export default function ScheduleCalendar({
           <div style={{
             fontSize: compact ? 9 : 11,
             fontWeight: 700,
+            fontFamily: 'var(--font-body)',
             color: 'var(--text)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -241,13 +263,22 @@ export default function ScheduleCalendar({
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              fontFamily: 'var(--font-mono)',
             }}>
               {job.tech.initials}
             </div>
           )}
         </div>
         {!compact && (
-          <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 2 }}>
+          <div style={{
+            fontSize: 10,
+            color: 'var(--text4)',
+            marginTop: 2,
+            fontFamily: 'var(--font-body)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
             {job.type}
           </div>
         )}
@@ -298,34 +329,79 @@ export default function ScheduleCalendar({
         <div
           key={job.id}
           onClick={() => setOpenJobId(job.id)}
+          className="mobile-job-card"
           style={{
-            background: 'var(--bg2)',
+            background: 'var(--bg3)',
             border: `1px solid var(--border)`,
             borderLeft: `3px solid ${pColor}`,
             borderRadius: 10,
             padding: '12px 14px',
             cursor: 'pointer',
+            transition: 'border-color .15s, background .15s, transform .1s',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.3, flex: 1 }}>{job.client}</div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: pColor, background: `${pColor}18`, padding: '2px 8px', borderRadius: 20, border: `1px solid ${pColor}30`, flexShrink: 0 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              color: 'var(--text)',
+              lineHeight: 1.3,
+              flex: 1,
+            }}>
+              {job.client}
+            </div>
+            <span style={{
+              fontSize: 9,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '.04em',
+              textTransform: 'uppercase',
+              color: pColor,
+              background: `${pColor}18`,
+              padding: '2px 8px',
+              borderRadius: 20,
+              border: `1px solid ${pColor}30`,
+              flexShrink: 0,
+            }}>
               {job.priority}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: job.tech ? 8 : 0 }}>{job.type} · {job.address.split(',')[0]}</div>
+          <div style={{
+            fontSize: 11,
+            color: 'var(--text4)',
+            fontFamily: 'var(--font-body)',
+            marginBottom: job.tech ? 8 : 0,
+          }}>
+            {job.type} · {job.address.split(',')[0]}
+          </div>
           {job.tech && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: tColor, color: '#080c1a', fontSize: 7, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: tColor,
+                color: '#080c1a',
+                fontSize: 7,
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
                 {job.tech.initials}
               </div>
-              <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>{job.tech.name}</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500, fontFamily: 'var(--font-body)' }}>
+                {job.tech.name}
+              </span>
             </div>
           )}
           {job.scheduledAt && can(session.role, 'editJob') && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button
                 onClick={e => { e.stopPropagation(); patchSchedule(job.id, null) }}
+                className="unschedule-btn"
                 style={{
                   padding: '4px 10px',
                   background: 'transparent',
@@ -335,6 +411,8 @@ export default function ScheduleCalendar({
                   color: 'var(--text4)',
                   cursor: 'pointer',
                   fontWeight: 600,
+                  fontFamily: 'var(--font-body)',
+                  transition: 'border-color .12s, color .12s',
                 }}
               >
                 Unschedule
@@ -348,22 +426,80 @@ export default function ScheduleCalendar({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
         {/* Mobile header */}
-        <div style={{ padding: '12px 14px 8px', borderBottom: '1px solid var(--border)', background: 'var(--bg2)', flexShrink: 0 }}>
+        <div style={{
+          padding: '12px 14px 8px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--bg2)',
+          flexShrink: 0,
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', flex: 1 }}>
-              📅 {t('dispatchSchedule')}
+            <div style={{
+              fontSize: 17,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '.02em',
+              color: 'var(--text)',
+              flex: 1,
+              textTransform: 'uppercase',
+            }}>
+              {t('dispatchSchedule')}
             </div>
             <div style={{ display: 'flex', gap: 4 }}>
               <button
                 onClick={() => { setWStart(getWeekStart(new Date())); setMobileDay(new Date().getDay()) }}
-                style={{ padding: '5px 9px', borderRadius: 6, border: '1px solid var(--amber)', background: 'transparent', color: 'var(--amber)', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                className="today-btn"
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: 6,
+                  border: '1px solid var(--amber-border, rgba(245,158,11,.35))',
+                  background: 'rgba(245,158,11,.08)',
+                  color: 'var(--amber)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-body)',
+                  cursor: 'pointer',
+                  transition: 'background .15s',
+                }}
               >
                 Today
               </button>
-              <button onClick={() => setWStart(d => addDays(d, -7))}
-                style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>‹</button>
-              <button onClick={() => setWStart(d => addDays(d, 7))}
-                style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>›</button>
+              <button
+                onClick={() => setWStart(d => addDays(d, -7))}
+                className="nav-arrow-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '5px 8px',
+                  borderRadius: '6px 0 0 6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg3)',
+                  color: 'var(--text3)',
+                  cursor: 'pointer',
+                  transition: 'background .12s, color .12s',
+                }}
+              >
+                <ChevronLeft />
+              </button>
+              <button
+                onClick={() => setWStart(d => addDays(d, 7))}
+                className="nav-arrow-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '5px 8px',
+                  borderRadius: '0 6px 6px 0',
+                  border: '1px solid var(--border)',
+                  borderLeft: 'none',
+                  background: 'var(--bg3)',
+                  color: 'var(--text3)',
+                  cursor: 'pointer',
+                  transition: 'background .12s, color .12s',
+                }}
+              >
+                <ChevronRight />
+              </button>
             </div>
           </div>
 
@@ -374,7 +510,8 @@ export default function ScheduleCalendar({
               const isSelected = i === mobileDay
               const jobCount = thisWeek.filter(j => isSameDay(new Date(j.scheduledAt!), d)).length
               return (
-                <button key={i}
+                <button
+                  key={i}
                   onClick={() => setMobileDay(i)}
                   style={{
                     flexShrink: 0,
@@ -387,15 +524,36 @@ export default function ScheduleCalendar({
                     background: isSelected ? 'rgba(245,158,11,.12)' : 'transparent',
                     cursor: 'pointer',
                     minWidth: 44,
+                    transition: 'border-color .15s, background .15s',
                   }}
                 >
-                  <div style={{ fontSize: 9, fontWeight: 700, color: isToday ? 'var(--amber)' : 'var(--text4)', marginBottom: 2 }}>
+                  <div style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    letterSpacing: '.06em',
+                    textTransform: 'uppercase',
+                    color: isToday ? 'var(--amber)' : 'var(--text4)',
+                    marginBottom: 2,
+                  }}>
                     {dayLabels[d.getDay()]}
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: isSelected ? 'var(--amber)' : isToday ? 'var(--amber)' : 'var(--text)', lineHeight: 1 }}>
+                  <div style={{
+                    fontSize: 16,
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    color: isSelected || isToday ? 'var(--amber)' : 'var(--text)',
+                    lineHeight: 1,
+                  }}>
                     {d.getDate()}
                   </div>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: jobCount > 0 ? 'var(--amber)' : 'transparent', marginTop: 2 }}>
+                  <div style={{
+                    fontSize: 8,
+                    fontWeight: 700,
+                    color: jobCount > 0 ? 'var(--amber)' : 'transparent',
+                    marginTop: 3,
+                    fontFamily: 'var(--font-mono)',
+                  }}>
                     {jobCount > 0 ? `${jobCount}` : '·'}
                   </div>
                 </button>
@@ -409,7 +567,17 @@ export default function ScheduleCalendar({
               <select
                 value={filterTechId}
                 onChange={e => setFilterTechId(e.target.value)}
-                style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12, padding: '7px 10px', outline: 'none' }}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  color: 'var(--text)',
+                  fontSize: 12,
+                  fontFamily: 'var(--font-body)',
+                  padding: '7px 10px',
+                  outline: 'none',
+                }}
               >
                 <option value="all">{t('allTechs')}</option>
                 {techs.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -422,11 +590,25 @@ export default function ScheduleCalendar({
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {/* Scheduled for this day */}
           <div style={{ padding: '10px 12px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+            <div style={{
+              fontSize: 10,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '.06em',
+              color: 'var(--text4)',
+              textTransform: 'uppercase',
+              marginBottom: 8,
+            }}>
               {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} · {dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}
             </div>
             {dayJobs.length === 0 ? (
-              <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text4)', fontSize: 12 }}>
+              <div style={{
+                padding: '24px 0',
+                textAlign: 'center',
+                color: 'var(--text4)',
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+              }}>
                 Nothing scheduled
               </div>
             ) : (
@@ -436,7 +618,17 @@ export default function ScheduleCalendar({
                   if (hJobs.length === 0) return null
                   return (
                     <div key={hour} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 600, width: 40, paddingTop: 14, textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{
+                        fontSize: 10,
+                        color: 'var(--text4)',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-mono)',
+                        width: 42,
+                        paddingTop: 14,
+                        textAlign: 'right',
+                        flexShrink: 0,
+                        letterSpacing: '-.01em',
+                      }}>
                         {fmtHour(hour)}
                       </div>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -452,7 +644,15 @@ export default function ScheduleCalendar({
           {/* Unscheduled section */}
           {unscheduled.length > 0 && (
             <div style={{ borderTop: '1px solid var(--border)', padding: '10px 12px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
+              <div style={{
+                fontSize: 10,
+                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '.06em',
+                color: 'var(--text4)',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+              }}>
                 {t('unscheduledJobs')} ({unscheduled.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -469,6 +669,21 @@ export default function ScheduleCalendar({
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
           }
+          .mobile-job-card:hover {
+            background: var(--bg4) !important;
+            transform: translateY(-1px);
+          }
+          .unschedule-btn:hover {
+            border-color: var(--border2) !important;
+            color: var(--text3) !important;
+          }
+          .today-btn:hover {
+            background: rgba(245,158,11,.16) !important;
+          }
+          .nav-arrow-btn:hover {
+            background: var(--bg4) !important;
+            color: var(--text) !important;
+          }
         `}</style>
       </div>
     )
@@ -483,76 +698,158 @@ export default function ScheduleCalendar({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{
-        padding: '14px 20px',
+        padding: '12px 20px',
         borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 14,
         flexShrink: 0,
         background: 'var(--bg2)',
         flexWrap: 'wrap',
       }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>
-            📅 {t('dispatchSchedule')}
+        {/* Title + range */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{
+            fontSize: 20,
+            fontWeight: 700,
+            fontFamily: 'var(--font-display)',
+            letterSpacing: '.02em',
+            color: 'var(--text)',
+            textTransform: 'uppercase',
+            lineHeight: 1,
+          }}>
+            {t('dispatchSchedule')}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 1 }}>{rangeLabel}</div>
+          <div style={{
+            fontSize: 11,
+            color: 'var(--text4)',
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '-.01em',
+          }}>
+            {rangeLabel}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
           {/* Tech color legend */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginRight: 8 }}>
-            {techs.slice(0, 5).map(u => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: techColor[u.id] ?? '#5ba3f5' }} />
-                <span style={{ fontSize: 10, color: 'var(--text4)' }}>{u.name.split(' ')[0]}</span>
-              </div>
-            ))}
-          </div>
+          {techs.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginRight: 4 }}>
+              {techs.slice(0, 5).map(u => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: techColor[u.id] ?? '#5ba3f5',
+                    flexShrink: 0,
+                  }} />
+                  <span style={{
+                    fontSize: 10,
+                    color: 'var(--text4)',
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: 500,
+                  }}>
+                    {u.name.split(' ')[0]}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
+          {/* Tech filter */}
           <select
             value={filterTechId}
             onChange={e => setFilterTechId(e.target.value)}
             style={{
-              background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 7,
-              color: 'var(--text)', fontSize: 11, padding: '6px 10px', outline: 'none',
+              background: 'var(--bg3)',
+              border: '1px solid var(--border)',
+              borderRadius: 7,
+              color: 'var(--text)',
+              fontSize: 11,
+              fontFamily: 'var(--font-body)',
+              padding: '6px 10px',
+              outline: 'none',
+              cursor: 'pointer',
             }}
           >
             <option value="all">{t('allTechs')}</option>
             {techs.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
 
+          {/* Today button */}
           <button
             onClick={() => setWStart(getWeekStart(new Date()))}
+            className="cal-today-btn"
             style={{
-              padding: '6px 12px', borderRadius: 7, border: '1px solid var(--amber)',
-              background: 'transparent', color: 'var(--amber)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              padding: '6px 13px',
+              borderRadius: 7,
+              border: '1px solid var(--amber-border, rgba(245,158,11,.35))',
+              background: 'rgba(245,158,11,.08)',
+              color: 'var(--amber)',
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: 'var(--font-body)',
+              cursor: 'pointer',
+              transition: 'background .15s',
+              letterSpacing: '.01em',
             }}
           >
             Today
           </button>
 
-          <div style={{ display: 'flex', gap: 2 }}>
-            <button onClick={() => setWStart(d => addDays(d, -7))}
-              style={{ padding: '6px 11px', borderRadius: '7px 0 0 7px', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 14, cursor: 'pointer', lineHeight: 1 }}>
-              ‹
+          {/* Week navigation */}
+          <div style={{ display: 'flex', gap: 0 }}>
+            <button
+              onClick={() => setWStart(d => addDays(d, -7))}
+              className="cal-nav-btn cal-nav-btn--left"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 10px',
+                borderRadius: '7px 0 0 7px',
+                border: '1px solid var(--border)',
+                background: 'var(--bg3)',
+                color: 'var(--text3)',
+                cursor: 'pointer',
+                lineHeight: 1,
+                transition: 'background .12s, color .12s, border-color .12s',
+              }}
+            >
+              <ChevronLeft />
             </button>
-            <button onClick={() => setWStart(d => addDays(d, 7))}
-              style={{ padding: '6px 11px', borderRadius: '0 7px 7px 0', border: '1px solid var(--border)', borderLeft: 'none', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 14, cursor: 'pointer', lineHeight: 1 }}>
-              ›
+            <button
+              onClick={() => setWStart(d => addDays(d, 7))}
+              className="cal-nav-btn cal-nav-btn--right"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '6px 10px',
+                borderRadius: '0 7px 7px 0',
+                border: '1px solid var(--border)',
+                borderLeft: 'none',
+                background: 'var(--bg3)',
+                color: 'var(--text3)',
+                cursor: 'pointer',
+                lineHeight: 1,
+                transition: 'background .12s, color .12s, border-color .12s',
+              }}
+            >
+              <ChevronRight />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Body */}
+      {/* ── Body ── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Unscheduled sidebar */}
         <div style={{
-          width: 210,
+          width: 216,
           borderRight: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
@@ -562,16 +859,46 @@ export default function ScheduleCalendar({
           <div style={{
             padding: '10px 12px',
             borderBottom: '1px solid var(--border)',
-            fontSize: 10,
-            fontWeight: 700,
-            color: 'var(--text3)',
-            textTransform: 'uppercase',
-            letterSpacing: '.5px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}>
-            {t('unscheduledJobs')} ({unscheduled.length})
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '.07em',
+              textTransform: 'uppercase',
+              color: 'var(--text3)',
+            }}>
+              {t('unscheduledJobs')}
+            </span>
+            {unscheduled.length > 0 && (
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--amber)',
+                background: 'rgba(245,158,11,.12)',
+                border: '1px solid rgba(245,158,11,.25)',
+                padding: '1px 6px',
+                borderRadius: 10,
+                lineHeight: 1.4,
+              }}>
+                {unscheduled.length}
+              </span>
+            )}
           </div>
+
           <div
-            style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: 5 }}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
+            }}
             onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
             onDrop={e => {
               e.preventDefault()
@@ -583,15 +910,31 @@ export default function ScheduleCalendar({
             }}
           >
             {unscheduled.length === 0 ? (
-              <div style={{ fontSize: 11, color: 'var(--text4)', textAlign: 'center', padding: '20px 8px', lineHeight: 1.5 }}>
+              <div style={{
+                fontSize: 11,
+                color: 'var(--text4)',
+                fontFamily: 'var(--font-body)',
+                textAlign: 'center',
+                padding: '24px 8px',
+                lineHeight: 1.6,
+              }}>
                 {t('noUnscheduledJobs')}
               </div>
             ) : (
               unscheduled.map(j => renderCard(j))
             )}
           </div>
+
           {can(session.role, 'editJob') && (
-            <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', fontSize: 9, color: 'var(--text4)', lineHeight: 1.4 }}>
+            <div style={{
+              padding: '8px 12px',
+              borderTop: '1px solid var(--border)',
+              fontSize: 9,
+              color: 'var(--text4)',
+              fontFamily: 'var(--font-body)',
+              lineHeight: 1.5,
+              letterSpacing: '.01em',
+            }}>
               {t('dragToSlot')}
             </div>
           )}
@@ -599,67 +942,108 @@ export default function ScheduleCalendar({
 
         {/* Calendar grid */}
         <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', position: 'relative' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', minWidth: 560 }}>
+          <table style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            tableLayout: 'fixed',
+            minWidth: 560,
+          }}>
             <colgroup>
-              <col style={{ width: 52 }} />
+              <col style={{ width: 56 }} />
               {weekDays.map((_, i) => <col key={i} />)}
             </colgroup>
+
+            {/* Day headers */}
             <thead>
               <tr style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg2)' }}>
+                {/* time column header */}
                 <th style={{
-                  padding: '8px 4px',
+                  padding: '10px 6px',
                   fontSize: 9,
+                  fontFamily: 'var(--font-display)',
+                  letterSpacing: '.06em',
+                  textTransform: 'uppercase',
                   color: 'var(--text4)',
-                  fontWeight: 600,
-                  borderBottom: '2px solid var(--border)',
+                  fontWeight: 700,
+                  borderBottom: '2px solid var(--border2)',
                   borderRight: '1px solid var(--border)',
                   textAlign: 'center',
                 }}>
                   Time
                 </th>
+
                 {weekDays.map((d, i) => {
                   const isToday = isSameDay(d, today)
                   return (
-                    <th key={i} style={{
-                      padding: '8px 6px',
-                      textAlign: 'center',
-                      borderBottom: '2px solid var(--border)',
-                      borderRight: i < 6 ? '1px solid var(--border)' : 'none',
-                      background: isToday ? 'rgba(245,158,11,.05)' : 'transparent',
-                    }}>
-                      <div style={{ fontSize: 9, color: isToday ? 'var(--amber)' : 'var(--text4)', fontWeight: 700, marginBottom: 2 }}>
+                    <th
+                      key={i}
+                      style={{
+                        padding: '10px 6px',
+                        textAlign: 'center',
+                        borderBottom: '2px solid var(--border2)',
+                        borderRight: i < 6 ? '1px solid var(--border)' : 'none',
+                        background: isToday ? 'rgba(245,158,11,.06)' : 'transparent',
+                      }}
+                    >
+                      <div style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-display)',
+                        letterSpacing: '.08em',
+                        textTransform: 'uppercase',
+                        color: isToday ? 'var(--amber)' : 'var(--text4)',
+                        marginBottom: 4,
+                      }}>
                         {dayLabels[d.getDay()]}
                       </div>
                       <div style={{
-                        fontSize: 16,
-                        fontWeight: 800,
+                        fontSize: 18,
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono)',
                         color: isToday ? 'var(--amber)' : 'var(--text)',
                         lineHeight: 1,
                       }}>
                         {d.getDate()}
                       </div>
+                      {isToday && (
+                        <div style={{
+                          width: 4,
+                          height: 4,
+                          borderRadius: '50%',
+                          background: 'var(--amber)',
+                          margin: '4px auto 0',
+                        }} />
+                      )}
                     </th>
                   )
                 })}
               </tr>
             </thead>
+
+            {/* Time slot rows */}
             <tbody>
               {HOURS.map(hour => (
                 <tr key={hour}>
+                  {/* Hour label */}
                   <td style={{
-                    padding: '4px 6px 4px 4px',
+                    padding: '0 8px 0 4px',
                     fontSize: 9,
+                    fontFamily: 'var(--font-mono)',
+                    letterSpacing: '-.01em',
                     color: 'var(--text4)',
-                    fontWeight: 600,
+                    fontWeight: 500,
                     textAlign: 'right',
                     verticalAlign: 'top',
+                    paddingTop: 6,
                     borderBottom: '1px solid var(--border)',
                     borderRight: '1px solid var(--border)',
                     whiteSpace: 'nowrap',
-                    paddingTop: 6,
+                    width: 56,
                   }}>
                     {fmtHour(hour)}
                   </td>
+
+                  {/* Day cells */}
                   {weekDays.map((day, dayIdx) => {
                     const cellKey = `${dayIdx}-${hour}`
                     const isHover = dropHover === cellKey
@@ -678,15 +1062,15 @@ export default function ScheduleCalendar({
                         style={{
                           padding: '3px',
                           verticalAlign: 'top',
-                          height: 52,
+                          height: 54,
                           borderBottom: '1px solid var(--border)',
                           borderRight: dayIdx < 6 ? '1px solid var(--border)' : 'none',
                           background: isHover
-                            ? 'rgba(245,158,11,.12)'
+                            ? 'rgba(245,158,11,.1)'
                             : isToday
                               ? 'rgba(245,158,11,.025)'
                               : 'transparent',
-                          transition: 'background .1s',
+                          transition: 'background .12s',
                           position: 'relative',
                         }}
                       >
@@ -694,7 +1078,7 @@ export default function ScheduleCalendar({
                           <div style={{
                             position: 'absolute',
                             inset: 3,
-                            border: '2px dashed rgba(245,158,11,.5)',
+                            border: '2px dashed rgba(245,158,11,.45)',
                             borderRadius: 5,
                             pointerEvents: 'none',
                           }} />
@@ -724,6 +1108,58 @@ export default function ScheduleCalendar({
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Calendar card hover */
+        .cal-card:hover {
+          box-shadow: 0 2px 8px rgba(0,0,0,.25);
+          transform: translateY(-1px);
+          z-index: 1;
+        }
+        .cal-card:active {
+          transform: translateY(0);
+          box-shadow: none;
+        }
+
+        /* Unschedule × button */
+        .cal-unschedule-btn:hover {
+          color: var(--text2) !important;
+          background: rgba(255,255,255,.07) !important;
+        }
+
+        /* Today button */
+        .cal-today-btn:hover {
+          background: rgba(245,158,11,.16) !important;
+        }
+
+        /* Nav arrow buttons */
+        .cal-nav-btn:hover {
+          background: var(--bg4) !important;
+          color: var(--text) !important;
+          border-color: var(--border2) !important;
+          z-index: 1;
+          position: relative;
+        }
+        .cal-nav-btn--left:hover {
+          border-right-color: var(--border) !important;
+        }
+
+        /* Sidebar drag target highlight */
+        .sidebar-drop-zone:hover {
+          background: var(--bg3);
+        }
+
+        /* Scrollbar styling */
+        .cal-grid-scroll::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .cal-grid-scroll::-webkit-scrollbar-track {
+          background: var(--bg);
+        }
+        .cal-grid-scroll::-webkit-scrollbar-thumb {
+          background: var(--border2);
+          border-radius: 3px;
         }
       `}</style>
     </div>

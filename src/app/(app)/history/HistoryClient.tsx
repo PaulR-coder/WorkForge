@@ -82,47 +82,90 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
     setRestoringId(null)
   }
 
-  const statBox = (label: string, value: string | number) => (
-    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', flex: 1, minWidth: isMobile ? '40%' : 120 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>{value}</div>
-    </div>
-  )
+  const kpiBoxes: { label: string; value: string | number; show?: boolean }[] = [
+    { label: 'Total Jobs', value: filtered.length },
+    { label: 'This Month', value: thisMonth },
+    { label: 'Archived', value: filtered.filter(j => j.archivedAt).length },
+    { label: 'Paid Revenue', value: `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, show: !isMobile },
+  ]
 
   return (
     <div style={{ padding: isMobile ? 12 : 24, maxWidth: 1000, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>{t('jobHistory')}</h1>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px', marginBottom: 3 }}>
+            {t('jobHistory')}
+          </h1>
           <div style={{ fontSize: 12, color: 'var(--text4)' }}>All completed and archived work orders</div>
         </div>
         <button
           onClick={() => exportCSV(filtered)}
-          style={{ marginLeft: 'auto', padding: '8px 14px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text3)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '9px 16px', background: 'var(--bg2)', border: '1px solid var(--border)',
+            borderRadius: 9, color: 'var(--text3)', fontSize: 12, fontWeight: 700,
+            cursor: 'pointer', transition: 'border-color .15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.18)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
           {t('exportCsv')}
         </button>
       </div>
 
-      {/* Stats */}
+      {/* KPI Boxes */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        {statBox('Total Jobs', filtered.length)}
-        {statBox('This Month', thisMonth)}
-        {statBox('Archived', filtered.filter(j => j.archivedAt).length)}
-        {!isMobile && statBox('Paid Revenue', `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`)}
+        {kpiBoxes.filter(b => b.show !== false).map(b => (
+          <div key={b.label} style={{
+            background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
+            padding: '14px 20px', flex: 1, minWidth: isMobile ? '40%' : 120,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.6px', marginBottom: 6 }}>
+              {b.label}
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px' }}>
+              {b.value}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Filters */}
+      {/* Search + Filters */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder={t('searchHistory')}
-          style={{ flex: 1, minWidth: 200, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, padding: '9px 12px', outline: 'none', fontFamily: 'inherit' }}
-        />
+        {/* Search input with icon */}
+        <div style={{ flex: 1, minWidth: 200, position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <svg
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ position: 'absolute', left: 11, color: 'var(--text4)', pointerEvents: 'none', flexShrink: 0 }}
+          >
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t('searchHistory')}
+            style={{
+              width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 9, color: 'var(--text)', fontSize: 13, padding: '9px 12px 9px 34px',
+              outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+        </div>
+
+        {/* Filter pills */}
         {(['all', 'active', 'archived'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            style={{ padding: '9px 14px', borderRadius: 8, border: `1px solid ${filter === f ? 'var(--amber)' : 'var(--border)'}`, background: filter === f ? 'rgba(245,158,11,.1)' : 'var(--bg2)', color: filter === f ? 'var(--amber)' : 'var(--text3)', fontSize: 12, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize' }}>
+            style={{
+              padding: '9px 16px', borderRadius: 20, fontFamily: 'inherit',
+              border: `1px solid ${filter === f ? 'var(--amber)' : 'var(--border)'}`,
+              background: filter === f ? 'rgba(245,158,11,.12)' : 'var(--bg2)',
+              color: filter === f ? 'var(--amber)' : 'var(--text3)',
+              fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>
             {f === 'all' ? 'All' : f === 'active' ? 'On Board' : 'Archived'}
           </button>
         ))}
@@ -130,17 +173,28 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text4)', fontSize: 14 }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-          <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text3)' }}>{search ? 'No results found' : t('noHistory')}</div>
+        <div style={{ textAlign: 'center', padding: '72px 0', color: 'var(--text4)' }}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ display: 'block', margin: '0 auto 16px', color: 'var(--text4)' }}>
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+          </svg>
+          <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text3)', fontSize: 14 }}>
+            {search ? 'No results found' : t('noHistory')}
+          </div>
           {search && <div style={{ fontSize: 12 }}>Try a different search term</div>}
         </div>
       ) : (
         <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          {/* Sticky header row */}
           {!isMobile && (
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 0, padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg3)' }}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto',
+              padding: '10px 16px', borderBottom: '1px solid var(--border)',
+              background: 'var(--bg3)', position: 'sticky', top: 0,
+            }}>
               {['Client', 'Type', 'Tech', 'Completed', 'Revenue', ''].map(h => (
-                <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>{h}</div>
+                <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.6px' }}>{h}</div>
               ))}
             </div>
           )}
@@ -157,21 +211,21 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
                 gap: isMobile ? 4 : 0,
                 padding: '12px 16px',
                 borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
-                transition: 'background .1s',
+                transition: 'background .12s',
               }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
-                {/* Client + address */}
+                {/* Client */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{job.client}</span>
                     {job.archivedAt && (
-                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 10, background: 'var(--bg4)', color: 'var(--text4)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--bg4)', color: 'var(--text4)', border: '1px solid var(--border)' }}>
                         {t('archived')}
                       </span>
                     )}
-                    <span style={{ fontSize: 9, fontWeight: 700, color: PRIORITY_COLOR[job.priority], background: `${PRIORITY_COLOR[job.priority]}18`, padding: '2px 6px', borderRadius: 10 }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: PRIORITY_COLOR[job.priority], background: `${PRIORITY_COLOR[job.priority]}18`, padding: '2px 7px', borderRadius: 20 }}>
                       {job.priority}
                     </span>
                   </div>
@@ -182,14 +236,16 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
 
                 {/* Type */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>{job.type}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.4px', background: 'var(--bg3)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                    {job.type}
+                  </span>
                 </div>
 
                 {/* Tech */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   {job.tech ? (
                     <>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', fontSize: 8, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, letterSpacing: '.3px' }}>
                         {job.tech.initials}
                       </div>
                       <span style={{ fontSize: 11, color: 'var(--text3)' }}>{isMobile ? job.tech.initials : job.tech.name.split(' ')[0]}</span>
@@ -201,12 +257,12 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
 
                 {/* Completed */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>{completedDate}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{completedDate}</span>
                 </div>
 
                 {/* Revenue */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: jobRevenue > 0 ? 'var(--green)' : 'var(--text4)' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: jobRevenue > 0 ? 'var(--green)' : 'var(--text4)', fontFamily: jobRevenue > 0 ? 'var(--font-mono)' : 'inherit' }}>
                     {jobRevenue > 0 ? `$${jobRevenue.toLocaleString()}` : '—'}
                   </span>
                 </div>
@@ -217,7 +273,13 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
                     <button
                       onClick={() => restoreJob(job.id)}
                       disabled={restoringId === job.id}
-                      style={{ padding: '6px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text3)', fontSize: 11, fontWeight: 700, cursor: restoringId === job.id ? 'wait' : 'pointer', opacity: restoringId === job.id ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+                      style={{
+                        padding: '5px 10px', background: 'transparent', border: '1px solid var(--border)',
+                        borderRadius: 7, color: 'var(--text3)', fontSize: 11, fontWeight: 700,
+                        cursor: restoringId === job.id ? 'wait' : 'pointer',
+                        opacity: restoringId === job.id ? 0.5 : 1, whiteSpace: 'nowrap',
+                        fontFamily: 'inherit',
+                      }}>
                       {restoringId === job.id ? '…' : t('restore')}
                     </button>
                   )}
@@ -228,7 +290,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
         </div>
       )}
 
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text4)', textAlign: 'center' }}>
+      <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text4)', textAlign: 'center' }}>
         Showing {filtered.length} of {jobs.length} jobs
       </div>
     </div>

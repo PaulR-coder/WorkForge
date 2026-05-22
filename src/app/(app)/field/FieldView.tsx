@@ -38,7 +38,11 @@ type Job = {
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
-  low: 'var(--text4)', normal: '#5ba3f5', high: 'var(--amber)', urgent: 'var(--red)',
+  low: 'var(--text4)', normal: 'var(--blue-light)', high: 'var(--amber)', urgent: 'var(--red)',
+}
+
+const PRIORITY_BG: Record<string, string> = {
+  low: 'rgba(86,104,130,.15)', normal: 'rgba(91,163,245,.12)', high: 'rgba(245,158,11,.12)', urgent: 'rgba(239,68,68,.12)',
 }
 
 function compressImage(file: File): Promise<string> {
@@ -58,6 +62,76 @@ function compressImage(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('load failed')) }
     img.src = url
   })
+}
+
+// SVG icons as components
+function PinIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  )
+}
+
+function CameraIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="13" r="4"/>
+    </svg>
+  )
+}
+
+function WifiOffIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23"/>
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+      <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+      <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </svg>
+  )
+}
+
+function MapIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+      <line x1="9" y1="3" x2="9" y2="18"/>
+      <line x1="15" y1="6" x2="15" y2="21"/>
+    </svg>
+  )
+}
+
+function CardIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+      <line x1="1" y1="10" x2="23" y2="10"/>
+    </svg>
+  )
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"/>
+      <polyline points="12 5 19 12 12 19"/>
+    </svg>
+  )
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+      <polyline points="22 4 12 14.01 9 11.01"/>
+    </svg>
+  )
 }
 
 export default function FieldView({ initialJobs, session }: {
@@ -80,6 +154,7 @@ export default function FieldView({ initialJobs, session }: {
   const [timeEntries, setTimeEntries] = useState<Record<string, TimeEntry[]>>({})
   const [clockingIn, setClockingIn] = useState(false)
   const [tick, setTick] = useState(0)
+  const [isOffline, setIsOffline] = useState(false)
   const msgBottomRef  = useRef<HTMLDivElement>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
   const watchIdRef    = useRef<number | null>(null)
@@ -87,6 +162,19 @@ export default function FieldView({ initialJobs, session }: {
   const { t } = useLang()
 
   useEffect(() => subscribePendingJobs(setPendingIds), [])
+
+  // Track online/offline state
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true)
+    const handleOnline  = () => setIsOffline(false)
+    setIsOffline(!navigator.onLine)
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+    return () => {
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [])
 
   // Restore On Duty state + watch from localStorage on mount
   useEffect(() => {
@@ -111,7 +199,6 @@ export default function FieldView({ initialJobs, session }: {
   function sendLocation(lat: number, lng: number) {
     const last = lastSentRef.current
     const now  = Date.now()
-    // Throttle: skip if < 60s elapsed AND moved < ~44m
     if (last && now - last.at < 60_000 && Math.abs(lat - last.lat) < 0.0004 && Math.abs(lng - last.lng) < 0.0004) return
     lastSentRef.current = { lat, lng, at: now }
     fetch('/api/users/me/location', {
@@ -158,7 +245,6 @@ export default function FieldView({ initialJobs, session }: {
     }
   }
 
-  // Fetch messages when a job is expanded, then poll every 15s
   useEffect(() => {
     if (!expandedId) return
     let cancelled = false
@@ -175,7 +261,6 @@ export default function FieldView({ initialJobs, session }: {
     return () => { cancelled = true; clearInterval(iv) }
   }, [expandedId])
 
-  // Fetch photos when a job is expanded
   useEffect(() => {
     if (!expandedId || photos[expandedId]) return
     fetch(`/api/jobs/${expandedId}/photos`)
@@ -184,7 +269,6 @@ export default function FieldView({ initialJobs, session }: {
       .catch(() => {})
   }, [expandedId, photos])
 
-  // Fetch time entries when a job is expanded
   useEffect(() => {
     if (!expandedId) return
     fetch(`/api/jobs/${expandedId}/time`)
@@ -193,13 +277,11 @@ export default function FieldView({ initialJobs, session }: {
       .catch(() => {})
   }, [expandedId])
 
-  // Tick every second to update the running clock display
   useEffect(() => {
     const id = setInterval(() => setTick(n => n + 1), 1000)
     return () => clearInterval(id)
   }, [])
 
-  // Scroll to latest message when thread loads or new message arrives
   useEffect(() => {
     msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [expandedId, messages])
@@ -213,7 +295,6 @@ export default function FieldView({ initialJobs, session }: {
       body: JSON.stringify({ body: msgInput.trim() }),
     })
     if (res.status === 202) {
-      // Queued offline — clear input; message will appear in thread after sync
       setMsgInput('')
     } else if (res.ok) {
       const msg = await res.json()
@@ -263,22 +344,21 @@ export default function FieldView({ initialJobs, session }: {
         const photo = await res.json()
         setPhotos(prev => ({ ...prev, [expandedId]: [...(prev[expandedId] ?? []), photo] }))
       }
-      // 202: photo queued offline — will appear in grid after background sync
     } catch {}
     setUploadingPhoto(false)
     if (photoInputRef.current) photoInputRef.current.value = ''
   }
 
   const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
-    open:        { next: 'scheduled',   label: t('scheduleAction'),  color: 'var(--amber)'  },
-    scheduled:   { next: 'in_progress', label: t('onMyWayAction'),   color: '#5ba3f5'       },
-    in_progress: { next: 'done',        label: t('completeAction'),  color: 'var(--green)'  },
+    open:        { next: 'scheduled',   label: t('scheduleAction'),  color: 'var(--amber)'      },
+    scheduled:   { next: 'in_progress', label: t('onMyWayAction'),   color: 'var(--blue-light)' },
+    in_progress: { next: 'done',        label: t('completeAction'),  color: 'var(--green)'      },
   }
 
   const STATUS_LABEL: Record<string, { labelKey: TKeys; color: string }> = {
-    open:        { labelKey: 'open',        color: '#5ba3f5'        },
-    scheduled:   { labelKey: 'scheduled',   color: 'var(--amber)'  },
-    in_progress: { labelKey: 'inProgress',  color: 'var(--purple)' },
+    open:        { labelKey: 'open',        color: 'var(--blue-light)' },
+    scheduled:   { labelKey: 'scheduled',   color: 'var(--amber)'     },
+    in_progress: { labelKey: 'inProgress',  color: 'var(--purple)'    },
   }
 
   async function advanceStatus(job: Job) {
@@ -291,8 +371,6 @@ export default function FieldView({ initialJobs, session }: {
       body: JSON.stringify({ status: next.next }),
     })
     if (res.ok) {
-      // 202 means the mutation was queued offline — mark the job as pending
-      // so the tech sees it's not yet synced even if they reload the page.
       if (res.status === 202) {
         addPendingJob(job.id)
       }
@@ -307,9 +385,9 @@ export default function FieldView({ initialJobs, session }: {
 
   const grouped = {
     urgent: jobs.filter(j => j.priority === 'urgent'),
-    high: jobs.filter(j => j.priority === 'high'),
+    high:   jobs.filter(j => j.priority === 'high'),
     normal: jobs.filter(j => j.priority === 'normal'),
-    low: jobs.filter(j => j.priority === 'low'),
+    low:    jobs.filter(j => j.priority === 'low'),
   }
 
   const orderedJobs = [
@@ -317,282 +395,544 @@ export default function FieldView({ initialJobs, session }: {
   ]
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: '16px 12px', minHeight: '100vh' }}>
-      {/* Field header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: geoError ? 8 : 16 }}>
-        <div>
-          <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
-            {session.role === 'tech' ? t('myJobs') : t('fieldView')}
-          </h1>
-          <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>
-            {jobs.length} {t('activeTap')}
+    <div style={{ maxWidth: 600, margin: '0 auto', minHeight: '100vh', fontFamily: 'var(--font-body)' }}>
+
+      {/* Offline banner */}
+      {isOffline && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '11px 16px',
+          background: 'rgba(245,158,11,.15)',
+          borderBottom: '1px solid var(--amber-border)',
+          color: 'var(--amber)',
+          fontSize: 13, fontWeight: 600,
+        }}>
+          <WifiOffIcon />
+          <span>You&apos;re offline — changes will sync when reconnected</span>
+        </div>
+      )}
+
+      <div style={{ padding: '20px 14px' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: geoError ? 10 : 20 }}>
+          <div style={{ flex: 1 }}>
+            <h1 style={{
+              fontSize: 26, fontWeight: 800, color: 'var(--text)',
+              fontFamily: 'var(--font-display)', letterSpacing: .3,
+              lineHeight: 1.1, marginBottom: 3,
+            }}>
+              {session.name ?? (session.role === 'tech' ? t('myJobs') : t('fieldView'))}
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--amber)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>
+                {session.role}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text4)' }}>·</span>
+              <span style={{ fontSize: 12, color: 'var(--text4)' }}>
+                {jobs.length} {t('activeTap')}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* On-duty pill toggle */}
+            {session.role === 'tech' && (
+              <button
+                onClick={toggleOnDuty}
+                aria-label={onDuty ? 'Go off duty' : 'Go on duty'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 0,
+                  padding: 0, borderRadius: 999, border: '1.5px solid',
+                  cursor: 'pointer', transition: 'all .2s',
+                  background: onDuty ? 'rgba(34,197,94,.12)' : 'var(--bg3)',
+                  borderColor: onDuty ? 'rgba(34,197,94,.4)' : 'var(--border)',
+                  overflow: 'hidden',
+                  minHeight: 36,
+                }}
+              >
+                {/* Track */}
+                <span style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '0 10px 0 8px',
+                  fontSize: 11, fontWeight: 800,
+                  color: onDuty ? 'var(--green)' : 'var(--text4)',
+                  letterSpacing: .3,
+                }}>
+                  {/* Thumb */}
+                  <span style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    background: onDuty ? 'var(--green)' : 'var(--text4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'background .2s',
+                  }}>
+                    <span style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: onDuty ? 'var(--bg)' : 'var(--bg2)',
+                      animation: onDuty ? 'pulse 2s ease infinite' : 'none',
+                    }} />
+                  </span>
+                  {onDuty ? 'On Duty' : 'Off Duty'}
+                </span>
+              </button>
+            )}
+
+            {/* Avatar */}
+            <div style={{
+              width: 44, height: 44, borderRadius: '50%',
+              background: 'var(--amber)', color: '#080c1a',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 15, fontWeight: 800, flexShrink: 0,
+              fontFamily: 'var(--font-display)', letterSpacing: .5,
+              boxShadow: '0 0 0 2.5px rgba(245,158,11,.3)',
+            }}>
+              {session.initials}
+            </div>
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {session.role === 'tech' && (
-            <button
-              onClick={toggleOnDuty}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 12px', borderRadius: 9, border: '1px solid',
-                fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all .15s',
-                background: onDuty ? 'rgba(34,197,94,.12)' : 'var(--bg3)',
-                borderColor: onDuty ? 'rgba(34,197,94,.35)' : 'var(--border)',
-                color: onDuty ? '#22c55e' : 'var(--text4)',
-              }}
-            >
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: onDuty ? '#22c55e' : '#475569', display: 'inline-block', flexShrink: 0, animation: onDuty ? 'pulse 2s ease infinite' : 'none' }} />
-              {onDuty ? 'On Duty' : 'Off Duty'}
-            </button>
-          )}
-          <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--amber)', color: '#080c1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>
-            {session.initials}
+
+        {/* Geolocation error */}
+        {geoError && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '11px 14px',
+            background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)',
+            borderRadius: 10, marginBottom: 16,
+            fontSize: 13, color: '#fca5a5',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span style={{ flex: 1 }}>{geoError}</span>
+            <button onClick={() => setGeoError(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18, padding: '0 2px', lineHeight: 1 }}>×</button>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Geolocation error */}
-      {geoError && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 9, marginBottom: 14, fontSize: 12, color: '#fca5a5' }}>
-          <span style={{ flexShrink: 0 }}>⚠</span>
-          <span style={{ flex: 1 }}>{geoError}</span>
-          <button onClick={() => setGeoError(null)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14, padding: '0 2px', lineHeight: 1 }}>✕</button>
-        </div>
-      )}
+        {/* Priority legend */}
+        {(grouped.urgent.length > 0 || grouped.high.length > 0) && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            {grouped.urgent.length > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 11px', borderRadius: 20, background: 'rgba(239,68,68,.12)', color: 'var(--red)', border: '1px solid rgba(239,68,68,.22)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                {grouped.urgent.length} {t('urgent')}
+              </span>
+            )}
+            {grouped.high.length > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 11px', borderRadius: 20, background: 'rgba(245,158,11,.1)', color: 'var(--amber)', border: '1px solid rgba(245,158,11,.22)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                {grouped.high.length} {t('high')}
+              </span>
+            )}
+          </div>
+        )}
 
-      {/* Priority legend */}
-      {(grouped.urgent.length > 0 || grouped.high.length > 0) && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          {grouped.urgent.length > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: 'rgba(239,68,68,.12)', color: 'var(--red)', border: '1px solid rgba(239,68,68,.22)' }}>⚠ {grouped.urgent.length} {t('urgent')}</span>}
-          {grouped.high.length > 0 && <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: 'rgba(245,158,11,.1)', color: 'var(--amber)', border: '1px solid rgba(245,158,11,.22)' }}>↑ {grouped.high.length} {t('high')}</span>}
-        </div>
-      )}
+        {/* Empty state */}
+        {orderedJobs.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '72px 24px 40px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <CheckCircleIcon />
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: .3, marginBottom: 8 }}>
+              {t('allCaughtUp')}
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text4)', lineHeight: 1.6 }}>{t('noActiveJobs')}</div>
+          </div>
+        )}
 
-      {orderedJobs.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text4)' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>{t('allCaughtUp')}</div>
-          <div style={{ fontSize: 12 }}>{t('noActiveJobs')}</div>
-        </div>
-      )}
+        {/* Hidden file input */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoFile(f) }}
+        />
 
-      {/* Hidden file input for camera/gallery */}
-      <input
-        ref={photoInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: 'none' }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoFile(f) }}
-      />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {orderedJobs.map(job => {
+            const pc = PRIORITY_COLOR[job.priority]
+            const pb = PRIORITY_BG[job.priority]
+            const isExpanded = expandedId === job.id
+            const nextAction = STATUS_FLOW[job.status]
+            const st = STATUS_LABEL[job.status] ?? { labelKey: job.status as TKeys, color: 'var(--text3)' }
+            const jobPhotos = photos[job.id] ?? []
+            const isUrgent = job.priority === 'urgent'
+            const isHigh = job.priority === 'high'
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {orderedJobs.map(job => {
-          const pc = PRIORITY_COLOR[job.priority]
-          const isExpanded = expandedId === job.id
-          const nextAction = STATUS_FLOW[job.status]
-          const st = STATUS_LABEL[job.status] ?? { labelKey: job.status as TKeys, color: 'var(--text3)' }
-          const jobPhotos = photos[job.id] ?? []
+            return (
+              <div
+                key={job.id}
+                style={{
+                  background: 'var(--bg2)',
+                  border: `1px solid ${isUrgent ? 'rgba(239,68,68,.3)' : isHigh ? 'rgba(245,158,11,.25)' : 'var(--border)'}`,
+                  borderRadius: 16, overflow: 'hidden',
+                  boxShadow: isUrgent ? '0 4px 20px rgba(239,68,68,.08)' : 'none',
+                  display: 'flex', flexDirection: 'row',
+                }}
+              >
+                {/* Priority stripe */}
+                <div style={{
+                  width: 4, flexShrink: 0,
+                  background: pc,
+                  borderRadius: '16px 0 0 16px',
+                }} />
 
-          return (
-            <div key={job.id} style={{ background: 'var(--bg2)', border: `1px solid ${job.priority === 'urgent' ? 'rgba(239,68,68,.3)' : job.priority === 'high' ? 'rgba(245,158,11,.25)' : 'var(--border)'}`, borderRadius: 14, overflow: 'hidden' }}>
-              {/* Job card header — always visible */}
-              <div onClick={() => setExpandedId(isExpanded ? null : job.id)}
-                style={{ padding: '14px 16px', cursor: 'pointer', userSelect: 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{job.client}</div>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: pc, background: `${pc}18`, padding: '2px 7px', borderRadius: 20 }}>{t(job.priority as TKeys)}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text4)' }}>{job.type} · {job.address.split(',')[0]}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {pendingIds.has(job.id) && (
-                        <span title="Change pending sync" style={{ fontSize: 9, fontWeight: 700, color: 'var(--amber)', background: 'rgba(245,158,11,.12)', padding: '2px 6px', borderRadius: 10, border: '1px solid rgba(245,158,11,.25)' }}>
-                          ↑ syncing
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Job card header */}
+                  <div
+                    onClick={() => setExpandedId(isExpanded ? null : job.id)}
+                    style={{ padding: '16px 16px 14px', cursor: 'pointer', userSelect: 'none', minHeight: 72, display: 'flex', alignItems: 'center' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Client name — large, bold */}
+                        <div style={{
+                          fontSize: 17, fontWeight: 800, color: 'var(--text)',
+                          fontFamily: 'var(--font-display)', letterSpacing: .2,
+                          marginBottom: 5, lineHeight: 1.2,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {job.client}
+                        </div>
+                        {/* Address with pin icon */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text4)', marginBottom: 6 }}>
+                          <span style={{ flexShrink: 0 }}><PinIcon /></span>
+                          <span style={{ fontSize: 12, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {job.address.split(',')[0]}
+                          </span>
+                        </div>
+                        {/* Job type badge */}
+                        <span style={{
+                          display: 'inline-block',
+                          fontSize: 10, fontWeight: 800,
+                          color: pc, background: pb,
+                          padding: '3px 9px', borderRadius: 20,
+                          textTransform: 'uppercase', letterSpacing: .6,
+                        }}>
+                          {job.type}
                         </span>
-                      )}
-                      <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: `${st.color}18`, padding: '3px 9px', borderRadius: 20, border: `1px solid ${st.color}33` }}>
-                        {t(st.labelKey)}
-                      </span>
-                    </div>
-                    <div style={{ fontSize: 14, color: 'var(--text4)' }}>{isExpanded ? '▲' : '▼'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Expanded details */}
-              {isExpanded && (
-                <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border)' }}>
-                  <div style={{ paddingTop: 12, marginBottom: 14 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('fullAddressLabel')}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 10 }}>{job.address}</div>
-                    {job.description && (
-                      <>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>{t('jobNotes')}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, background: 'var(--bg3)', borderRadius: 8, padding: '10px 12px' }}>{job.description}</div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Message thread */}
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 8 }}>
-                      Notes & Messages {(messages[job.id]?.length ?? 0) > 0 ? `· ${messages[job.id].length}` : ''}
-                    </div>
-                    {(messages[job.id]?.length ?? 0) === 0 ? (
-                      <div style={{ fontSize: 11, color: 'var(--text4)', fontStyle: 'italic', padding: '8px 0' }}>No messages yet</div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', marginBottom: 8 }}>
-                        {messages[job.id].map(m => {
-                          const isMe = m.author.role === session.role && m.author.initials === session.initials
-                          return (
-                            <div key={m.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                              <div style={{ width: 26, height: 26, borderRadius: '50%', background: isMe ? 'var(--amber)' : 'var(--bg4)', color: isMe ? '#080c1a' : 'var(--text3)', fontSize: 9, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {m.author.initials}
-                              </div>
-                              <div style={{ maxWidth: '75%' }}>
-                                <div style={{ fontSize: 9, color: 'var(--text4)', marginBottom: 2, textAlign: isMe ? 'right' : 'left' }}>
-                                  {m.author.name} · {new Date(m.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                                </div>
-                                <div style={{ fontSize: 12, padding: '8px 10px', borderRadius: isMe ? '10px 10px 2px 10px' : '10px 10px 10px 2px', background: isMe ? 'var(--amber)' : 'var(--bg3)', color: isMe ? '#080c1a' : 'var(--text)', border: isMe ? 'none' : '1px solid var(--border)', lineHeight: 1.4 }}>
-                                  {m.body}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                        <div ref={msgBottomRef} />
                       </div>
-                    )}
-                    {/* Reply box */}
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        value={msgInput}
-                        onChange={e => setMsgInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage() } }}
-                        placeholder="Send a note…"
-                        style={{ flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text)', fontSize: 12, padding: '9px 12px', outline: 'none', fontFamily: 'inherit' }}
-                      />
-                      <button onClick={sendMessage} disabled={!msgInput.trim() || sendingMsg}
-                        style={{ padding: '9px 14px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 12, fontWeight: 700, cursor: sendingMsg ? 'wait' : 'pointer', opacity: (!msgInput.trim() || sendingMsg) ? 0.5 : 1 }}>
-                        {sendingMsg ? '…' : '↑'}
-                      </button>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 7, flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {pendingIds.has(job.id) && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700,
+                              color: 'var(--amber)', background: 'rgba(245,158,11,.12)',
+                              padding: '2px 6px', borderRadius: 10,
+                              border: '1px solid rgba(245,158,11,.25)',
+                            }}>
+                              syncing
+                            </span>
+                          )}
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: st.color, background: `${st.color}1a`,
+                            padding: '4px 10px', borderRadius: 20,
+                            border: `1px solid ${st.color}33`,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {t(st.labelKey)}
+                          </span>
+                        </div>
+                        <svg
+                          width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke="var(--text4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                          style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}
+                        >
+                          <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Time tracking */}
-                  {(() => {
-                    const entries = timeEntries[job.id] ?? []
-                    const open = entries.find(e => !e.endedAt)
-                    const totalMin = entries.reduce((s, e) => s + (e.minutes ?? 0), 0)
-                    const runSec = open ? Math.floor((Date.now() - new Date(open.startedAt).getTime()) / 1000 + tick * 0) : 0
-                    // tick used to force re-render
-                    void tick
-                    const liveSec = open ? Math.floor((Date.now() - new Date(open.startedAt).getTime()) / 1000) : 0
-                    const liveMin = Math.floor(liveSec / 60)
-                    const liveSecs = liveSec % 60
-                    return (
-                      <div style={{ marginBottom: 12, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: open || totalMin > 0 ? 8 : 0 }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-                            Time on Job {totalMin > 0 && !open ? `· ${Math.floor(totalMin / 60)}h ${totalMin % 60}m total` : ''}
+                  {/* Expanded details */}
+                  {isExpanded && (
+                    <div style={{ borderTop: '1px solid var(--border)' }}>
+
+                      {/* Address + notes */}
+                      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 5 }}>
+                          {t('fullAddressLabel')}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: job.description ? 12 : 0 }}>{job.address}</div>
+                        {job.description && (
+                          <>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 5 }}>
+                              {t('jobNotes')}
+                            </div>
+                            <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.6, background: 'var(--bg3)', borderRadius: 10, padding: '11px 13px' }}>
+                              {job.description}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Message thread */}
+                      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 10 }}>
+                          Notes & Messages {(messages[job.id]?.length ?? 0) > 0 ? `· ${messages[job.id].length}` : ''}
+                        </div>
+                        {(messages[job.id]?.length ?? 0) === 0 ? (
+                          <div style={{ fontSize: 12, color: 'var(--text4)', fontStyle: 'italic', padding: '4px 0 8px' }}>No messages yet</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+                            {messages[job.id].map(m => {
+                              const isMe = m.author.role === session.role && m.author.initials === session.initials
+                              return (
+                                <div key={m.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                                  <div style={{
+                                    width: 28, height: 28, borderRadius: '50%',
+                                    background: isMe ? 'var(--amber)' : 'var(--bg4)',
+                                    color: isMe ? '#080c1a' : 'var(--text3)',
+                                    fontSize: 9, fontWeight: 800,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    flexShrink: 0, fontFamily: 'var(--font-display)',
+                                  }}>
+                                    {m.author.initials}
+                                  </div>
+                                  <div style={{ maxWidth: '75%' }}>
+                                    <div style={{ fontSize: 10, color: 'var(--text4)', marginBottom: 3, textAlign: isMe ? 'right' : 'left' }}>
+                                      {m.author.name} · {new Date(m.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                    </div>
+                                    <div style={{
+                                      fontSize: 13, padding: '9px 12px',
+                                      borderRadius: isMe ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                                      background: isMe ? 'var(--amber)' : 'var(--bg3)',
+                                      color: isMe ? '#080c1a' : 'var(--text)',
+                                      border: isMe ? 'none' : '1px solid var(--border)',
+                                      lineHeight: 1.5,
+                                    }}>
+                                      {m.body}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            <div ref={msgBottomRef} />
                           </div>
-                          <button
-                            onClick={() => toggleClock(job.id)}
-                            disabled={clockingIn}
+                        )}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            value={msgInput}
+                            onChange={e => setMsgInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); sendMessage() } }}
+                            placeholder="Send a note…"
                             style={{
-                              marginLeft: 'auto', padding: '5px 12px', borderRadius: 20, border: 'none',
-                              background: open ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.15)',
-                              color: open ? 'var(--red)' : 'var(--green)',
-                              fontSize: 11, fontWeight: 800, cursor: clockingIn ? 'wait' : 'pointer',
+                              flex: 1, background: 'var(--bg3)',
+                              border: '1px solid var(--border)', borderRadius: 10,
+                              color: 'var(--text)', fontSize: 14, padding: '11px 13px',
+                              outline: 'none', fontFamily: 'var(--font-body)',
+                              minHeight: 44,
+                            }}
+                          />
+                          <button
+                            onClick={sendMessage}
+                            disabled={!msgInput.trim() || sendingMsg}
+                            style={{
+                              width: 44, height: 44,
+                              background: 'var(--amber)', color: '#080c1a',
+                              border: 'none', borderRadius: 10,
+                              fontSize: 18, cursor: sendingMsg ? 'wait' : 'pointer',
+                              opacity: (!msgInput.trim() || sendingMsg) ? 0.5 : 1,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              flexShrink: 0,
                             }}
                           >
-                            {open ? '⏹ Clock Out' : '▶ Clock In'}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                            </svg>
                           </button>
                         </div>
-                        {open && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)', fontVariantNumeric: 'tabular-nums' }}>
-                              {String(liveMin).padStart(2, '0')}:{String(liveSecs).padStart(2, '0')}
-                            </span>
-                            <span style={{ fontSize: 10, color: 'var(--text4)' }}>running</span>
+                      </div>
+
+                      {/* Time tracking */}
+                      {(() => {
+                        const entries = timeEntries[job.id] ?? []
+                        const open = entries.find(e => !e.endedAt)
+                        const totalMin = entries.reduce((s, e) => s + (e.minutes ?? 0), 0)
+                        void tick
+                        const liveSec = open ? Math.floor((Date.now() - new Date(open.startedAt).getTime()) / 1000) : 0
+                        const liveMin = Math.floor(liveSec / 60)
+                        const liveSecs = liveSec % 60
+                        return (
+                          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: open ? 10 : 0 }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: .5 }}>
+                                  Time on Job {totalMin > 0 && !open ? `· ${Math.floor(totalMin / 60)}h ${totalMin % 60}m` : ''}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => toggleClock(job.id)}
+                                disabled={clockingIn}
+                                style={{
+                                  padding: '9px 16px', borderRadius: 22, border: '1.5px solid',
+                                  background: open ? 'rgba(239,68,68,.1)' : 'rgba(34,197,94,.1)',
+                                  borderColor: open ? 'rgba(239,68,68,.3)' : 'rgba(34,197,94,.3)',
+                                  color: open ? 'var(--red)' : 'var(--green)',
+                                  fontSize: 12, fontWeight: 800, cursor: clockingIn ? 'wait' : 'pointer',
+                                  minHeight: 44, display: 'flex', alignItems: 'center', gap: 6,
+                                }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  {open
+                                    ? <rect x="6" y="6" width="12" height="12" rx="1"/>
+                                    : <polygon points="5 3 19 12 5 21 5 3"/>}
+                                </svg>
+                                {open ? 'Clock Out' : 'Clock In'}
+                              </button>
+                            </div>
+                            {open && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', animation: 'pulse 1.5s infinite', flexShrink: 0 }} />
+                                <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                                  {String(liveMin).padStart(2, '0')}:{String(liveSecs).padStart(2, '0')}
+                                </span>
+                                <span style={{ fontSize: 11, color: 'var(--text4)' }}>running</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Photo section */}
+                      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: .5 }}>
+                            Photos {jobPhotos.length > 0 ? `· ${jobPhotos.length}` : ''}
+                          </div>
+                          <button
+                            onClick={() => { if (expandedId === job.id) photoInputRef.current?.click() }}
+                            disabled={uploadingPhoto}
+                            style={{
+                              marginLeft: 'auto',
+                              padding: '8px 14px', borderRadius: 10,
+                              background: 'var(--amber-dim)', border: '1px solid var(--amber-border)',
+                              fontSize: 12, fontWeight: 700, color: 'var(--amber)',
+                              cursor: uploadingPhoto ? 'wait' : 'pointer',
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              opacity: uploadingPhoto ? 0.6 : 1,
+                              minHeight: 36,
+                            }}
+                          >
+                            <CameraIcon />
+                            {uploadingPhoto ? 'Uploading…' : 'Add Photo'}
+                          </button>
+                        </div>
+                        {jobPhotos.length === 0 ? (
+                          <button
+                            onClick={() => { if (expandedId === job.id) photoInputRef.current?.click() }}
+                            disabled={uploadingPhoto}
+                            style={{
+                              width: '100%', padding: '22px 16px',
+                              background: 'transparent',
+                              border: '2px dashed var(--border)',
+                              borderRadius: 12, cursor: 'pointer',
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                              color: 'var(--text4)',
+                            }}
+                          >
+                            <CameraIcon />
+                            <span style={{ fontSize: 12, fontWeight: 600 }}>Tap to add a photo</span>
+                          </button>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                            {jobPhotos.map(p => (
+                              <div
+                                key={p.id}
+                                onClick={() => setLightboxSrc(p.data)}
+                                style={{ aspectRatio: '1', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg3)' }}
+                              >
+                                <img src={p.data} alt="job photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
-                    )
-                  })()}
 
-                  {/* Photo section */}
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-                        Photos {jobPhotos.length > 0 ? `· ${jobPhotos.length}` : ''}
-                      </div>
-                      <button
-                        onClick={() => { if (expandedId === job.id) photoInputRef.current?.click() }}
-                        disabled={uploadingPhoto}
-                        style={{ marginLeft: 'auto', padding: '4px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 7, fontSize: 11, fontWeight: 700, color: 'var(--text3)', cursor: uploadingPhoto ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, opacity: uploadingPhoto ? 0.6 : 1 }}
-                      >
-                        {uploadingPhoto ? '…' : '📷 Add'}
-                      </button>
-                    </div>
-                    {jobPhotos.length === 0 ? (
-                      <div style={{ fontSize: 11, color: 'var(--text4)', fontStyle: 'italic', padding: '4px 0 8px' }}>No photos yet</div>
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                        {jobPhotos.map(p => (
-                          <div
-                            key={p.id}
-                            onClick={() => setLightboxSrc(p.data)}
-                            style={{ aspectRatio: '1', borderRadius: 8, overflow: 'hidden', cursor: 'pointer', background: 'var(--bg3)' }}
-                          >
-                            <img src={p.data} alt="job photo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Map link */}
-                  <a href={`https://maps.apple.com/?q=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 10, textDecoration: 'none' }}>
-                    <span style={{ fontSize: 18 }}>📍</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{t('openInMaps')}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text4)' }}>{job.address}</div>
-                    </div>
-                    <span style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text4)' }}>→</span>
-                  </a>
-
-                  {/* Action buttons */}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {nextAction && (
-                      <button
-                        onClick={() => advanceStatus(job)}
-                        disabled={loading === job.id}
+                      {/* Map link */}
+                      <a
+                        href={`https://maps.apple.com/?q=${encodeURIComponent(job.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style={{
-                          flex: 1, padding: '13px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
-                          background: nextAction.color, color: job.status === 'in_progress' ? '#fff' : '#080c1a',
-                          fontSize: 13, fontWeight: 800, opacity: loading === job.id ? 0.6 : 1,
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '14px 16px',
+                          borderBottom: '1px solid var(--border)',
+                          textDecoration: 'none',
+                          color: 'var(--text2)',
+                        }}
+                      >
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                          background: 'rgba(91,163,245,.12)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'var(--blue-light)',
                         }}>
-                        {loading === job.id ? t('updating') : nextAction.label}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setPaymentJob({ id: job.id, client: job.client })}
-                      style={{ padding: '13px 14px', borderRadius: 10, background: 'rgba(34,197,94,.12)', border: '1px solid rgba(34,197,94,.25)', color: 'var(--green)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                      💳
-                    </button>
-                  </div>
+                          <MapIcon />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginBottom: 2 }}>{t('openInMaps')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{job.address}</div>
+                        </div>
+                        <ArrowRightIcon />
+                      </a>
+
+                      {/* Action buttons */}
+                      <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {/* Complete / Mark Complete — most prominent */}
+                        {nextAction && (
+                          <button
+                            onClick={() => advanceStatus(job)}
+                            disabled={loading === job.id}
+                            style={{
+                              width: '100%', minHeight: 52,
+                              borderRadius: 12, border: 'none', cursor: 'pointer',
+                              background: nextAction.color,
+                              color: job.status === 'in_progress' ? '#fff' : '#080c1a',
+                              fontSize: 15, fontWeight: 800,
+                              opacity: loading === job.id ? 0.6 : 1,
+                              fontFamily: 'var(--font-display)', letterSpacing: .4,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            }}
+                          >
+                            {loading === job.id
+                              ? t('updating')
+                              : (
+                                <>
+                                  {job.status === 'in_progress' && (
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  )}
+                                  {nextAction.label}
+                                </>
+                              )
+                            }
+                          </button>
+                        )}
+                        {/* Collect payment button */}
+                        <button
+                          onClick={() => setPaymentJob({ id: job.id, client: job.client })}
+                          style={{
+                            width: '100%', minHeight: 48,
+                            borderRadius: 12,
+                            background: 'rgba(34,197,94,.1)',
+                            border: '1.5px solid rgba(34,197,94,.3)',
+                            color: 'var(--green)',
+                            fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                          }}
+                        >
+                          <CardIcon />
+                          Collect Payment
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )
-        })}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {paymentJob && (
@@ -608,17 +948,27 @@ export default function FieldView({ initialJobs, session }: {
       {lightboxSrc && (
         <div
           onClick={() => setLightboxSrc(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.92)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.94)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
         >
-          <img src={lightboxSrc} alt="full photo" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 10, objectFit: 'contain' }} />
+          <img src={lightboxSrc} alt="full photo" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 12, objectFit: 'contain' }} />
           <button
             onClick={() => setLightboxSrc(null)}
-            style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,.15)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', fontSize: 18, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{
+              position: 'absolute', top: 18, right: 18,
+              background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.15)',
+              borderRadius: '50%', width: 40, height: 40,
+              cursor: 'pointer', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
       )}
+
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+      `}</style>
     </div>
   )
 }

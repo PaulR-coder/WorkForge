@@ -29,24 +29,105 @@ type Estimate = {
   job: { id: string; status: string } | null
 }
 
-const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  draft:    { color: 'var(--text3)', bg: 'var(--bg4)', label: 'Draft' },
-  sent:     { color: '#5ba3f5', bg: 'rgba(91,163,245,.12)', label: 'Sent' },
-  approved: { color: 'var(--green)', bg: 'rgba(34,197,94,.12)', label: 'Approved' },
-  declined: { color: 'var(--red)', bg: 'rgba(239,68,68,.12)', label: 'Declined' },
+const STATUS_STYLE: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  draft:    { color: 'var(--text3)', bg: 'rgba(122,143,166,.1)', border: 'rgba(122,143,166,.2)', label: 'Draft' },
+  sent:     { color: '#5ba3f5', bg: 'rgba(91,163,245,.12)', border: 'rgba(91,163,245,.25)', label: 'Sent' },
+  approved: { color: 'var(--green)', bg: 'rgba(34,197,94,.12)', border: 'rgba(34,197,94,.25)', label: 'Approved' },
+  declined: { color: 'var(--red)', bg: 'rgba(239,68,68,.12)', border: 'rgba(239,68,68,.25)', label: 'Declined' },
+}
+
+// Workflow pipeline stages
+const PIPELINE_STAGES = ['Create', 'Email', 'Approve', 'Job', 'Invoice']
+const STAGE_MAP: Record<string, number> = {
+  draft: 0, sent: 1, approved: 2,
 }
 
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE.draft
   return (
-    <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, color: s.color, background: s.bg, textTransform: 'capitalize', letterSpacing: '.3px' }}>
+    <span style={{ fontSize: 9, fontWeight: 700, padding: '3px 9px', borderRadius: 20, color: s.color, background: s.bg, border: `1px solid ${s.border}`, textTransform: 'uppercase', letterSpacing: '.6px', fontFamily: 'var(--font-display, system-ui)' }}>
       {s.label}
     </span>
   )
 }
 
+function PipelineIndicator({ estimate }: { estimate: Estimate }) {
+  const activeStage = estimate.job?.status === 'done' ? 4 : (estimate.job ? 3 : (STAGE_MAP[estimate.status] ?? 0))
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+      {PIPELINE_STAGES.map((stage, i) => {
+        const done = i < activeStage
+        const current = i === activeStage
+        return (
+          <div key={stage} style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{
+              fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 20,
+              fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.4px',
+              background: done ? 'rgba(34,197,94,.15)' : current ? 'rgba(245,158,11,.15)' : 'rgba(255,255,255,.04)',
+              color: done ? 'var(--green)' : current ? 'var(--amber)' : 'var(--text4)',
+              border: done ? '1px solid rgba(34,197,94,.25)' : current ? '1px solid rgba(245,158,11,.25)' : '1px solid rgba(255,255,255,.07)',
+            }}>
+              {stage}
+            </div>
+            {i < PIPELINE_STAGES.length - 1 && (
+              <div style={{ width: 16, height: 1, background: done ? 'rgba(34,197,94,.3)' : 'rgba(255,255,255,.07)' }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function newItem(): LineItem {
   return { id: `item-${Date.now()}-${Math.random()}`, description: '', unitPrice: 0, total: 0 }
+}
+
+// SVG icons
+function IconSend() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  )
+}
+function IconWrench() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>
+  )
+}
+function IconInvoice() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+    </svg>
+  )
+}
+function IconSparkle() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M5 3l.8 2.2L8 6l-2.2.8L5 9l-.8-2.2L2 6l2.2-.8L5 3z"/>
+    </svg>
+  )
+}
+function IconEmptyEstimates() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', margin: '0 auto', opacity: .2 }}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+    </svg>
+  )
+}
+
+const formInp: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.09)',
+  background: '#111827', color: 'var(--text)', fontSize: 13, boxSizing: 'border-box',
+  fontFamily: 'inherit', outline: 'none',
+}
+const formLbl: React.CSSProperties = {
+  fontSize: 10, fontWeight: 700, color: 'var(--text4)', display: 'block', marginBottom: 5,
+  textTransform: 'uppercase', letterSpacing: '.7px', fontFamily: 'var(--font-display, system-ui)',
 }
 
 export default function EstimatesClient({
@@ -242,125 +323,155 @@ export default function EstimatesClient({
   estimates.forEach(e => { counts[e.status] = (counts[e.status] ?? 0) + 1 })
 
   return (
-    <div style={{ padding: '20px 20px 80px', maxWidth: 960 }}>
+    <div style={{ padding: '20px 24px 80px', maxWidth: 1000 }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>Estimates</h1>
-          <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>Create → Email → Approve → Job → Invoice</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0, fontFamily: 'var(--font-display, system-ui)', letterSpacing: '-.2px' }}>Estimates</h1>
+          <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 3 }}>
+            {estimates.length} estimate{estimates.length !== 1 ? 's' : ''} &middot; {counts.approved} approved &middot; {counts.declined} declined
+          </div>
         </div>
-        <button onClick={openCreate} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto' }}>+ New Estimate</button>
+        <button onClick={openCreate} style={{ padding: '8px 16px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', flexShrink: 0, fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px' }}>
+          + New Estimate
+        </button>
+      </div>
+
+      {/* Workflow pipeline indicator */}
+      <div style={{ marginBottom: 20, padding: '12px 16px', background: '#0a0f1e', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.7px', fontFamily: 'var(--font-display, system-ui)', flexShrink: 0 }}>Workflow</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+          {PIPELINE_STAGES.map((stage, i) => (
+            <div key={stage} style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(255,255,255,.05)', color: 'var(--text3)', border: '1px solid rgba(255,255,255,.08)', fontFamily: 'var(--font-display, system-ui)' }}>{stage}</span>
+              {i < PIPELINE_STAGES.length - 1 && (
+                <svg width="20" height="10" viewBox="0 0 20 10" style={{ flexShrink: 0 }}>
+                  <line x1="0" y1="5" x2="14" y2="5" stroke="rgba(255,255,255,.15)" strokeWidth="1.5"/>
+                  <polyline points="10,2 14,5 10,8" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
-        {(['all', 'draft', 'sent', 'approved', 'declined'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '5px 12px', borderRadius: 20, border: '1px solid var(--border)',
-            background: filter === f ? 'var(--amber)' : 'var(--bg2)',
-            color: filter === f ? '#080c1a' : 'var(--text3)',
-            fontSize: 11, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize',
-          }}>
-            {f}{counts[f] > 0 ? ` (${counts[f]})` : ''}
-          </button>
-        ))}
+        {(['all', 'draft', 'sent', 'approved', 'declined'] as const).map(f => {
+          const active = filter === f
+          return (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              padding: '6px 13px', borderRadius: 20,
+              border: active ? 'none' : '1px solid rgba(255,255,255,.09)',
+              background: active ? 'var(--amber)' : '#111827',
+              color: active ? '#080c1a' : 'var(--text3)',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize',
+              fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px',
+              transition: 'background .15s, color .15s',
+            }}>
+              {f}
+              {counts[f] > 0 && <span style={{ marginLeft: 5, opacity: active ? 0.7 : 0.5 }}>{counts[f]}</span>}
+            </button>
+          )
+        })}
       </div>
 
       {/* List */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text4)' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>📝</div>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>No estimates yet</div>
-          <div style={{ fontSize: 12, marginBottom: 16 }}>Create your first AI-powered estimate</div>
-          <button onClick={openCreate} className="btn btn-primary btn-sm">+ New Estimate</button>
+          <IconEmptyEstimates />
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, marginTop: 16, color: 'var(--text3)', fontFamily: 'var(--font-display, system-ui)' }}>No estimates yet</div>
+          <div style={{ fontSize: 12, marginBottom: 18 }}>Create your first AI-powered estimate</div>
+          <button onClick={openCreate} style={{ padding: '8px 18px', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)' }}>+ New Estimate</button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {filtered.map(est => {
             const jobDone = est.job?.status === 'done'
             const hasJob = !!est.job
             const busy = sendingId === est.id || convertingId === est.id
+            const ss = STATUS_STYLE[est.status] ?? STATUS_STYLE.draft
             return (
-              <div key={est.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>{est.number}</span>
+              <div key={est.id} style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 12, overflow: 'hidden' }}>
+                {/* Left accent bar colored by status */}
+                <div style={{ display: 'flex' }}>
+                  <div style={{ width: 3, background: ss.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+
+                    {/* Left: number + status + job type */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0, minWidth: 80 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', fontFamily: 'var(--font-mono, monospace)' }}>{est.number}</div>
                       <StatusBadge status={est.status} />
                       {est.jobType && (
-                        <span style={{ fontSize: 10, color: 'var(--text4)', background: 'var(--bg3)', padding: '2px 7px', borderRadius: 10 }}>{est.jobType}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'rgba(167,139,250,.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,.2)', letterSpacing: '.3px', fontFamily: 'var(--font-display, system-ui)' }}>{est.jobType}</span>
                       )}
                       {hasJob && (
-                        <span style={{ fontSize: 10, color: 'var(--green)', background: 'rgba(34,197,94,.1)', padding: '2px 7px', borderRadius: 10 }}>
-                          Job {jobDone ? 'Complete' : 'Active'}
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: 'rgba(34,197,94,.1)', color: 'var(--green)', border: '1px solid rgba(34,197,94,.2)', letterSpacing: '.3px', fontFamily: 'var(--font-display, system-ui)' }}>
+                          Job {jobDone ? 'Done' : 'Active'}
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{est.client}</div>
-                    {est.clientEmail && (
-                      <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 2 }}>📧 {est.clientEmail}</div>
-                    )}
-                    {est.description && (
-                      <div style={{ fontSize: 11, color: 'var(--text4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 400 }}>{est.description}</div>
-                    )}
-                    <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 4 }}>
-                      {est.lineItems.length} item{est.lineItems.length !== 1 ? 's' : ''} · {est.createdBy.name} · {new Date(est.createdAt).toLocaleDateString()}
+
+                    {/* Middle: client info + description */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{est.client}</div>
+                      {est.clientEmail && (
+                        <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 4, fontFamily: 'var(--font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{est.clientEmail}</div>
+                      )}
+                      {est.description && (
+                        <div style={{ fontSize: 11, color: 'var(--text4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 380, marginBottom: 4 }}>{est.description}</div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                        <PipelineIndicator estimate={est} />
+                      </div>
+                      <div style={{ fontSize: 9, color: 'var(--text4)', marginTop: 5, fontFamily: 'var(--font-mono, monospace)' }}>
+                        {est.lineItems.length} item{est.lineItems.length !== 1 ? 's' : ''} &middot; {est.createdBy.name} &middot; {new Date(est.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
-                  </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>
-                      ${est.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
+                    {/* Right: amount + actions */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono, monospace)', lineHeight: 1 }}>
+                        ${est.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
 
-                    {/* Action buttons — contextual based on workflow stage */}
-                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      {/* Email button — always available unless declined */}
-                      {est.status !== 'declined' && est.status !== 'approved' && (
-                        <button
-                          onClick={() => sendEstimate(est)}
-                          disabled={busy}
-                          style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: '#3b82f6', color: '#fff', fontSize: 11, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .6 : 1 }}
-                        >
-                          {sendingId === est.id ? '…' : '📧 Send'}
-                        </button>
-                      )}
-
-                      {/* Convert to Job — when approved but no job yet */}
-                      {est.status === 'approved' && !hasJob && (
-                        <button
-                          onClick={() => convertToJob(est)}
-                          disabled={busy}
-                          style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: 'var(--amber)', color: '#080c1a', fontSize: 11, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .6 : 1 }}
-                        >
-                          {convertingId === est.id ? '…' : '🔧 Create Job'}
-                        </button>
-                      )}
-
-                      {/* Convert to Invoice — when job is done */}
-                      {hasJob && jobDone && (
-                        <button
-                          onClick={() => convertToInvoice(est)}
-                          disabled={busy}
-                          style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: 'var(--green)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .6 : 1 }}
-                        >
-                          {convertingId === est.id ? '…' : '💰 Create Invoice'}
-                        </button>
-                      )}
-
-                      <select
-                        value={est.status}
-                        onChange={e => updateStatus(est, e.target.value as Estimate['status'])}
-                        style={{ fontSize: 10, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', cursor: 'pointer' }}
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="sent">Sent</option>
-                        <option value="approved">Approved</option>
-                        <option value="declined">Declined</option>
-                      </select>
-                      <button onClick={() => openEdit(est)} style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 11, cursor: 'pointer' }}>Edit</button>
-                      <button onClick={() => deleteEst(est)} style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--red)', fontSize: 11, cursor: 'pointer' }}>✕</button>
+                      {/* Action buttons stacked by workflow */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {est.status !== 'declined' && est.status !== 'approved' && (
+                            <button onClick={() => sendEstimate(est)} disabled={busy}
+                              style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: 'rgba(91,163,245,.15)', color: '#5ba3f5', fontSize: 10, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .6 : 1, display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display, system-ui)' }}>
+                              <IconSend />{sendingId === est.id ? '…' : 'Send'}
+                            </button>
+                          )}
+                          {est.status === 'approved' && !hasJob && (
+                            <button onClick={() => convertToJob(est)} disabled={busy}
+                              style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: 'rgba(245,158,11,.15)', color: 'var(--amber)', fontSize: 10, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .6 : 1, display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display, system-ui)' }}>
+                              <IconWrench />{convertingId === est.id ? '…' : 'Create Job'}
+                            </button>
+                          )}
+                          {hasJob && jobDone && (
+                            <button onClick={() => convertToInvoice(est)} disabled={busy}
+                              style={{ padding: '5px 10px', borderRadius: 6, border: 'none', background: 'rgba(34,197,94,.15)', color: 'var(--green)', fontSize: 10, fontWeight: 700, cursor: busy ? 'wait' : 'pointer', opacity: busy ? .6 : 1, display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--font-display, system-ui)' }}>
+                              <IconInvoice />{convertingId === est.id ? '…' : 'Invoice'}
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <select value={est.status} onChange={e => updateStatus(est, e.target.value as Estimate['status'])}
+                            style={{ fontSize: 10, padding: '4px 6px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)' }}>
+                            <option value="draft">Draft</option>
+                            <option value="sent">Sent</option>
+                            <option value="approved">Approved</option>
+                            <option value="declined">Declined</option>
+                          </select>
+                          <button onClick={() => openEdit(est)} style={{ padding: '4px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)' }}>Edit</button>
+                          <button onClick={() => deleteEst(est)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--red)', fontSize: 11, cursor: 'pointer', lineHeight: 1 }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -372,37 +483,39 @@ export default function EstimatesClient({
 
       {/* Email prompt modal */}
       {emailPrompt && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget) setEmailPrompt(null) }}>
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 400 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>Client Email</h3>
-            <p style={{ fontSize: 12, color: 'var(--text4)', marginBottom: 16 }}>Enter the client's email address to send the estimate.</p>
-            <input
-              type="email"
-              autoFocus
-              placeholder="client@example.com"
-              defaultValue={emailPrompt.current}
-              id="email-prompt-input"
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13, marginBottom: 14, boxSizing: 'border-box' }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  const input = document.getElementById('email-prompt-input') as HTMLInputElement
-                  sendWithEmail(emailPrompt.id, input.value)
-                }
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setEmailPrompt(null)} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button
-                onClick={() => {
-                  const input = document.getElementById('email-prompt-input') as HTMLInputElement
-                  sendWithEmail(emailPrompt.id, input.value)
+          <div style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 14, overflow: 'hidden', width: '100%', maxWidth: 400, boxShadow: '0 20px 60px rgba(0,0,0,.7)' }}>
+            <div style={{ height: 3, background: 'linear-gradient(90deg, #5ba3f5, #818cf8)' }} />
+            <div style={{ padding: 28 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 6, fontFamily: 'var(--font-display, system-ui)' }}>Client Email</h3>
+              <p style={{ fontSize: 12, color: 'var(--text4)', marginBottom: 16 }}>Enter the client&apos;s email address to send the estimate.</p>
+              <input
+                type="email"
+                autoFocus
+                placeholder="client@example.com"
+                defaultValue={emailPrompt.current}
+                id="email-prompt-input"
+                style={{ ...formInp, fontFamily: 'var(--font-mono, monospace)', marginBottom: 14 }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const input = document.getElementById('email-prompt-input') as HTMLInputElement
+                    sendWithEmail(emailPrompt.id, input.value)
+                  }
                 }}
-                className="btn btn-primary"
-                style={{ flex: 2, padding: '9px 0', fontSize: 13 }}
-              >
-                Send Estimate
-              </button>
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setEmailPrompt(null)} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('email-prompt-input') as HTMLInputElement
+                    sendWithEmail(emailPrompt.id, input.value)
+                  }}
+                  style={{ flex: 2, padding: '9px 0', borderRadius: 8, background: '#5ba3f5', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)' }}
+                >
+                  Send Estimate
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -410,100 +523,121 @@ export default function EstimatesClient({
 
       {/* Create / Edit Modal */}
       {modalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 16px', overflowY: 'auto' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px 16px', overflowY: 'auto' }}
           onClick={e => { if (e.target === e.currentTarget) setModalOpen(false) }}>
-          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 680, padding: 28, position: 'relative' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{editTarget ? `Edit ${editTarget.number}` : 'New Estimate'}</h2>
-              <button onClick={() => setModalOpen(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
-            </div>
-
-            {/* Client + Email */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>CLIENT *</label>
-                <input value={client} onChange={e => setClient(e.target.value)} placeholder="Client name"
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13 }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>CLIENT EMAIL</label>
-                <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@example.com"
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13 }} />
-              </div>
-            </div>
-
-            {/* Job Type */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>JOB TYPE</label>
-              <input value={jobType} onChange={e => setJobType(e.target.value)} placeholder="HVAC, Electrical, Plumbing…"
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13 }} />
-            </div>
-
-            {/* Description + AI */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)' }}>DESCRIPTION</label>
-                <button onClick={generateAI} disabled={aiLoading || !description.trim()} style={{ marginLeft: 'auto', padding: '4px 12px', borderRadius: 20, background: aiLoading ? 'var(--bg3)' : 'linear-gradient(135deg, #f59e0b, #f97316)', border: 'none', color: aiLoading ? 'var(--text4)' : '#080c1a', fontSize: 11, fontWeight: 800, cursor: aiLoading ? 'not-allowed' : 'pointer', opacity: !description.trim() ? .4 : 1 }}>
-                  {aiLoading ? '⏳ Generating…' : '✨ Generate with AI'}
+          <div style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 16, width: '100%', maxWidth: 700, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,.7)', position: 'relative' }}>
+            {/* Amber accent strip */}
+            <div style={{ height: 3, background: 'linear-gradient(90deg, var(--amber), #f97316)' }} />
+            <div style={{ padding: 28 }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 22 }}>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', margin: 0, fontFamily: 'var(--font-display, system-ui)' }}>{editTarget ? `Edit ${editTarget.number}` : 'New Estimate'}</h2>
+                  <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>Fill in details and optionally generate line items with AI.</div>
+                </div>
+                <button onClick={() => setModalOpen(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text4)', fontSize: 18, cursor: 'pointer', padding: '4px 8px', borderRadius: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the job — AI will generate line items from this" rows={3}
-                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
-            </div>
 
-            {/* Line Items */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)' }}>LINE ITEMS</label>
-                <button onClick={() => setLineItems(prev => [...prev, newItem()])} style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 11, cursor: 'pointer' }}>+ Add</button>
-              </div>
-              <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 32px', background: 'var(--bg3)', padding: '7px 10px', fontSize: 10, fontWeight: 700, color: 'var(--text4)', letterSpacing: '.3px' }}>
-                  <span>DESCRIPTION</span><span style={{ textAlign: 'center' }}>HRS/QTY</span><span style={{ textAlign: 'right' }}>UNIT $</span><span style={{ textAlign: 'right' }}>TOTAL</span><span />
+              {/* Client + Email */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                <div>
+                  <label style={formLbl}>Client *</label>
+                  <input value={client} onChange={e => setClient(e.target.value)} placeholder="Client name" style={formInp} />
                 </div>
-                {lineItems.map((item, idx) => (
-                  <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 32px', padding: '6px 10px', borderTop: idx > 0 ? '1px solid var(--border)' : 'none', alignItems: 'center' }}>
-                    <input value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Description"
-                      style={{ padding: '5px 6px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 12, width: '100%' }} />
-                    <input value={item.hours ?? item.qty ?? ''} onChange={e => updateItem(item.id, item.hours !== undefined ? 'hours' : 'qty', e.target.value)}
-                      onFocus={() => { if (item.hours === undefined && item.qty === undefined) updateItem(item.id, 'qty', '1') }}
-                      type="number" min="0" placeholder="1"
-                      style={{ padding: '5px 4px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 12, textAlign: 'center', width: '100%' }} />
-                    <input value={item.unitPrice || ''} onChange={e => updateItem(item.id, 'unitPrice', e.target.value)} type="number" min="0" placeholder="0"
-                      style={{ padding: '5px 4px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 12, textAlign: 'right', width: '100%' }} />
-                    <input value={item.total || ''} onChange={e => updateItem(item.id, 'total', e.target.value)} type="number" min="0" placeholder="0"
-                      style={{ padding: '5px 4px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--green)', fontSize: 12, fontWeight: 700, textAlign: 'right', width: '100%' }} />
-                    <button onClick={() => setLineItems(prev => prev.filter(i => i.id !== item.id))} disabled={lineItems.length === 1}
-                      style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 14, cursor: 'pointer', opacity: lineItems.length === 1 ? .3 : 1 }}>✕</button>
+                <div>
+                  <label style={formLbl}>Client Email</label>
+                  <input type="email" value={clientEmail} onChange={e => setClientEmail(e.target.value)} placeholder="client@example.com" style={{ ...formInp, fontFamily: 'var(--font-mono, monospace)' }} />
+                </div>
+              </div>
+
+              {/* Job Type */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={formLbl}>Job Type</label>
+                <input value={jobType} onChange={e => setJobType(e.target.value)} placeholder="HVAC, Electrical, Plumbing…" style={formInp} />
+              </div>
+
+              {/* Description + AI button */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+                  <label style={{ ...formLbl, marginBottom: 0 }}>Description</label>
+                  <button onClick={generateAI} disabled={aiLoading || !description.trim()}
+                    style={{ marginLeft: 'auto', padding: '5px 13px', borderRadius: 20, background: aiLoading ? '#111827' : 'linear-gradient(135deg, var(--amber), #f97316)', border: aiLoading ? '1px solid rgba(255,255,255,.09)' : 'none', color: aiLoading ? 'var(--text4)' : '#080c1a', fontSize: 11, fontWeight: 800, cursor: aiLoading || !description.trim() ? 'not-allowed' : 'pointer', opacity: !description.trim() ? .4 : 1, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-display, system-ui)' }}>
+                    <IconSparkle />{aiLoading ? 'Generating…' : 'Generate with AI'}
+                  </button>
+                </div>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the job — AI will generate line items from this" rows={3}
+                  style={{ ...formInp, resize: 'vertical' }} />
+              </div>
+
+              {/* Line Items */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ ...formLbl, marginBottom: 0 }}>Line Items</label>
+                  <button onClick={() => setLineItems(prev => [...prev, newItem()])}
+                    style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)' }}>+ Add</button>
+                </div>
+                <div style={{ border: '1px solid rgba(255,255,255,.09)', borderRadius: 10, overflow: 'hidden' }}>
+                  {/* Table header */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 32px', background: '#141d2e', padding: '8px 12px', fontSize: 9, fontWeight: 700, color: 'var(--text4)', letterSpacing: '.5px', fontFamily: 'var(--font-display, system-ui)' }}>
+                    <span>DESCRIPTION</span>
+                    <span style={{ textAlign: 'center' }}>HRS/QTY</span>
+                    <span style={{ textAlign: 'right' }}>UNIT $</span>
+                    <span style={{ textAlign: 'right' }}>TOTAL</span>
+                    <span />
                   </div>
-                ))}
-                <div style={{ padding: '10px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>Subtotal</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--green)' }}>${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  {lineItems.map((item, idx) => (
+                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 32px', padding: '6px 12px', borderTop: '1px solid rgba(255,255,255,.06)', alignItems: 'center', background: idx % 2 === 1 ? 'rgba(255,255,255,.015)' : 'transparent' }}>
+                      <input value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Description"
+                        style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,.07)', background: '#060a17', color: 'var(--text)', fontSize: 12, width: '100%', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                      <input value={item.hours ?? item.qty ?? ''} onChange={e => updateItem(item.id, item.hours !== undefined ? 'hours' : 'qty', e.target.value)}
+                        onFocus={() => { if (item.hours === undefined && item.qty === undefined) updateItem(item.id, 'qty', '1') }}
+                        type="number" min="0" placeholder="1"
+                        style={{ padding: '5px 4px', borderRadius: 6, border: '1px solid rgba(255,255,255,.07)', background: '#060a17', color: 'var(--text)', fontSize: 12, textAlign: 'center', width: '100%', outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-mono, monospace)' }} />
+                      <input value={item.unitPrice || ''} onChange={e => updateItem(item.id, 'unitPrice', e.target.value)} type="number" min="0" placeholder="0"
+                        style={{ padding: '5px 6px', borderRadius: 6, border: '1px solid rgba(255,255,255,.07)', background: '#060a17', color: 'var(--text)', fontSize: 12, textAlign: 'right', width: '100%', outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-mono, monospace)' }} />
+                      <input value={item.total || ''} onChange={e => updateItem(item.id, 'total', e.target.value)} type="number" min="0" placeholder="0"
+                        style={{ padding: '5px 6px', borderRadius: 6, border: '1px solid rgba(255,255,255,.07)', background: '#060a17', color: 'var(--green)', fontSize: 12, fontWeight: 700, textAlign: 'right', width: '100%', outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-mono, monospace)' }} />
+                      <button onClick={() => setLineItems(prev => prev.filter(i => i.id !== item.id))} disabled={lineItems.length === 1}
+                        style={{ background: 'none', border: 'none', color: 'var(--red)', fontSize: 14, cursor: 'pointer', opacity: lineItems.length === 1 ? .3 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+                  ))}
+                  {/* Subtotal row */}
+                  <div style={{ padding: '11px 14px', borderTop: '1px solid rgba(255,255,255,.09)', display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center', background: '#0a0f1e' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-display, system-ui)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px' }}>Subtotal</span>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: 'var(--green)', fontFamily: 'var(--font-mono, monospace)' }}>
+                      ${subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Status + Notes */}
-            <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 12, marginBottom: 20 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>STATUS</label>
-                <select value={status} onChange={e => setStatus(e.target.value as Estimate['status'])} style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13 }}>
-                  <option value="draft">Draft</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="declined">Declined</option>
-                </select>
+              {/* Status + Notes */}
+              <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 12, marginBottom: 24 }}>
+                <div>
+                  <label style={formLbl}>Status</label>
+                  <select value={status} onChange={e => setStatus(e.target.value as Estimate['status'])} style={formInp}>
+                    <option value="draft">Draft</option>
+                    <option value="sent">Sent</option>
+                    <option value="approved">Approved</option>
+                    <option value="declined">Declined</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={formLbl}>Notes</label>
+                  <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Internal notes…" style={formInp} />
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', display: 'block', marginBottom: 5 }}>NOTES</label>
-                <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Internal notes…"
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', fontSize: 13 }} />
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setModalOpen(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={save} disabled={saving || !client.trim()} className="btn btn-primary" style={{ padding: '9px 22px', fontSize: 13 }}>
-                {saving ? 'Saving…' : editTarget ? 'Update' : 'Create Estimate'}
-              </button>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button onClick={() => setModalOpen(false)} style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid rgba(255,255,255,.09)', background: '#111827', color: 'var(--text3)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={save} disabled={saving || !client.trim()}
+                  style={{ padding: '9px 22px', borderRadius: 8, background: saving || !client.trim() ? '#111827' : 'var(--amber)', color: saving || !client.trim() ? 'var(--text4)' : '#080c1a', border: 'none', fontSize: 13, fontWeight: 800, cursor: saving || !client.trim() ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px' }}>
+                  {saving ? 'Saving…' : editTarget ? 'Update' : 'Create Estimate'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

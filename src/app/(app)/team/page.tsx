@@ -12,6 +12,19 @@ const ROLE_ORDER: Record<string, number> = {
   superadmin: 0, admin: 1, dispatcher: 2, tech: 3, readonly: 4,
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  superadmin: 'Super Admins', admin: 'Admins', dispatcher: 'Dispatchers',
+  tech: 'Technicians', readonly: 'Read-only',
+}
+
+const ROLE_COLOR: Record<string, string> = {
+  superadmin: 'var(--purple)',
+  admin: 'var(--amber)',
+  dispatcher: 'var(--blue-light)',
+  tech: 'var(--green)',
+  readonly: 'var(--text4)',
+}
+
 export default async function TeamPage() {
   const session = await getSession()
   if (!session) redirect('/login')
@@ -39,24 +52,55 @@ export default async function TeamPage() {
   const active = users.filter(u => u.active).length
   const groups = Array.from(new Set(sorted.map(u => u.role)))
 
-  return (
-    <div style={{ padding: '24px 24px 48px', maxWidth: 1100 }}>
+  // Role pill counts for header
+  const roleCounts = {
+    admin: users.filter(u => u.role === 'admin').length,
+    dispatcher: users.filter(u => u.role === 'dispatcher').length,
+    tech: users.filter(u => u.role === 'tech').length,
+  }
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+  return (
+    <div style={{ padding: '28px 28px 56px', maxWidth: 1140 }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', letterSpacing: '-.4px' }}>Team</h1>
-          <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 3 }}>
-            {active} active member{active !== 1 ? 's' : ''}
-            {users.length > active ? ` · ${users.length - active} inactive` : ''}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+            <h1 style={{
+              fontSize: 28, fontWeight: 700, color: 'var(--text)',
+              fontFamily: 'var(--font-display)', letterSpacing: '-.3px', margin: 0,
+            }}>
+              Team
+            </h1>
+            <span style={{ fontSize: 13, color: 'var(--text4)', fontFamily: 'var(--font-body)' }}>
+              {active} active{users.length > active ? ` · ${users.length - active} inactive` : ''}
+            </span>
+          </div>
+          {/* Role count pills */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {([
+              { role: 'admin', label: 'Admin', count: roleCounts.admin },
+              { role: 'dispatcher', label: 'Dispatcher', count: roleCounts.dispatcher },
+              { role: 'tech', label: 'Tech', count: roleCounts.tech },
+            ] as const).filter(r => r.count > 0).map(r => (
+              <span key={r.role} style={{
+                fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                background: `color-mix(in srgb, ${ROLE_COLOR[r.role]} 12%, transparent)`,
+                color: ROLE_COLOR[r.role],
+                border: `1px solid color-mix(in srgb, ${ROLE_COLOR[r.role]} 28%, transparent)`,
+                letterSpacing: '.2px', fontFamily: 'var(--font-body)',
+              }}>
+                {r.count} {r.label}{r.count !== 1 ? 's' : ''}
+              </span>
+            ))}
           </div>
         </div>
         {canEdit && <InviteButton />}
       </div>
 
-      {/* Pending invites */}
+      {/* ── Pending invites ── */}
       {canEdit && invites.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 28 }}>
           <PendingInvites initialInvites={invites.map(i => ({
             ...i,
             createdAt: i.createdAt.toISOString(),
@@ -65,30 +109,47 @@ export default async function TeamPage() {
         </div>
       )}
 
-      {/* Team grid — grouped by role */}
+      {/* ── Team grid — grouped by role ── */}
       {groups.map(role => {
         const group = sorted.filter(u => u.role === role)
-        const ROLE_LABEL: Record<string, string> = {
-          superadmin: 'Super Admins', admin: 'Admins', dispatcher: 'Dispatchers',
-          tech: 'Technicians', readonly: 'Read-only',
-        }
         return (
-          <div key={role} style={{ marginBottom: 24 }}>
-            <div style={{
-              fontSize: 10, fontWeight: 700, color: 'var(--text4)',
-              textTransform: 'uppercase', letterSpacing: '.8px',
-              marginBottom: 10,
-            }}>
-              {ROLE_LABEL[role] ?? role} ({group.length})
+          <div key={role} style={{ marginBottom: 32 }}>
+            {/* Group header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: ROLE_COLOR[role] ?? 'var(--text4)',
+                flexShrink: 0,
+              }} />
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: 'var(--text3)',
+                textTransform: 'uppercase', letterSpacing: '.9px',
+                fontFamily: 'var(--font-display)',
+              }}>
+                {ROLE_LABEL[role] ?? role}
+              </span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                background: 'var(--bg3)', color: 'var(--text4)', border: '1px solid var(--border)',
+              }}>
+                {group.length}
+              </span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+
+            {/* Card grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 12,
+            }}>
               {group.map(u => <TeamCard key={u.id} user={u} canEdit={canEdit} />)}
             </div>
           </div>
         )
       })}
 
-      {/* Map */}
+      {/* ── Map ── */}
       {canViewMap && <TeamMapWrapper />}
     </div>
   )
