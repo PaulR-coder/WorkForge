@@ -3,6 +3,7 @@ import './globals.css'
 import { SupportWidget } from '@/components/SupportWidget'
 import { SWRegistration } from '@/components/SWRegistration'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { Analytics } from '@/components/Analytics'
 
 export const metadata: Metadata = {
   title: 'WorkForge — Forged for the field. Built for control.',
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className="h-full">
-        {children}
+        <Analytics>
+          {children}
+        </Analytics>
         <SupportWidget />
         <SWRegistration />
         <OfflineBanner />

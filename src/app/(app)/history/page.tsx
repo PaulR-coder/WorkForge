@@ -15,7 +15,7 @@ export default async function HistoryPage() {
   const jobs = await prisma.job.findMany({
     where: {
       ...tenantFilter,
-      OR: [{ status: 'done' }, { archivedAt: { not: null } }],
+      OR: [{ status: 'done' }, { archivedAt: { not: null } }, { deletedAt: { not: null } }],
     },
     include: {
       tech: { select: { id: true, name: true, initials: true } },
@@ -30,6 +30,7 @@ export default async function HistoryPage() {
     createdAt: j.createdAt.toISOString(),
     completedAt: j.completedAt?.toISOString() ?? null,
     archivedAt: j.archivedAt?.toISOString() ?? null,
+    deletedAt: j.deletedAt?.toISOString() ?? null,
     status: j.status as string,
     priority: j.priority as string,
     invoices: j.invoices.map(inv => ({ total: inv.total, status: inv.status as string })),

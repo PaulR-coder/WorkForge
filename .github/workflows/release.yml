@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: Create Release Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed to count existing tags for the .N suffix
+
+      - name: Compute release tag
+        id: tag
+        run: |
+          DATE=$(date -u +'%Y.%m.%d')
+          # Count how many tags already exist for today (to produce .N suffix)
+          COUNT=$(git tag --list "v${DATE}.*" | wc -l | tr -d ' ')
+          TAG="v${DATE}.${COUNT}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.tag.outputs.tag }}"
+          git push origin "${{ steps.tag.outputs.tag }}"
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag  = '${{ steps.tag.outputs.tag }}';
+            const date = '${{ steps.tag.outputs.date }}';
+            const sha  = context.sha.slice(0, 7);
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name: tag,
+              name: `WorkForge ${tag}`,
+              body: [
+                `## Release ${tag}`,
+                '',
+                `Auto-generated release on merge to \`main\` — ${date}`,
+                `Commit: \`${sha}\``,
+              ].join('\n'),
+              draft: false,
+              prerelease: false,
+            });

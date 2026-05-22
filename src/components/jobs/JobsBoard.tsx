@@ -122,9 +122,9 @@ export default function JobsBoard({ initialJobs, users, session }: {
     const res = await fetch(`/api/jobs/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setJobs(prev => prev.filter(j => j.id !== id))
-      toast('Job deleted', 'info')
+      toast('Job moved to History — restore it any time', 'info')
     } else {
-      toast('Failed to delete job', 'error')
+      toast('Failed to archive job', 'error')
     }
   }
 

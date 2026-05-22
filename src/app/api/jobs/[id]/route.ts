@@ -74,6 +74,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     })
     return Response.json({ ok: true })
   }
+  if (body.action === 'undelete') {
+    if (!can(session.role, 'deleteJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    await db.job.update({ where: { id }, data: { deletedAt: null } })
+    void db.auditLog.create({
+      data: { icon: '♻️', action: 'job_restored', detail: `${prev.client} — ${prev.type}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
+    })
+    return Response.json({ ok: true })
+  }
 
   // Validate the technician belongs to this tenant before assigning
   if (body.techId !== undefined && body.techId !== null) {
@@ -138,13 +146,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 })
 
-  await db.message.deleteMany({ where: { jobId: id } })
-  await db.photo.deleteMany({ where: { jobId: id } })
-  await db.invoice.updateMany({ where: { jobId: id }, data: { jobId: null } })
-  await db.payment.updateMany({ where: { jobId: id }, data: { jobId: null } })
-  await db.job.delete({ where: { id } })
+  // Soft delete: mark deletedAt instead of destroying the record so the job
+  // remains visible in History and the Audit Log and can be restored.
+  await db.job.update({ where: { id }, data: { deletedAt: new Date() } })
   await db.auditLog.create({
-    data: { icon: '🗑', action: 'Job deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
+    data: { icon: '🗑', action: 'job_deleted', detail: `${job.client} — ${job.type}`, severity: 'warn', userId: session.id, tenantId: session.tenantId },
   })
 
   return Response.json({ ok: true })

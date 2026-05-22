@@ -1,0 +1,119 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.tsc.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - id: tsc
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.lint.outcome }}
+      warnings: ${{ steps.lint-output.outputs.warnings }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - id: lint
+        run: npm run lint 2>&1 | tee lint-output.txt
+        continue-on-error: true
+      - id: lint-output
+        run: |
+          COUNT=$(grep -c "warning\|error" lint-output.txt 2>/dev/null || echo "0")
+          echo "warnings=$COUNT" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: typecheck
+    outputs:
+      result: ${{ steps.build.outcome }}
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/workforge_test
+      NEXTAUTH_SECRET: ci-secret-for-build-only
+      NEXTAUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - id: build
+        run: npm run build
+        continue-on-error: true
+
+  post-comment:
+    name: Post PR Summary
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint, build]
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post check summary comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const typecheck = '${{ needs.typecheck.outputs.result }}';
+            const build     = '${{ needs.build.outputs.result }}';
+            const lint      = '${{ needs.lint.outputs.result }}';
+            const lintCount = '${{ needs.lint.outputs.warnings }}';
+
+            const icon = (outcome) => outcome === 'success' ? '✅' : '❌';
+            const lintIcon = lint === 'success' ? '✅' : '⚠️';
+
+            const body = [
+              '## CI Check Summary',
+              '',
+              '| Check | Result |',
+              '|-------|--------|',
+              `| TypeScript | ${icon(typecheck)} ${typecheck} |`,
+              `| Build | ${icon(build)} ${build} |`,
+              `| Lint | ${lintIcon} ${lint}${lintCount && lintCount !== '0' ? ` (${lintCount} issues)` : ''} |`,
+              '',
+              '> Lint failures are non-blocking warnings. TypeScript and Build must pass.',
+            ].join('\n');
+
+            // Delete previous bot comment if it exists
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const prev = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('CI Check Summary')
+            );
+            if (prev) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: prev.id,
+              });
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

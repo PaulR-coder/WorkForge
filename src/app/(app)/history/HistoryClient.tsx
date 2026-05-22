@@ -16,6 +16,7 @@ type HistoryJob = {
   status: string
   completedAt: string | null
   archivedAt: string | null
+  deletedAt: string | null
   createdAt: string
   tech: { id: string; name: string; initials: string } | null
   invoices: { total: number; status: string }[]
@@ -26,7 +27,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 }
 
 function exportCSV(jobs: HistoryJob[]) {
-  const header = ['Client', 'Type', 'Address', 'Tech', 'Priority', 'Completed', 'Archived', 'Invoice Total']
+  const header = ['Client', 'Type', 'Address', 'Tech', 'Priority', 'Completed', 'Archived', 'Deleted', 'Invoice Total']
   const rows = jobs.map(j => [
     j.client,
     j.type,
@@ -35,6 +36,7 @@ function exportCSV(jobs: HistoryJob[]) {
     j.priority,
     j.completedAt ? new Date(j.completedAt).toLocaleDateString() : '',
     j.archivedAt ? new Date(j.archivedAt).toLocaleDateString() : '',
+    j.deletedAt ? new Date(j.deletedAt).toLocaleDateString() : '',
     j.invoices.reduce((s, i) => s + i.total, 0).toFixed(2),
   ])
   const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -50,8 +52,9 @@ function exportCSV(jobs: HistoryJob[]) {
 export default function HistoryClient({ initialJobs, session }: { initialJobs: HistoryJob[]; session: SessionUser }) {
   const [jobs, setJobs] = useState<HistoryJob[]>(initialJobs)
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all')
+  const [filter, setFilter] = useState<'all' | 'active' | 'archived' | 'deleted'>('all')
   const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [undeletingId, setUndeletingId] = useState<string | null>(null)
   const { t } = useLang()
   const isMobile = useIsMobile()
   const { toast } = useToast()
@@ -59,7 +62,10 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
   const filtered = jobs.filter(j => {
     const q = search.toLowerCase()
     const matchesSearch = !q || j.client.toLowerCase().includes(q) || j.type.toLowerCase().includes(q) || (j.tech?.name.toLowerCase().includes(q) ?? false)
-    const matchesFilter = filter === 'all' || (filter === 'archived' ? !!j.archivedAt : !j.archivedAt)
+    let matchesFilter = true
+    if (filter === 'archived') matchesFilter = !!j.archivedAt && !j.deletedAt
+    else if (filter === 'deleted') matchesFilter = !!j.deletedAt
+    else if (filter === 'active') matchesFilter = !j.archivedAt && !j.deletedAt
     return matchesSearch && matchesFilter
   })
 
@@ -82,10 +88,27 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
     setRestoringId(null)
   }
 
+  async function undeleteJob(id: string) {
+    setUndeletingId(id)
+    const res = await fetch(`/api/jobs/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'undelete' }),
+    })
+    if (res.ok) {
+      setJobs(prev => prev.map(j => j.id === id ? { ...j, deletedAt: null } : j))
+      toast('Job restored to board', 'success')
+    } else {
+      toast('Failed to restore job', 'error')
+    }
+    setUndeletingId(null)
+  }
+
   const kpiBoxes: { label: string; value: string | number; show?: boolean }[] = [
     { label: 'Total Jobs', value: filtered.length },
     { label: 'This Month', value: thisMonth },
-    { label: 'Archived', value: filtered.filter(j => j.archivedAt).length },
+    { label: 'Archived', value: filtered.filter(j => j.archivedAt && !j.deletedAt).length },
+    { label: 'Deleted', value: jobs.filter(j => j.deletedAt).length, show: !isMobile },
     { label: 'Paid Revenue', value: `$${totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, show: !isMobile },
   ]
 
@@ -97,7 +120,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
           <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px', marginBottom: 3 }}>
             {t('jobHistory')}
           </h1>
-          <div style={{ fontSize: 12, color: 'var(--text4)' }}>All completed and archived work orders</div>
+          <div style={{ fontSize: 12, color: 'var(--text4)' }}>All completed, archived, and deleted work orders</div>
         </div>
         <button
           onClick={() => exportCSV(filtered)}
@@ -157,18 +180,22 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
         </div>
 
         {/* Filter pills */}
-        {(['all', 'active', 'archived'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            style={{
-              padding: '9px 16px', borderRadius: 20, fontFamily: 'inherit',
-              border: `1px solid ${filter === f ? 'var(--amber)' : 'var(--border)'}`,
-              background: filter === f ? 'rgba(245,158,11,.12)' : 'var(--bg2)',
-              color: filter === f ? 'var(--amber)' : 'var(--text3)',
-              fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            }}>
-            {f === 'all' ? 'All' : f === 'active' ? 'On Board' : 'Archived'}
-          </button>
-        ))}
+        {(['all', 'active', 'archived', 'deleted'] as const).map(f => {
+          const isActive = filter === f
+          const isDeleted = f === 'deleted'
+          return (
+            <button key={f} onClick={() => setFilter(f)}
+              style={{
+                padding: '9px 16px', borderRadius: 20, fontFamily: 'inherit',
+                border: `1px solid ${isActive ? (isDeleted ? 'var(--red)' : 'var(--amber)') : 'var(--border)'}`,
+                background: isActive ? (isDeleted ? 'rgba(239,68,68,.12)' : 'rgba(245,158,11,.12)') : 'var(--bg2)',
+                color: isActive ? (isDeleted ? 'var(--red)' : 'var(--amber)') : 'var(--text3)',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}>
+              {f === 'all' ? 'All' : f === 'active' ? 'On Board' : f === 'archived' ? 'Archived' : t('deleted')}
+            </button>
+          )
+        })}
       </div>
 
       {/* Table */}
@@ -218,9 +245,14 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
               >
                 {/* Client */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{job.client}</span>
-                    {job.archivedAt && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: job.deletedAt ? 'var(--text4)' : 'var(--text)', textDecoration: job.deletedAt ? 'line-through' : 'none' }}>{job.client}</span>
+                    {job.deletedAt && (
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'rgba(239,68,68,.12)', color: 'var(--red)', border: '1px solid rgba(239,68,68,.25)' }}>
+                        {t('deleted')}
+                      </span>
+                    )}
+                    {job.archivedAt && !job.deletedAt && (
                       <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--bg4)', color: 'var(--text4)', border: '1px solid var(--border)' }}>
                         {t('archived')}
                       </span>
@@ -269,7 +301,7 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
 
                 {/* Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                  {can(session.role, 'archiveJob') && job.archivedAt && (
+                  {can(session.role, 'archiveJob') && job.archivedAt && !job.deletedAt && (
                     <button
                       onClick={() => restoreJob(job.id)}
                       disabled={restoringId === job.id}
@@ -281,6 +313,21 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
                         fontFamily: 'inherit',
                       }}>
                       {restoringId === job.id ? '…' : t('restore')}
+                    </button>
+                  )}
+                  {can(session.role, 'deleteJob') && job.deletedAt && (
+                    <button
+                      onClick={() => undeleteJob(job.id)}
+                      disabled={undeletingId === job.id}
+                      style={{
+                        padding: '5px 10px', background: 'transparent',
+                        border: '1px solid rgba(239,68,68,.35)',
+                        borderRadius: 7, color: 'var(--red)', fontSize: 11, fontWeight: 700,
+                        cursor: undeletingId === job.id ? 'wait' : 'pointer',
+                        opacity: undeletingId === job.id ? 0.5 : 1, whiteSpace: 'nowrap',
+                        fontFamily: 'inherit',
+                      }}>
+                      {undeletingId === job.id ? '…' : t('restoreDeleted')}
                     </button>
                   )}
                 </div>

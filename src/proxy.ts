@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 
+// ---------------------------------------------------------------------------
+// Maintenance mode
+// Set MAINTENANCE_MODE=true in your environment to enable.
+// ---------------------------------------------------------------------------
+const MAINTENANCE_EXEMPT = ['/maintenance', '/api/health', '/_next/', '/favicon']
+
+function isMaintenanceExempt(pathname: string): boolean {
+  return MAINTENANCE_EXEMPT.some(p => pathname.startsWith(p))
+}
+
 // Paths accessible without a session
 const PUBLIC_PATHS = [
   '/login', '/register', '/verify', '/forgot-password', '/reset-password', '/invite', '/terms', '/privacy',
@@ -16,6 +26,16 @@ const SUPERADMIN_PATHS = ['/superadmin', '/api/superadmin']
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Maintenance mode: redirect all non-exempt traffic to /maintenance,
+  // and redirect /maintenance back to / when maintenance is off.
+  const maintenanceOn = process.env.MAINTENANCE_MODE === 'true'
+  if (maintenanceOn && !isMaintenanceExempt(pathname)) {
+    return NextResponse.redirect(new URL('/maintenance', request.url))
+  }
+  if (!maintenanceOn && pathname === '/maintenance') {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
   // CSRF protection: for any state-changing API call originating from a browser,
   // verify the Origin header matches our own host so other sites cannot issue

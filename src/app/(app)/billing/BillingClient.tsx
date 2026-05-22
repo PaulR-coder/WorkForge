@@ -27,7 +27,7 @@ export default function BillingClient({
   hasStripeCustomer: boolean
   hasSubscription: boolean
 }) {
-  const [loading, setLoading] = useState<'checkout' | 'portal' | null>(null)
+  const [loading, setLoading] = useState<'checkout' | 'portal' | 'cancel' | null>(null)
   const params = useSearchParams()
   const justSubscribed = params.get('success') === '1'
 
@@ -43,6 +43,10 @@ export default function BillingClient({
 
   const [showDisclosure, setShowDisclosure] = useState(false)
   const [disclosureAccepted, setDisclosureAccepted] = useState(false)
+
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelledLocally, setCancelledLocally] = useState(false)
 
   function handleSubscribeClick() {
     setShowDisclosure(true)
@@ -70,6 +74,21 @@ export default function BillingClient({
     }
   }
 
+  async function confirmCancel() {
+    setLoading('cancel')
+    try {
+      await fetch('/api/billing/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: cancelReason }),
+      })
+      setShowCancelModal(false)
+      setCancelledLocally(true)
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: '24px 20px' }}>
       {/* Header */}
@@ -87,6 +106,21 @@ export default function BillingClient({
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>You&apos;re subscribed!</div>
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>WorkForge Pro is now active on your account.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation confirmation banner */}
+      {cancelledLocally && (
+        <div style={{ marginBottom: 20, padding: '14px 16px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(239,68,68,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>Subscription cancelled</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>Your access continues until the end of your billing period.</div>
           </div>
         </div>
       )}
@@ -165,6 +199,19 @@ export default function BillingClient({
             </button>
           )}
         </div>
+
+        {/* Cancel subscription link — only when active or trialing, and not already cancelled locally */}
+        {(subscriptionStatus === 'active' || subscriptionStatus === 'trialing') && !cancelledLocally && (
+          <div style={{ marginTop: 14 }}>
+            <button
+              onClick={() => setShowCancelModal(true)}
+              disabled={loading !== null}
+              style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: 'var(--red)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 0.75, textDecoration: 'underline', textUnderlineOffset: 2 }}
+            >
+              Cancel subscription
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Plan features */}
@@ -183,6 +230,63 @@ export default function BillingClient({
           ))}
         </div>
       </div>
+
+      {/* Cancel subscription modal */}
+      {showCancelModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{
+            background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16,
+            padding: '0 0 24px', maxWidth: 440, width: '100%', boxShadow: '0 24px 80px rgba(0,0,0,.5)',
+            overflow: 'hidden',
+          }}>
+            {/* Red top accent */}
+            <div style={{ height: 3, background: 'var(--red)', borderRadius: '16px 16px 0 0' }} />
+            <div style={{ padding: '22px 28px 0' }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px', marginBottom: 10 }}>
+                Cancel your subscription?
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text3)', lineHeight: 1.6, marginBottom: 18 }}>
+                Your access continues until the end of your billing period. After that, your account will be downgraded.
+              </p>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 7 }}>
+                  Tell us why you&apos;re leaving (optional)
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  rows={3}
+                  placeholder="We read every response…"
+                  style={{
+                    width: '100%', boxSizing: 'border-box', background: 'var(--bg3)',
+                    border: '1px solid var(--border)', borderRadius: 9,
+                    padding: '10px 12px', fontSize: 13, color: 'var(--text)',
+                    resize: 'vertical', outline: 'none', fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => { setShowCancelModal(false); setCancelReason('') }}
+                  disabled={loading === 'cancel'}
+                  style={{ flex: 1, padding: '11px 0', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, fontSize: 13, fontWeight: 700, color: 'var(--text3)', cursor: loading === 'cancel' ? 'wait' : 'pointer' }}
+                >
+                  Keep My Plan
+                </button>
+                <button
+                  onClick={confirmCancel}
+                  disabled={loading === 'cancel'}
+                  style={{ flex: 1, padding: '11px 0', background: 'var(--red)', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: loading === 'cancel' ? 'wait' : 'pointer', opacity: loading === 'cancel' ? 0.7 : 1 }}
+                >
+                  {loading === 'cancel' ? 'Cancelling…' : 'Cancel Subscription'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Subscription disclosure modal — FTC Negative Option Rule & CA ARL compliance */}
       {showDisclosure && (

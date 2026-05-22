@@ -5,6 +5,7 @@ const SECURITY_HEADERS = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-XSS-Protection', value: '1; mode=block' },
+  { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // geolocation=(self) allows the On Duty location toggle; camera/mic remain blocked
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },

@@ -15,6 +15,7 @@ export async function GET() {
   const where = {
     ...tenantFilter,
     archivedAt: null,
+    deletedAt: null,
     ...(session.role === 'tech' ? { techId: session.id } : {}),
   }
 

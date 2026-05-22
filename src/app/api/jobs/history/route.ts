@@ -14,7 +14,7 @@ export async function GET() {
   const jobs = await db.job.findMany({
     where: {
       ...tenantFilter,
-      OR: [{ status: 'done' }, { archivedAt: { not: null } }],
+      OR: [{ status: 'done' }, { archivedAt: { not: null } }, { deletedAt: { not: null } }],
     },
     include: {
       tech: { select: { id: true, name: true, initials: true } },

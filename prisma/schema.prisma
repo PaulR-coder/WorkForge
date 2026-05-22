@@ -171,6 +171,7 @@ model Job {
   tenant     Tenant?   @relation(fields: [tenantId], references: [id])
 
   archivedAt DateTime?
+  deletedAt  DateTime?
 
   invoices    Invoice[]
   payments    Payment[]
