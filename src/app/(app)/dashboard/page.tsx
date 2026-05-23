@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
 import { getTenantFilter } from '@/lib/tenant'
 import Link from 'next/link'
-import { RevenueBarChart, JobsDonutChart } from '@/components/charts/RevenueChart'
+import { RevenueBarChart } from '@/components/charts/RevenueChart'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -247,12 +247,15 @@ export default async function DashboardPage() {
     }
   })
 
-  const jobStatusData = [
-    { status: 'open',        count: jobs.filter(j => j.status === 'open').length,        color: '#5ba3f5' },
-    { status: 'scheduled',   count: jobs.filter(j => j.status === 'scheduled').length,   color: '#f59e0b' },
-    { status: 'in_progress', count: jobs.filter(j => j.status === 'in_progress').length, color: '#a78bfa' },
-    { status: 'done',        count: jobs.filter(j => j.status === 'done').length,         color: '#22c55e' },
-  ].filter(d => d.count > 0)
+  const jobTypeBreakdown = Object.entries(
+    jobs.reduce<Record<string, number>>((acc, j) => {
+      if (!j.type) return acc
+      acc[j.type] = (acc[j.type] ?? 0) + 1
+      return acc
+    }, {})
+  ).sort((a, b) => b[1] - a[1])
+
+  const maxTypeCount = jobTypeBreakdown[0]?.[1] ?? 1
 
   const JOB_PRIORITY: Record<string, string> = { low: 'var(--text4)', normal: '#5ba3f5', high: 'var(--amber)', urgent: 'var(--red)' }
   const JOB_STATUS: Record<string, { label: string; color: string }> = {
@@ -381,21 +384,45 @@ export default async function DashboardPage() {
 
       {/* ── KPIs ────────────────────────────────────────────────────────────── */}
       <Section title="This Month">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-          <KpiCard
-            href="/invoices"
-            value={`$${paidAmt.toLocaleString()}`}
-            label="Revenue Collected"
-            color={paidAmt > 0 ? 'var(--green)' : 'var(--text4)'}
-            sub={`${invoices.filter(i => i.status === 'paid').length} paid invoice${invoices.filter(i => i.status === 'paid').length !== 1 ? 's' : ''}`}
-          />
-          <KpiCard
-            href="/invoices"
-            value={`$${outstanding.toLocaleString()}`}
-            label="Outstanding"
-            color={overdueInv.length > 0 ? 'var(--red)' : outstanding > 0 ? 'var(--amber)' : 'var(--text4)'}
-            sub={overdueInv.length > 0 ? `${overdueInv.length} overdue` : outstanding > 0 ? 'All current' : 'Nothing owed'}
-          />
+        {/* Revenue split card */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '20px 24px', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 32, alignItems: 'flex-end', marginBottom: 16, flexWrap: 'wrap' }}>
+            <Link href="/invoices?status=paid" style={{ textDecoration: 'none' }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--green)', letterSpacing: '-1px', lineHeight: 1 }}>${paidAmt.toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: 'var(--text4)', fontWeight: 600, marginTop: 3 }}>Collected ↗</div>
+            </Link>
+            <Link href="/invoices?status=outstanding" style={{ textDecoration: 'none' }}>
+              <div style={{ fontSize: 28, fontWeight: 900, color: outstanding > 0 ? 'var(--amber)' : 'var(--text4)', letterSpacing: '-1px', lineHeight: 1 }}>${outstanding.toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: 'var(--text4)', fontWeight: 600, marginTop: 3 }}>Outstanding ↗</div>
+            </Link>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', letterSpacing: '-0.5px', lineHeight: 1 }}>${(paidAmt + outstanding).toLocaleString()}</div>
+              <div style={{ fontSize: 11, color: 'var(--text4)', fontWeight: 600, marginTop: 3 }}>Total Invoiced</div>
+            </div>
+          </div>
+          {(paidAmt + outstanding) > 0 && (
+            <>
+              <div style={{ height: 8, background: 'var(--bg4)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
+                <div style={{
+                  height: '100%', borderRadius: 99,
+                  width: `${Math.round((paidAmt / (paidAmt + outstanding)) * 100)}%`,
+                  background: 'var(--green)',
+                }} />
+              </div>
+              <div style={{ display: 'flex', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text4)', fontWeight: 600 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--green)', flexShrink: 0 }} />
+                  Paid ({Math.round((paidAmt / (paidAmt + outstanding)) * 100)}%)
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text4)', fontWeight: 600 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)', flexShrink: 0 }} />
+                  Outstanding ({Math.round((outstanding / (paidAmt + outstanding)) * 100)}%)
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
           <KpiCard
             href="/jobs"
             value={String(activeJobs.length)}
@@ -546,10 +573,50 @@ export default async function DashboardPage() {
             <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 14 }}>Total invoice value by month</div>
             <RevenueBarChart data={monthlyRevenue} />
           </div>
-          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+          <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>Jobs by Status</div>
             <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 16 }}>Current breakdown</div>
-            <JobsDonutChart data={jobStatusData} />
+            {/* Clickable status breakdown */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                { status: 'open',        label: 'Open',        color: '#5ba3f5', count: jobs.filter(j => j.status === 'open').length },
+                { status: 'scheduled',   label: 'Scheduled',   color: 'var(--amber)', count: jobs.filter(j => j.status === 'scheduled').length },
+                { status: 'in_progress', label: 'In Progress', color: 'var(--purple)', count: jobs.filter(j => j.status === 'in_progress').length },
+                { status: 'done',        label: 'Done',        color: 'var(--green)', count: jobs.filter(j => j.status === 'done').length },
+              ].map(({ status, label, color, count }) => (
+                <Link key={status} href={`/jobs?status=${status}`} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
+                    padding: '16px 18px',
+                  }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, color, letterSpacing: '-0.5px', lineHeight: 1 }}>{count}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            {jobTypeBreakdown.length > 0 && (
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px', marginTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 3 }}>Jobs by Trade Type</div>
+                <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 14 }}>Click a type to filter the jobs board</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {jobTypeBreakdown.slice(0, 6).map(([type, count]) => (
+                    <Link key={type} href={`/jobs?type=${encodeURIComponent(type)}`} style={{ textDecoration: 'none', display: 'block' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{type}</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)' }}>{count} job{count !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div style={{ height: 5, background: 'var(--bg4)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 99, background: '#5ba3f5',
+                          width: `${Math.round((count / maxTypeCount) * 100)}%`,
+                        }} />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Section>
