@@ -55,9 +55,28 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
   const [filter, setFilter] = useState<'all' | 'active' | 'archived' | 'deleted'>('all')
   const [restoringId, setRestoringId] = useState<string | null>(null)
   const [undeletingId, setUndeletingId] = useState<string | null>(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo,   setDateTo]   = useState('')
+  const [loading,  setLoading]  = useState(false)
   const { t } = useLang()
   const isMobile = useIsMobile()
   const { toast } = useToast()
+
+  async function fetchFiltered(from: string, to: string) {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (from) params.set('from', from)
+      if (to)   params.set('to', to)
+      const res  = await fetch(`/api/jobs/history?${params}`)
+      const data = await res.json()
+      if (Array.isArray(data)) setJobs(data)
+    } catch {
+      toast('Failed to load history', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filtered = jobs.filter(j => {
     const q = search.toLowerCase()
@@ -234,6 +253,40 @@ export default function HistoryClient({ initialJobs, session }: { initialJobs: H
             </button>
           )
         })}
+      </div>
+
+      {/* Date Range Filter */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)' }}>From</label>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={e => { setDateFrom(e.target.value); fetchFiltered(e.target.value, dateTo) }}
+          style={{
+            background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+            padding: '6px 10px', fontSize: 12, color: 'var(--text2)', cursor: 'pointer',
+          }}
+        />
+        <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)' }}>To</label>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={e => { setDateTo(e.target.value); fetchFiltered(dateFrom, e.target.value) }}
+          style={{
+            background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+            padding: '6px 10px', fontSize: 12, color: 'var(--text2)', cursor: 'pointer',
+          }}
+        />
+        {(dateFrom || dateTo) && (
+          <button
+            type="button"
+            onClick={() => { setDateFrom(''); setDateTo(''); fetchFiltered('', '') }}
+            style={{ fontSize: 11, color: 'var(--amber)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+          >
+            Clear
+          </button>
+        )}
+        {loading && <span style={{ fontSize: 11, color: 'var(--text4)' }}>Loading…</span>}
       </div>
 
       {/* Table */}
