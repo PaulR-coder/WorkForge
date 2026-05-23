@@ -11,24 +11,39 @@ export async function GET() {
 
   const tenantFilter = getTenantFilter(session)
 
-  const techs = await db.user.findMany({
-    where: {
-      sharingLocation: true,
-      lat: { not: null },
-      lng: { not: null },
-      locatedAt: { not: null },
-      active: true,
-      ...tenantFilter,
-    },
-    select: { id: true, name: true, initials: true, role: true, lat: true, lng: true, locatedAt: true },
-    orderBy: { name: 'asc' },
-  })
+  const [techs, equipmentRaw] = await Promise.all([
+    db.user.findMany({
+      where: {
+        sharingLocation: true,
+        lat: { not: null },
+        lng: { not: null },
+        locatedAt: { not: null },
+        active: true,
+        ...tenantFilter,
+      },
+      select: { id: true, name: true, initials: true, role: true, lat: true, lng: true, locatedAt: true },
+      orderBy: { name: 'asc' },
+    }),
+    db.equipment.findMany({
+      where: { ...tenantFilter, lat: { not: null }, lng: { not: null } },
+      select: { id: true, name: true, client: true, icon: true, lat: true, lng: true, locatedAt: true, assignedJobId: true },
+    }),
+  ])
 
   // Cast nulls away — the where clause guarantees these fields are non-null
-  return Response.json(techs.map(t => ({
+  const users = techs.map(t => ({
     ...t,
     lat: t.lat!,
     lng: t.lng!,
     locatedAt: t.locatedAt!.toISOString(),
-  })))
+  }))
+
+  const equipment = equipmentRaw.map(e => ({
+    ...e,
+    lat: e.lat!,
+    lng: e.lng!,
+    locatedAt: e.locatedAt ? e.locatedAt.toISOString() : null,
+  }))
+
+  return Response.json({ users, equipment })
 }

@@ -12,6 +12,15 @@ type TechLoc = {
   locatedAt: string
 }
 
+type EquipmentPin = {
+  id: string
+  name: string
+  client: string
+  lat: number
+  lng: number
+  locatedAt: string | null
+}
+
 function timeAgo(iso: string): string {
   const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000)
   if (s < 60) return `${s}s ago`
@@ -46,8 +55,10 @@ export default function TeamMap() {
   const containerRef  = useRef<HTMLDivElement>(null)
   const mapRef        = useRef<{ map: any; L: any } | null>(null)
   const markersRef    = useRef<Record<string, any>>({})
+  const eqMarkersRef  = useRef<Record<string, any>>({})
   const initialFitRef = useRef(false)
   const [locs, setLocs]         = useState<TechLoc[]>([])
+  const [equipment, setEquipment] = useState<EquipmentPin[]>([])
   const [mapReady, setMapReady] = useState(false)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(false)
@@ -81,6 +92,7 @@ export default function TeamMap() {
       cancelled = true
       mapRef.current?.map.remove()
       mapRef.current = null
+      eqMarkersRef.current = {}
     }
   }, [])
 
@@ -132,14 +144,56 @@ export default function TeamMap() {
     }
   }, [locs, mapReady, tick])
 
+  // Sync equipment markers whenever equipment or mapReady changes
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return
+    const { map, L } = mapRef.current
+    const remaining = new Set(Object.keys(eqMarkersRef.current))
+
+    const equipmentIcon = L.divIcon({
+      html: `<div style="width:28px;height:28px;background:#f59e0b;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">⚙</div>`,
+      className: '',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -18],
+    })
+
+    for (const eq of equipment) {
+      const popupContent = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2px 0;min-width:140px">
+        <div style="font-size:13px;font-weight:800;color:#f8fafc;margin-bottom:4px">⚙ ${eq.name}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Client: ${eq.client}</div>
+        ${eq.locatedAt ? `<div style="font-size:10px;color:#64748b;margin-top:4px">Located ${new Date(eq.locatedAt).toLocaleString()}</div>` : ''}
+      </div>`
+
+      if (eqMarkersRef.current[eq.id]) {
+        eqMarkersRef.current[eq.id].setLatLng([eq.lat, eq.lng])
+        eqMarkersRef.current[eq.id].getPopup()?.setContent(popupContent)
+      } else {
+        const marker = L.marker([eq.lat, eq.lng], { icon: equipmentIcon })
+          .addTo(map)
+          .bindPopup(popupContent, { closeButton: false, className: 'wf-map-popup' })
+        eqMarkersRef.current[eq.id] = marker
+      }
+      remaining.delete(eq.id)
+    }
+
+    for (const id of remaining) {
+      eqMarkersRef.current[id].remove()
+      delete eqMarkersRef.current[id]
+    }
+  }, [equipment, mapReady])
+
   // Poll every 30s — always call setLoading(false) via finally so the
   // loading overlay never gets stuck on API errors or non-200 responses
   const poll = useCallback(async () => {
     try {
       const res = await fetch('/api/users/locations')
       if (res.ok) {
-        const data: TechLoc[] = await res.json()
-        setLocs(data)
+        const data = await res.json()
+        const users: TechLoc[] = Array.isArray(data) ? data : (data.users ?? [])
+        const eqs: EquipmentPin[] = Array.isArray(data) ? [] : (data.equipment ?? [])
+        setLocs(users)
+        setEquipment(eqs)
         setLastPoll(Date.now())
         setError(false)
       } else {
@@ -176,9 +230,9 @@ export default function TeamMap() {
               ? 'Loading…'
               : error
                 ? 'Could not load locations'
-                : locs.length === 0
+                : locs.length === 0 && equipment.length === 0
                   ? 'No techs sharing location right now'
-                  : `${onDutyCount} of ${locs.length} tech${locs.length !== 1 ? 's' : ''} active`}
+                  : `${onDutyCount} of ${locs.length} tech${locs.length !== 1 ? 's' : ''} active${equipment.length > 0 ? ` · ${equipment.length} equipment pin${equipment.length !== 1 ? 's' : ''}` : ''}`}
             {lastPoll && !loading && !error && (
               <span style={{ marginLeft: 8, opacity: 0.6 }}>· updated {timeAgo(new Date(lastPoll).toISOString())}</span>
             )}
@@ -216,7 +270,7 @@ export default function TeamMap() {
           </div>
         )}
 
-        {!loading && !error && locs.length === 0 && (
+        {!loading && !error && locs.length === 0 && equipment.length === 0 && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 500, pointerEvents: 'none' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📍</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>No techs on duty</div>
