@@ -7,16 +7,23 @@ import { smsJobAssigned } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push'
 import { cache } from '@/lib/cache'
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { searchParams } = new URL(req.url)
+  const techId = searchParams.get('techId')
+
   // Per-tenant cache key.  Techs see a filtered subset, so we include their
   // id in the key to prevent cross-user cache collisions.
+  // When filtering by a specific techId (admin viewing a tech's jobs), include
+  // that in the cache key as well.
   const cacheKey =
     session.role === 'tech'
       ? `jobs:${session.tenantId}:tech:${session.id}`
-      : `jobs:${session.tenantId}`
+      : techId
+        ? `jobs:${session.tenantId}:tech:${techId}`
+        : `jobs:${session.tenantId}`
 
   const cached = await cache.get(cacheKey)
   if (cached !== null) return Response.json(cached)
@@ -28,7 +35,7 @@ export async function GET() {
     ...tenantFilter,
     archivedAt: null,
     deletedAt: null,
-    ...(session.role === 'tech' ? { techId: session.id } : {}),
+    ...(session.role === 'tech' ? { techId: session.id } : techId ? { techId } : {}),
   }
 
   const jobs = await db.job.findMany({

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import TechJobsPanel from '@/components/team/TechJobsPanel'
 
 const ROLE_COLOR: Record<string, string> = {
   superadmin: 'var(--purple)',
@@ -30,6 +31,7 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
   const [saving, setSaving]       = useState(false)
   const [hovered, setHovered]     = useState(false)
   const [unlocking, setUnlocking] = useState(false)
+  const [showJobs, setShowJobs]   = useState(false)
   const [locked, setLocked]       = useState(() =>
     !!(user.lockedUntil && new Date(user.lockedUntil) > new Date())
   )
@@ -56,7 +58,15 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
   }
 
   return (
+    <>
+    {showJobs && (
+      <TechJobsPanel
+        tech={{ id: user.id, name: user.name, initials: user.initials, role: user.role, specialty: user.specialty }}
+        onClose={() => setShowJobs(false)}
+      />
+    )}
     <div
+      onClick={() => setShowJobs(true)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -69,6 +79,7 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
         boxShadow: hovered ? `0 8px 32px rgba(0,0,0,.45), 0 0 0 0px ${rc}` : 'none',
         transform: hovered ? 'translateY(-2px)' : 'none',
         position: 'relative',
+        cursor: 'pointer',
       }}
     >
       {/* Role accent stripe */}
@@ -169,7 +180,7 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
           {locked && canEdit && (
             <div style={{ paddingTop: 4 }}>
               <button
-                onClick={handleUnlock}
+                onClick={e => { e.stopPropagation(); void handleUnlock() }}
                 disabled={unlocking}
                 style={{
                   fontSize: 11, padding: '5px 12px', borderRadius: 7,
@@ -188,20 +199,20 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 11, color: 'var(--text4)', width: 14, textAlign: 'center', flexShrink: 0 }}>📞</span>
             {editing ? (
-              <div style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
+              <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
                 <input
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   placeholder="+1 555 000 0000"
                   autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter') savePhone(); if (e.key === 'Escape') setEditing(false) }}
+                  onKeyDown={e => { if (e.key === 'Enter') void savePhone(); if (e.key === 'Escape') setEditing(false) }}
                   style={{
                     flex: 1, fontSize: 11, padding: '5px 8px', borderRadius: 7,
                     border: '1px solid var(--amber)', background: 'var(--bg3)',
                     color: 'var(--text)', outline: 'none', fontFamily: 'var(--font-mono)',
                   }}
                 />
-                <button onClick={savePhone} disabled={saving} style={{
+                <button onClick={() => void savePhone()} disabled={saving} style={{
                   fontSize: 10, padding: '4px 10px', borderRadius: 6,
                   background: 'var(--green)', color: '#060a17', border: 'none',
                   cursor: 'pointer', fontWeight: 700, flexShrink: 0, fontFamily: 'var(--font-body)',
@@ -226,7 +237,7 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
                   {phone || 'No phone'}
                 </span>
                 {canEdit && (
-                  <button onClick={() => setEditing(true)} style={{
+                  <button onClick={e => { e.stopPropagation(); setEditing(true) }} style={{
                     fontSize: 9, padding: '2px 8px', borderRadius: 5,
                     background: 'var(--bg4)', color: 'var(--amber)',
                     border: '1px solid var(--amber-border)', cursor: 'pointer',
@@ -242,5 +253,6 @@ export default function TeamCard({ user, canEdit }: { user: User; canEdit: boole
         </div>
       </div>
     </div>
+    </>
   )
 }
