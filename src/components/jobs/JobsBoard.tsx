@@ -144,11 +144,11 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
   const timeSince  = Math.round((Date.now() - lastSync) / 1000)
   const techs      = users.filter(u => u.role === 'tech')
 
-  const jobTypes = [...new Set(jobs.map((j: { type?: string | null }) => j.type).filter((t): t is string => Boolean(t)))].sort()
+  const jobTypes = [...new Set(jobs.map(j => j.type).filter((v): v is string => Boolean(v)))].sort()
 
   const filteredJobs = jobs
-    .filter((j: { status: string }) => statusFilter === 'all' || j.status === statusFilter)
-    .filter((j: { type?: string | null }) => typeFilter === 'all' || j.type === typeFilter)
+    .filter(j => statusFilter === 'all' || j.status === statusFilter)
+    .filter(j => typeFilter === 'all' || j.type === typeFilter)
 
   const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
     width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
@@ -235,19 +235,19 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
           </div>
           {jobTypes.length > 1 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-              {['all', ...jobTypes].map(t => (
+              {['all', ...jobTypes].map(typeKey => (
                 <button
                   type="button"
-                  key={t}
-                  onClick={() => setTypeFilter(t)}
+                  key={typeKey}
+                  onClick={() => setTypeFilter(typeKey)}
                   style={{
                     padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
                     fontSize: 11, fontWeight: 700,
-                    background: typeFilter === t ? 'var(--amber)' : 'var(--bg3)',
-                    color: typeFilter === t ? '#060a17' : 'var(--text3)',
+                    background: typeFilter === typeKey ? 'var(--amber)' : 'var(--bg3)',
+                    color: typeFilter === typeKey ? '#060a17' : 'var(--text3)',
                   }}
                 >
-                  {t === 'all' ? 'All Types' : t}
+                  {typeKey === 'all' ? 'All Types' : typeKey}
                 </button>
               ))}
             </div>
