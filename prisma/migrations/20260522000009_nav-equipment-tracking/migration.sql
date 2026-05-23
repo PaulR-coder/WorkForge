@@ -12,7 +12,6 @@ ALTER TABLE "Equipment" ADD COLUMN IF NOT EXISTS "locatedAt"     TIMESTAMP(3);
 ALTER TABLE "Equipment" ADD COLUMN IF NOT EXISTS "assignedJobId" TEXT;
 
 -- AddForeignKey: Equipment.assignedJobId → Job.id
-ALTER TABLE "Equipment" DROP CONSTRAINT IF EXISTS "Equipment_assignedJobId_fkey";
 ALTER TABLE "Equipment" ADD CONSTRAINT "Equipment_assignedJobId_fkey"
   FOREIGN KEY ("assignedJobId") REFERENCES "Job"("id")
   ON DELETE SET NULL ON UPDATE CASCADE;

@@ -132,7 +132,7 @@ model User {
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
   sessionVersion      Int       @default(0)
-  sidebarPrefs        Json?     @default("{}")
+  sidebarPrefs        Json      @default("{}")
 
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
