@@ -19,6 +19,7 @@ type Job = {
   type: string
   priority: string
   status: string
+  scheduledAt?: string | Date | null
   tech: { id: string; name: string; initials: string } | null
 }
 
@@ -44,12 +45,16 @@ const TYPE_COLOR: Record<string, string> = {
   Refrigeration: '#a78bfa', Maintenance: '#6b7280', Emergency: 'var(--red)',
 }
 
-export default function JobsBoard({ initialJobs, users, session }: {
+export default function JobsBoard({ initialJobs, users, session, initialStatusFilter, initialTypeFilter }: {
   initialJobs: Job[]
   users: User[]
   session: SessionUser
+  initialStatusFilter?: string
+  initialTypeFilter?: string
 }) {
   const [jobs, setJobs]               = useState<Job[]>(initialJobs)
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter ?? 'all')
+  const [typeFilter, setTypeFilter]     = useState(initialTypeFilter ?? 'all')
   const [showCreate, setShowCreate]   = useState(false)
   const [form, setForm]               = useState({ client: '', address: '', type: 'HVAC', priority: 'normal', description: '', techId: '' })
   const [saving, setSaving]           = useState(false)
@@ -139,6 +144,12 @@ export default function JobsBoard({ initialJobs, users, session }: {
   const timeSince  = Math.round((Date.now() - lastSync) / 1000)
   const techs      = users.filter(u => u.role === 'tech')
 
+  const jobTypes = [...new Set(jobs.map((j: { type?: string | null }) => j.type).filter((t): t is string => Boolean(t)))].sort()
+
+  const filteredJobs = jobs
+    .filter((j: { status: string }) => statusFilter === 'all' || j.status === statusFilter)
+    .filter((j: { type?: string | null }) => typeFilter === 'all' || j.type === typeFilter)
+
   const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
     width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)',
     borderRadius: 9, color: 'var(--text)', fontSize: 13, padding: '10px 12px',
@@ -167,14 +178,14 @@ export default function JobsBoard({ initialJobs, users, session }: {
               {t('workOrders')}
             </h1>
             <span style={{ fontSize:12, color:'var(--text4)', fontFamily:'var(--font-mono, monospace)' }}>
-              {jobs.length}
+              {filteredJobs.length}
             </span>
           </div>
 
           {!isMobile && (
             <div style={{ display:'flex', gap:5, marginLeft:6 }}>
               {COLUMNS.map(col => {
-                const count = jobs.filter(j => j.status === col.key).length
+                const count = filteredJobs.filter(j => j.status === col.key).length
                 return (
                   <div key={col.key} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:20, background:`${col.color}14`, color:col.color, border:`1px solid ${col.color}28`, fontFamily:'var(--font-display, system-ui)', letterSpacing:'.3px' }}>
                     <span style={{ width:5, height:5, borderRadius:'50%', background:col.color, display:'inline-block' }} />
@@ -203,11 +214,51 @@ export default function JobsBoard({ initialJobs, users, session }: {
           </div>
         </div>
 
+        {/* ── Filter bar ────────────────────────────────────────────────── */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['all', ...COLUMNS.map(c => c.key)].map(s => (
+              <button
+                type="button"
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                style={{
+                  padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
+                  fontSize: 11, fontWeight: 700,
+                  background: statusFilter === s ? 'var(--amber)' : 'var(--bg3)',
+                  color: statusFilter === s ? '#060a17' : 'var(--text3)',
+                }}
+              >
+                {s === 'all' ? 'All Status' : t(COLUMNS.find(c => c.key === s)!.labelKey)}
+              </button>
+            ))}
+          </div>
+          {jobTypes.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              {['all', ...jobTypes].map(t => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setTypeFilter(t)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 700,
+                    background: typeFilter === t ? 'var(--amber)' : 'var(--bg3)',
+                    color: typeFilter === t ? '#060a17' : 'var(--text3)',
+                  }}
+                >
+                  {t === 'all' ? 'All Types' : t}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* ── Kanban board ──────────────────────────────────────────────── */}
         <div style={{ display:'grid', gridTemplateColumns:isMobile ? 'repeat(4, 82vw)' : 'repeat(4, 1fr)', gap:10, flex:1, overflowX:isMobile ? 'auto' : 'hidden', overflowY:'hidden', WebkitOverflowScrolling:'touch', scrollSnapType:isMobile ? 'x mandatory' : undefined, paddingBottom:isMobile ? 4 : 0 } as React.CSSProperties}>
 
           {COLUMNS.map(col => {
-            const colJobs    = jobs.filter(j => j.status === col.key)
+            const colJobs    = filteredJobs.filter(j => j.status === col.key)
             const isDragTarget = dragOver === col.key
 
             return (
@@ -299,6 +350,17 @@ export default function JobsBoard({ initialJobs, users, session }: {
                             <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', lineHeight:1.3, marginBottom:5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                               {job.client}
                             </div>
+
+                            {/* Scheduled time */}
+                            {job.scheduledAt && (
+                              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--amber)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span>⏰</span>
+                                {new Date(job.scheduledAt).toLocaleString('en-US', {
+                                  weekday: 'short', month: 'short', day: 'numeric',
+                                  hour: 'numeric', minute: '2-digit', hour12: true,
+                                })}
+                              </div>
+                            )}
 
                             {/* Address */}
                             <div style={{ fontSize:10, color:'var(--text4)', marginBottom:9, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>

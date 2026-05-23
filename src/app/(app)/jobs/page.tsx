@@ -4,7 +4,9 @@ import { redirect } from 'next/navigation'
 import JobsBoard from '@/components/jobs/JobsBoard'
 import { getTenantFilter } from '@/lib/tenant'
 
-export default async function JobsPage() {
+type Props = { searchParams: Promise<{ status?: string; type?: string }> }
+
+export default async function JobsPage({ searchParams }: Props) {
   const session = await getSession()
   if (!session) redirect('/login')
 
@@ -23,5 +25,6 @@ export default async function JobsPage() {
     }),
   ])
 
-  return <JobsBoard initialJobs={jobs} users={users} session={session} />
+  const params = await searchParams
+  return <JobsBoard initialJobs={jobs} users={users} session={session} initialStatusFilter={params.status} initialTypeFilter={params.type} />
 }
