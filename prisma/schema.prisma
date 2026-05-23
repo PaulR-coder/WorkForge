@@ -132,6 +132,7 @@ model User {
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
   sessionVersion      Int       @default(0)
+  sidebarPrefs        Json?     @default("{}")
 
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
@@ -190,8 +191,9 @@ model Job {
   payments    Payment[]
   messages    Message[]
   photos      Photo[]
-  equipment   Equipment[] @relation("JobEquipment")
-  estimate    Estimate?
+  equipment        Equipment[] @relation("JobEquipment")
+  activeEquipment  Equipment[] @relation("EquipmentActiveJob")
+  estimate         Estimate?
   timeEntries TimeEntry[]
 
   @@index([tenantId])
@@ -272,12 +274,19 @@ model Equipment {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  lat           Float?
+  lng           Float?
+  locatedAt     DateTime?
+  assignedJobId String?
+  assignedJob   Job?      @relation("EquipmentActiveJob", fields: [assignedJobId], references: [id])
+
   tenantId String?
   tenant   Tenant? @relation(fields: [tenantId], references: [id])
 
   jobs Job[] @relation("JobEquipment")
 
   @@index([tenantId])
+  @@index([assignedJobId])
 }
 
 model Contract {
