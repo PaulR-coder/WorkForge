@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '@/components/Toast'
 
 type Equipment = {
   id: string; client: string; name: string; brand: string; model: string
@@ -47,6 +48,7 @@ export default function EquipmentClient({
   initialEquipment: Equipment[]
   canEdit: boolean
 }) {
+  const { toast } = useToast()
   const [equipment, setEquipment] = useState(initialEquipment)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -474,9 +476,14 @@ export default function EquipmentClient({
               type="button"
               onClick={() => {
                 if (!navigator.geolocation) return
-                navigator.geolocation.getCurrentPosition(pos => {
-                  setLocForm(f => ({ ...f, lat: String(pos.coords.latitude), lng: String(pos.coords.longitude) }))
-                })
+                navigator.geolocation.getCurrentPosition(
+                  pos => {
+                    setLocForm(f => ({ ...f, lat: String(pos.coords.latitude), lng: String(pos.coords.longitude) }))
+                  },
+                  () => {
+                    // silently ignore — user denied or no GPS; inputs remain editable
+                  }
+                )
               }}
               style={{ width: '100%', padding: '10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginBottom: 12 }}
             >
@@ -526,13 +533,13 @@ export default function EquipmentClient({
                     setLocatingEquipment(null)
                     setLocForm({ lat: '', lng: '' })
                   } catch {
-                    // error visible via res.ok check
+                    toast('Failed to save location', 'error')
                   } finally {
                     setLocLoading(false)
                   }
                 }}
                 className="btn btn-primary"
-                style={{ flex: 2, opacity: (!locForm.lat || !locForm.lng) ? 0.5 : 1 }}
+                style={{ flex: 2, opacity: (locLoading || !locForm.lat || !locForm.lng) ? 0.5 : 1 }}
               >
                 {locLoading ? 'Saving…' : 'Save Location'}
               </button>
