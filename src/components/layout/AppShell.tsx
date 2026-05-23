@@ -9,7 +9,7 @@ import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 import SupportChat from '@/components/SupportChat'
-// TODO: Task 4 — import SidebarCustomizeDrawer from '@/components/layout/SidebarCustomizeDrawer'
+import SidebarCustomizeDrawer from '@/components/layout/SidebarCustomizeDrawer'
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
@@ -818,7 +818,6 @@ export default function AppShell({ session, children }: { session: SessionUser; 
       )}
 
       {supportOpen && <SupportChat onClose={() => setSupportOpen(false)} />}
-      {/* TODO: Task 4 — uncomment when SidebarCustomizeDrawer is created
       {customizeOpen && (
         <SidebarCustomizeDrawer
           groups={visibleGroups}
@@ -835,7 +834,6 @@ export default function AppShell({ session, children }: { session: SessionUser; 
           onClose={() => setCustomizeOpen(false)}
         />
       )}
-      */}
     </div>
   )
 }
