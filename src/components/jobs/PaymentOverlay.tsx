@@ -68,7 +68,7 @@ export default function PaymentOverlay({
   onClose,
   onSuccess,
 }: {
-  jobId: string
+  jobId?: string
   clientName: string
   onClose: () => void
   onSuccess: (amount: number) => void

@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<string, string> = {
   draft: 'var(--text3)', sent: '#5ba3f5', paid: 'var(--green)', overdue: 'var(--red)',
 }
 
-const TABS: TKeys[] = ['all', 'draft', 'sent', 'paid', 'overdue']
+const TABS: TKeys[] = ['all', 'draft', 'sent', 'paid', 'overdue', 'outstanding']
 
 const inp: React.CSSProperties = {
   width: '100%', background: '#111827', border: '1px solid rgba(255,255,255,.09)', borderRadius: 8,
@@ -183,6 +183,8 @@ export default function InvoicesClient({
       const normalized: Invoice = {
         ...created,
         dueDate: created.dueDate ? new Date(created.dueDate).toISOString() : new Date().toISOString(),
+        job: null,
+        payments: [],
       }
       setInvoices(prev => [normalized, ...prev])
       setCreateOpen(false)
@@ -601,7 +603,7 @@ export default function InvoicesClient({
       {/* PaymentOverlay — rendered outside detail panel so it overlays correctly */}
       {showPayment && selectedInvoice && (
         <PaymentOverlay
-          jobId={selectedInvoice.jobId ?? selectedInvoice.id}
+          jobId={selectedInvoice.jobId ?? undefined}
           clientName={selectedInvoice.client}
           onClose={() => setShowPayment(false)}
           onSuccess={() => {
