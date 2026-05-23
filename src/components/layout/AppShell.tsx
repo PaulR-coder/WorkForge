@@ -594,6 +594,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
                 </svg>
                 Customize sidebar
               </button>
+              {navLink({ href: '/help', icon: '❓', labelKey: 'helpCenter', perm: null })}
               <button
                 onClick={() => setSupportOpen(true)}
                 style={{
@@ -786,6 +787,7 @@ export default function AppShell({ session, children }: { session: SessionUser; 
 
             {/* Drawer footer */}
             <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+              {navLink({ href: '/help', icon: '❓', labelKey: 'helpCenter', perm: null }, true)}
               <button
                 onClick={() => { setMobileNavOpen(false); setSupportOpen(true) }}
                 style={{
