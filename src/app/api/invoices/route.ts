@@ -14,7 +14,10 @@ export async function GET() {
   const tenantFilter = getTenantFilter(session)
   const invoices = await db.invoice.findMany({
     where: tenantFilter,
-    include: { job: { select: { id: true, client: true, type: true } } },
+    include: {
+      job: { select: { id: true, client: true, type: true, scheduledAt: true, description: true } },
+      payments: { orderBy: { createdAt: 'desc' }, select: { id: true, amount: true, method: true, createdAt: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 

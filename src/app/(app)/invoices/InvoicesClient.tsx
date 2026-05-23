@@ -6,11 +6,13 @@ import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
+import PaymentOverlay from '@/components/jobs/PaymentOverlay'
 
 type Invoice = {
   id: string; number: string; client: string; clientEmail: string; total: number; status: string
-  dueDate: string; labor: number; parts: number; surcharge: number
-  job: { client: string; type: string } | null
+  dueDate: string; labor: number; parts: number; surcharge: number; jobId?: string | null
+  job: { client: string; type: string; scheduledAt: string | null; description: string } | null
+  payments: { id: string; amount: number; method: string; createdAt: string }[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -61,7 +63,7 @@ function ActionButtons({ inv, c, loadingId, emailSendingId, onUpdateStatus, onEm
     minHeight: 44,
   }
   return (
-    <div style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap', alignItems: 'center' }}>
       {inv.status === 'draft' && (
         <button onClick={() => onUpdateStatus(inv.id, 'sent')} disabled={busy}
           style={{ ...btnBase, background: 'var(--amber)', color: '#080c1a', opacity: busy ? 0.6 : 1 }}>
@@ -92,12 +94,22 @@ function ActionButtons({ inv, c, loadingId, emailSendingId, onUpdateStatus, onEm
   )
 }
 
-export default function InvoicesClient({ initialInvoices, session }: { initialInvoices: Invoice[]; session: SessionUser }) {
+export default function InvoicesClient({
+  initialInvoices,
+  session,
+  initialStatusFilter,
+}: {
+  initialInvoices: Invoice[]
+  session: SessionUser
+  initialStatusFilter?: string
+}) {
   const [invoices, setInvoices] = useState(initialInvoices)
-  const [tab, setTab] = useState('all')
+  const [tab, setTab] = useState(initialStatusFilter ?? 'all')
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [emailPrompt, setEmailPrompt] = useState<{ id: string; current: string } | null>(null)
   const [emailSendingId, setEmailSendingId] = useState<string | null>(null)
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [showPayment, setShowPayment] = useState(false)
   const { t } = useLang()
   const isMobile = useIsMobile()
 
@@ -180,7 +192,11 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
     }
   }
 
-  const filtered = tab === 'all' ? invoices : invoices.filter(i => i.status === tab)
+  const displayed = invoices.filter(inv => {
+    if (tab === 'all') return true
+    if (tab === 'outstanding') return ['sent', 'overdue'].includes(inv.status)
+    return inv.status === tab
+  })
 
   async function updateStatus(id: string, status: string) {
     setLoadingId(id)
@@ -299,7 +315,7 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
 
       {/* Invoice list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {filtered.length === 0 && (
+        {displayed.length === 0 && (
           <div style={{ textAlign: 'center', padding: '48px 20px', color: 'var(--text4)', fontSize: 13 }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px', opacity: .3 }}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
@@ -308,14 +324,14 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
           </div>
         )}
 
-        {filtered.map(inv => {
+        {displayed.map(inv => {
           const c = STATUS_COLORS[inv.status] ?? 'var(--text)'
           const due = new Date(inv.dueDate)
           const overdueDays = inv.status === 'overdue' ? Math.ceil((Date.now() - due.getTime()) / 86400000) : 0
 
           if (isMobile) {
             return (
-              <div key={inv.id} style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 12, padding: '14px 14px' }}>
+              <div key={inv.id} onClick={() => { setSelectedInvoice(inv); setShowPayment(false) }} style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 12, padding: '14px 14px', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
                   <div style={{ flex: 1, marginRight: 10 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{inv.client}</div>
@@ -345,7 +361,7 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
           }
 
           return (
-            <div key={inv.id} style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 10, padding: '11px 16px', display: 'grid', alignItems: 'center', gap: 12, gridTemplateColumns: '80px 1fr auto auto auto auto' }}>
+            <div key={inv.id} onClick={() => { setSelectedInvoice(inv); setShowPayment(false) }} style={{ background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 10, padding: '11px 16px', display: 'grid', alignItems: 'center', gap: 12, gridTemplateColumns: '80px 1fr auto auto auto auto', cursor: 'pointer' }}>
               {/* Invoice number */}
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', fontFamily: 'var(--font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.number}</div>
 
@@ -461,6 +477,145 @@ export default function InvoicesClient({ initialInvoices, session }: { initialIn
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invoice Detail Panel */}
+      {selectedInvoice && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) { setSelectedInvoice(null); setShowPayment(false) } }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 16 }}
+        >
+          <div style={{
+            background: '#0a0f1e', border: '1px solid rgba(255,255,255,.09)',
+            borderRadius: isMobile ? '20px 20px 0 0' : 16,
+            width: '100%', maxWidth: isMobile ? '100%' : 480,
+            maxHeight: isMobile ? '92vh' : '88vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,.7)',
+          }}>
+            <div style={{ height: 3, background: 'linear-gradient(90deg, var(--amber), #f97316)' }} />
+            <div style={{ padding: 24 }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text4)', fontFamily: 'var(--font-mono, monospace)', marginBottom: 4 }}>{selectedInvoice.number}</div>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', letterSpacing: '-.1px' }}>{selectedInvoice.client}</div>
+                  {selectedInvoice.clientEmail && (
+                    <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>{selectedInvoice.clientEmail}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => { setSelectedInvoice(null); setShowPayment(false) }}
+                  style={{ background: '#111827', border: '1px solid rgba(255,255,255,.09)', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', color: 'var(--text4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+
+              {/* Scheduled date */}
+              {selectedInvoice.job?.scheduledAt && (
+                <div style={{ background: 'var(--bg3, #111827)', borderRadius: 10, padding: '12px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>📅</span>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Service Scheduled</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
+                      {new Date(selectedInvoice.job.scheduledAt).toLocaleString('en-US', {
+                        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit', hour12: true,
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Totals breakdown */}
+              <div style={{ background: '#060a17', borderRadius: 10, padding: '14px 16px', marginBottom: 16, border: '1px solid rgba(255,255,255,.06)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text4)' }}>Labor</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', fontFamily: 'var(--font-mono, monospace)' }}>${selectedInvoice.labor.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text4)' }}>Parts</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', fontFamily: 'var(--font-mono, monospace)' }}>${selectedInvoice.parts.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, color: 'var(--text4)' }}>Surcharge</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', fontFamily: 'var(--font-mono, monospace)' }}>${selectedInvoice.surcharge.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid rgba(255,255,255,.07)' }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '.4px' }}>Total</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: STATUS_COLORS[selectedInvoice.status] ?? 'var(--text)', fontFamily: 'var(--font-mono, monospace)' }}>${selectedInvoice.total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Due date + status */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                <div style={{ flex: 1, background: '#111827', borderRadius: 9, padding: '10px 12px', border: '1px solid rgba(255,255,255,.06)' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 3 }}>Due Date</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', fontFamily: 'var(--font-mono, monospace)' }}>{new Date(selectedInvoice.dueDate).toLocaleDateString()}</div>
+                </div>
+                <div style={{ flex: 1, background: '#111827', borderRadius: 9, padding: '10px 12px', border: '1px solid rgba(255,255,255,.06)' }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.7px', marginBottom: 3 }}>Status</div>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: `${STATUS_COLORS[selectedInvoice.status] ?? 'var(--text)'}18`, color: STATUS_COLORS[selectedInvoice.status] ?? 'var(--text)', border: `1px solid ${STATUS_COLORS[selectedInvoice.status] ?? 'var(--text)'}30`, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+                    {t(selectedInvoice.status as TKeys)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Inline payment */}
+              {['draft', 'sent', 'overdue'].includes(selectedInvoice.status) && (
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.07)' }}>
+                  {!showPayment ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPayment(true)}
+                      style={{ width: '100%', padding: '12px 0', background: 'var(--amber)', color: '#080c1a', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px' }}
+                    >
+                      💳 Collect Payment — ${selectedInvoice.total?.toLocaleString()}
+                    </button>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Payment history */}
+              {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '1.1px', marginBottom: 8 }}>Payment History</div>
+                  {selectedInvoice.payments.map(p => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+                      <span style={{ fontSize: 14 }}>💳</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'capitalize' }}>{p.method}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text4)' }}>{new Date(p.createdAt).toLocaleDateString()}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--green)' }}>${p.amount.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PaymentOverlay — rendered outside detail panel so it overlays correctly */}
+      {showPayment && selectedInvoice && (
+        <PaymentOverlay
+          jobId={selectedInvoice.jobId ?? selectedInvoice.id}
+          clientName={selectedInvoice.client}
+          onClose={() => setShowPayment(false)}
+          onSuccess={() => {
+            setShowPayment(false)
+            fetch('/api/invoices').then(r => r.json()).then(data => {
+              if (Array.isArray(data)) {
+                setInvoices(data)
+                // refresh the selected invoice from new data
+                const updated = (data as Invoice[]).find(i => i.id === selectedInvoice.id)
+                if (updated) setSelectedInvoice(updated)
+              }
+            }).catch(() => {})
+          }}
+        />
       )}
 
       {/* Email invoice prompt */}

@@ -1,19 +1,26 @@
 import { getSession } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { tenantPrisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { can } from '@/lib/permissions'
 import { getTenantFilter } from '@/lib/tenant'
 import InvoicesClient from './InvoicesClient'
 
-export default async function InvoicesPage() {
+type Props = { searchParams: Promise<{ status?: string }> }
+
+export default async function InvoicesPage({ searchParams }: Props) {
+  const params = await searchParams
   const session = await getSession()
   if (!session) redirect('/login')
   if (!can(session.role, 'viewFinancials')) redirect('/jobs')
 
+  const db = tenantPrisma(session)
   const tenantFilter = getTenantFilter(session)
-  const invoices = await prisma.invoice.findMany({
+  const invoices = await db.invoice.findMany({
     where: tenantFilter,
-    include: { job: { select: { client: true, type: true } } },
+    include: {
+      job: { select: { client: true, type: true, scheduledAt: true, description: true } },
+      payments: { orderBy: { createdAt: 'desc' }, select: { id: true, amount: true, method: true, createdAt: true } },
+    },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -23,7 +30,15 @@ export default async function InvoicesPage() {
     paidAt: i.paidAt?.toISOString() ?? null,
     createdAt: i.createdAt.toISOString(),
     updatedAt: i.updatedAt.toISOString(),
+    job: i.job ? {
+      ...i.job,
+      scheduledAt: i.job.scheduledAt?.toISOString() ?? null,
+    } : null,
+    payments: i.payments.map(p => ({
+      ...p,
+      createdAt: p.createdAt.toISOString(),
+    })),
   }))
 
-  return <InvoicesClient initialInvoices={serialized} session={session} />
+  return <InvoicesClient initialInvoices={serialized} session={session} initialStatusFilter={params.status} />
 }
