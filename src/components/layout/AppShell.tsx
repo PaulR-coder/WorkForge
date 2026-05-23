@@ -159,26 +159,21 @@ export default function AppShell({ session, children }: { session: SessionUser; 
 
   useEffect(() => {
     fetch('/api/users/me/sidebar-prefs')
-      .then(r => r.json())
-      .then(prefs => {
-        if (Array.isArray(prefs.collapsedGroups)) setCollapsedGroups(new Set(prefs.collapsedGroups))
-        if (Array.isArray(prefs.hiddenItems))     setHiddenItems(new Set(prefs.hiddenItems))
+      .then(r => { if (!r.ok) return; return r.json() })
+      .then((prefs: { collapsedGroups?: unknown; hiddenItems?: unknown } | undefined) => {
+        if (!prefs) return
+        if (Array.isArray(prefs.collapsedGroups)) setCollapsedGroups(new Set(prefs.collapsedGroups.filter((x): x is string => typeof x === 'string')))
+        if (Array.isArray(prefs.hiddenItems))     setHiddenItems(new Set(prefs.hiddenItems.filter((x): x is string => typeof x === 'string')))
       })
       .catch(() => {})
   }, [])
 
   function toggleGroup(key: string) {
-    setCollapsedGroups(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      const prefs = { collapsedGroups: [...next], hiddenItems: [...hiddenItems] }
-      fetch('/api/users/me/sidebar-prefs', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prefs),
-      }).catch(() => {})
-      return next
-    })
+    const next = new Set(collapsedGroups)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    setCollapsedGroups(next)
+    const prefs = { collapsedGroups: [...next], hiddenItems: [...hiddenItems] }
+    fetch('/api/users/me/sidebar-prefs', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(prefs) }).catch(() => {})
   }
 
   useEffect(() => { setMobileNavOpen(false) }, [pathname])
