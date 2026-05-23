@@ -16,6 +16,7 @@ type EquipmentPin = {
   id: string
   name: string
   client: string
+  icon: string
   lat: number
   lng: number
   locatedAt: string | null
@@ -150,17 +151,17 @@ export default function TeamMap() {
     const { map, L } = mapRef.current
     const remaining = new Set(Object.keys(eqMarkersRef.current))
 
-    const equipmentIcon = L.divIcon({
-      html: `<div style="width:28px;height:28px;background:#f59e0b;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">⚙</div>`,
-      className: '',
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -18],
-    })
-
     for (const eq of equipment) {
+      const equipmentIcon = L.divIcon({
+        html: `<div style="width:28px;height:28px;background:#f59e0b;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)">${eq.icon || '⚙'}</div>`,
+        className: '',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -18],
+      })
+
       const popupContent = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2px 0;min-width:140px">
-        <div style="font-size:13px;font-weight:800;color:#f8fafc;margin-bottom:4px">⚙ ${eq.name}</div>
+        <div style="font-size:13px;font-weight:800;color:#f8fafc;margin-bottom:4px">${eq.icon || '⚙'} ${eq.name}</div>
         <div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Client: ${eq.client}</div>
         ${eq.locatedAt ? `<div style="font-size:10px;color:#64748b;margin-top:4px">Located ${new Date(eq.locatedAt).toLocaleString()}</div>` : ''}
       </div>`

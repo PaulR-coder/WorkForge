@@ -26,7 +26,7 @@ export async function GET() {
     }),
     db.equipment.findMany({
       where: { ...tenantFilter, lat: { not: null }, lng: { not: null } },
-      select: { id: true, name: true, client: true, icon: true, lat: true, lng: true, locatedAt: true, assignedJobId: true },
+      select: { id: true, name: true, client: true, icon: true, lat: true, lng: true, locatedAt: true },
     }),
   ])
 
