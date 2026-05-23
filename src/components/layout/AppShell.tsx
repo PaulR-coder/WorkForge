@@ -9,49 +9,47 @@ import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
 import SupportChat from '@/components/SupportChat'
+// TODO: Task 4 — import SidebarCustomizeDrawer from '@/components/layout/SidebarCustomizeDrawer'
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
 
 type NavItem = { href: string; icon: React.ReactNode; labelKey: TKeys; perm: string | null }
+type NavGroup = { label: string; key: string; items: NavItem[] }
 
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+const NAV_GROUPS: NavGroup[] = [
   {
-    label: 'Operations',
+    label: 'Operations', key: 'operations',
     items: [
-      { href: '/jobs',      icon: '🔧', labelKey: 'workOrders',     perm: null },
-      { href: '/estimates', icon: '📝', labelKey: 'estimates',       perm: 'createEstimate' },
-      { href: '/import',    icon: '📥', labelKey: 'importDocs',      perm: 'importData' },
-      { href: '/schedule',  icon: '📅', labelKey: 'schedule',        perm: 'assignTech' },
-      { href: '/field',     icon: '📱', labelKey: 'fieldView',       perm: null },
+      { href: '/jobs',      icon: '🔧', labelKey: 'workOrders', perm: null },
+      { href: '/schedule',  icon: '📅', labelKey: 'schedule',   perm: 'assignTech' },
+      { href: '/field',     icon: '📱', labelKey: 'fieldView',  perm: null },
+      { href: '/equipment', icon: '⚙',  labelKey: 'equipment',  perm: 'viewEquipment' },
+      { href: '/import',    icon: '📥', labelKey: 'importDocs', perm: 'importData' },
+    ],
+  },
+  {
+    label: 'Finances', key: 'finances',
+    items: [
+      { href: '/invoices',  icon: '💰', labelKey: 'invoices',  perm: 'viewFinancials' },
+      { href: '/estimates', icon: '📝', labelKey: 'estimates', perm: 'createEstimate' },
+      { href: '/contracts', icon: '📑', labelKey: 'contracts', perm: 'viewContracts' },
+      { href: '/billing',   icon: '💳', labelKey: 'billing',   perm: 'manageBilling' },
+    ],
+  },
+  {
+    label: 'Resources', key: 'resources',
+    items: [
+      { href: '/team',      icon: '👥', labelKey: 'team',            perm: null },
       { href: '/feedback',  icon: '💡', labelKey: 'featureRequests', perm: null },
     ],
   },
   {
-    label: 'Finance',
+    label: 'Reports', key: 'reports',
     items: [
-      { href: '/invoices', icon: '💰', labelKey: 'invoices', perm: 'viewFinancials' },
-      { href: '/payments', icon: '💳', labelKey: 'payments', perm: 'viewFinancials' },
-    ],
-  },
-  {
-    label: 'Resources',
-    items: [
-      { href: '/equipment', icon: '⚙',  labelKey: 'equipment', perm: 'viewEquipment' },
-      { href: '/contracts', icon: '📑', labelKey: 'contracts', perm: 'viewContracts' },
-      { href: '/team',      icon: '👥', labelKey: 'team',      perm: null },
-    ],
-  },
-  {
-    label: 'Reports',
-    items: [
-      { href: '/dashboard', icon: '📊', labelKey: 'dashboard',     perm: 'viewDashboard' },
       { href: '/history',   icon: '📋', labelKey: 'jobHistory',    perm: 'viewHistory' },
-      { href: '/audit',     icon: '🛡', labelKey: 'auditLog',      perm: 'viewAudit' },
-      { href: '/billing',   icon: '💳', labelKey: 'billing',       perm: 'manageBilling' },
+      { href: '/audit',     icon: '🛡',  labelKey: 'auditLog',      perm: 'viewAudit' },
       { href: '/marketing', icon: '📣', labelKey: 'marketing',     perm: 'manageSettings' },
-      { href: '/cron',      icon: '⏱', labelKey: 'scheduledJobs', perm: 'manageSettings' },
-      { href: '/referral',  icon: '🎁', labelKey: 'referral',      perm: 'manageBilling' },
-      { href: '/help',      icon: '❓', labelKey: 'helpCenter',     perm: null },
+      { href: '/cron',      icon: '⏱',  labelKey: 'scheduledJobs', perm: 'manageSettings' },
     ],
   },
 ]
@@ -155,6 +153,34 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   const isMobile  = useIsMobile()
   const roleColor = ROLE_COLOR[session.role] ?? '#64748b'
 
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [hiddenItems, setHiddenItems]         = useState<Set<string>>(new Set())
+  const [customizeOpen, setCustomizeOpen]     = useState(false)
+
+  useEffect(() => {
+    fetch('/api/users/me/sidebar-prefs')
+      .then(r => r.json())
+      .then(prefs => {
+        if (Array.isArray(prefs.collapsedGroups)) setCollapsedGroups(new Set(prefs.collapsedGroups))
+        if (Array.isArray(prefs.hiddenItems))     setHiddenItems(new Set(prefs.hiddenItems))
+      })
+      .catch(() => {})
+  }, [])
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      const prefs = { collapsedGroups: [...next], hiddenItems: [...hiddenItems] }
+      fetch('/api/users/me/sidebar-prefs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefs),
+      }).catch(() => {})
+      return next
+    })
+  }
+
   useEffect(() => { setMobileNavOpen(false) }, [pathname])
 
   useEffect(() => {
@@ -209,8 +235,8 @@ export default function AppShell({ session, children }: { session: SessionUser; 
   }
 
   const isSuperadminOnly = session.role === 'superadmin' && !session.impersonating
-  const visibleGroups = isSuperadminOnly
-    ? [{ label: 'Platform', items: SUPERADMIN_ONLY.filter(i => !i.perm || can(session.role, i.perm)) }]
+  const visibleGroups: NavGroup[] = isSuperadminOnly
+    ? [{ label: 'Platform', key: 'platform', items: SUPERADMIN_ONLY.filter(i => !i.perm || can(session.role, i.perm)) }]
     : NAV_GROUPS.map(g => ({
         ...g,
         items: g.items.filter(i => !i.perm || can(session.role, i.perm)),
@@ -515,27 +541,64 @@ export default function AppShell({ session, children }: { session: SessionUser; 
             }}
           >
             <div style={{ padding: '12px 10px 8px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-              {visibleGroups.map((group, gi) => (
-                <div key={group.label} style={{ marginBottom: gi < visibleGroups.length - 1 ? 4 : 0 }}>
-                  <div style={{
-                    fontSize: 9, fontWeight: 800, color: 'var(--text4)',
-                    textTransform: 'uppercase', letterSpacing: '1.1px',
-                    padding: '10px 13px 5px',
-                  }}>
-                    {group.label}
+              {/* Dashboard — top-level standalone link */}
+              {can(session.role, 'viewDashboard') && navLink({ href: '/dashboard', icon: '📊', labelKey: 'dashboard', perm: 'viewDashboard' })}
+              <div style={{ height: 1, background: 'var(--border)', margin: '6px 10px' }} />
+
+              {visibleGroups.map((group) => {
+                const isCollapsed = collapsedGroups.has(group.key)
+                const visibleItems = group.items.filter(i => !hiddenItems.has(i.href) && (!i.perm || can(session.role, i.perm)))
+                if (visibleItems.length === 0) return null
+                return (
+                  <div key={group.key}>
+                    <button
+                      onClick={() => toggleGroup(group.key)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '6px 13px', background: 'transparent', border: 'none', cursor: 'pointer',
+                        fontSize: 9, fontWeight: 800, color: 'var(--text4)',
+                        textTransform: 'uppercase', letterSpacing: '1.1px',
+                      }}
+                    >
+                      {group.label}
+                      <svg
+                        width="8" height="8" viewBox="0 0 8 8" fill="none"
+                        style={{ color: 'var(--text4)', transition: 'transform 200ms', transform: isCollapsed ? 'rotate(-90deg)' : 'none', flexShrink: 0 }}
+                      >
+                        <path d="M1 2.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </button>
+                    {!isCollapsed && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {visibleItems.map(item => navLink(item))}
+                      </div>
+                    )}
+                    <div style={{ height: 1, background: 'var(--border)', margin: '6px 10px' }} />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {group.items.map(item => navLink(item))}
-                  </div>
-                  {gi < visibleGroups.length - 1 && (
-                    <div style={{ height: 1, background: 'var(--border)', margin: '8px 13px 4px' }} />
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Sidebar footer */}
             <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+              <button
+                onClick={() => setCustomizeOpen(true)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 13px', borderRadius: 10, background: 'transparent',
+                  border: 'none', cursor: 'pointer', color: 'var(--text4)', fontSize: 13,
+                  fontWeight: 600, textAlign: 'left', transition: 'all var(--dur) ease',
+                  minHeight: 44,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text4)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+                </svg>
+                Customize sidebar
+              </button>
               <button
                 onClick={() => setSupportOpen(true)}
                 style={{
@@ -760,6 +823,24 @@ export default function AppShell({ session, children }: { session: SessionUser; 
       )}
 
       {supportOpen && <SupportChat onClose={() => setSupportOpen(false)} />}
+      {/* TODO: Task 4 — uncomment when SidebarCustomizeDrawer is created
+      {customizeOpen && (
+        <SidebarCustomizeDrawer
+          groups={visibleGroups}
+          hiddenItems={hiddenItems}
+          onHiddenChange={(next) => {
+            setHiddenItems(next)
+            const prefs = { collapsedGroups: [...collapsedGroups], hiddenItems: [...next] }
+            fetch('/api/users/me/sidebar-prefs', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(prefs),
+            }).catch(() => {})
+          }}
+          onClose={() => setCustomizeOpen(false)}
+        />
+      )}
+      */}
     </div>
   )
 }

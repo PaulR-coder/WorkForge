@@ -655,6 +655,24 @@ export function HelpClient({ categories, popularArticles, allArticles }: Props) 
           ))}
         </div>
 
+        {/* Referral program — moved from nav */}
+        <div style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14,
+          padding: '20px 24px', marginTop: 24,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>🎁 Referral Program</div>
+          <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 16, lineHeight: 1.6 }}>
+            Refer other businesses to WorkForge and earn rewards. Share your unique referral link with other service companies.
+          </div>
+          <a href="/referral" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '8px 16px', background: 'var(--bg3)', border: '1px solid var(--border)',
+            borderRadius: 8, textDecoration: 'none', fontSize: 13, fontWeight: 600, color: 'var(--text2)',
+          }}>
+            View my referral link →
+          </a>
+        </div>
+
         {/* Footer CTA */}
         <div style={{
           marginTop: 80, padding: '36px 40px',
