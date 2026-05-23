@@ -6,6 +6,7 @@ type Equipment = {
   id: string; client: string; name: string; brand: string; model: string
   serialNumber: string; icon: string; intervalDays: number; lastPMDaysAgo: number
   totalServices: number; warrantyEnd: string | null; notes: string
+  lat?: number | null; lng?: number | null
 }
 
 function pmStatus(eq: Equipment) {
@@ -51,6 +52,9 @@ export default function EquipmentClient({
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editNotes, setEditNotes] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [locatingEquipment, setLocatingEquipment] = useState<{ id: string; name: string; client: string; lat?: number | null } | null>(null)
+  const [locForm, setLocForm] = useState({ lat: '', lng: '' })
+  const [locLoading, setLocLoading] = useState(false)
 
   // Create modal state
   const [createOpen, setCreateOpen] = useState(false)
@@ -430,6 +434,17 @@ export default function EquipmentClient({
                         Edit Notes
                       </button>
                       <button
+                        type="button"
+                        onClick={() => setLocatingEquipment(eq)}
+                        style={{
+                          padding: '5px 12px', background: 'var(--bg4)', border: '1px solid var(--border)',
+                          borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600, color: 'var(--text3)',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                        }}
+                      >
+                        📍 {eq.lat ? 'Update Location' : 'Mark Location'}
+                      </button>
+                      <button
                         onClick={() => setConfirmDelete(eq.id)}
                         style={{
                           marginLeft: 'auto', padding: '7px 12px', background: 'transparent',
@@ -447,6 +462,84 @@ export default function EquipmentClient({
           </div>
         </div>
       ))}
+
+      {/* Mark Location Modal */}
+      {locatingEquipment && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(6,10,23,.7)', zIndex: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'var(--bg2)', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 400, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Mark Equipment Location</div>
+            <div style={{ fontSize: 12, color: 'var(--text4)', marginBottom: 20 }}>{locatingEquipment.name}</div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!navigator.geolocation) return
+                navigator.geolocation.getCurrentPosition(pos => {
+                  setLocForm(f => ({ ...f, lat: String(pos.coords.latitude), lng: String(pos.coords.longitude) }))
+                })
+              }}
+              style={{ width: '100%', padding: '10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text2)', marginBottom: 12 }}
+            >
+              📍 Use My Current Location
+            </button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', display: 'block', marginBottom: 4 }}>Latitude</label>
+                <input
+                  value={locForm.lat}
+                  onChange={e => setLocForm(f => ({ ...f, lat: e.target.value }))}
+                  placeholder="e.g. 25.7617"
+                  style={{ width: '100%', padding: '8px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)', boxSizing: 'border-box' as const }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', display: 'block', marginBottom: 4 }}>Longitude</label>
+                <input
+                  value={locForm.lng}
+                  onChange={e => setLocForm(f => ({ ...f, lng: e.target.value }))}
+                  placeholder="e.g. -80.1918"
+                  style={{ width: '100%', padding: '8px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)', boxSizing: 'border-box' as const }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => { setLocatingEquipment(null); setLocForm({ lat: '', lng: '' }) }} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 9, cursor: 'pointer', fontSize: 13, color: 'var(--text3)', fontWeight: 600 }}>Cancel</button>
+              <button
+                type="button"
+                disabled={locLoading || !locForm.lat || !locForm.lng}
+                onClick={async () => {
+                  const lat = parseFloat(locForm.lat)
+                  const lng = parseFloat(locForm.lng)
+                  if (isNaN(lat) || isNaN(lng)) return
+                  setLocLoading(true)
+                  try {
+                    const res = await fetch(`/api/equipment/${locatingEquipment.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ lat, lng, locatedAt: new Date().toISOString() }),
+                    })
+                    if (!res.ok) throw new Error('Failed')
+                    const updated = await res.json()
+                    setEquipment(prev => prev.map(e => e.id === locatingEquipment.id ? { ...e, lat: updated.lat, lng: updated.lng } : e))
+                    setLocatingEquipment(null)
+                    setLocForm({ lat: '', lng: '' })
+                  } catch {
+                    // error visible via res.ok check
+                  } finally {
+                    setLocLoading(false)
+                  }
+                }}
+                className="btn btn-primary"
+                style={{ flex: 2, opacity: (!locForm.lat || !locForm.lng) ? 0.5 : 1 }}
+              >
+                {locLoading ? 'Saving…' : 'Save Location'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Equipment Modal */}
       {createOpen && (

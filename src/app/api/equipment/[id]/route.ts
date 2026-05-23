@@ -24,13 +24,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
+  const { lat, lng, locatedAt, assignedJobId, ...rest } = body
+
+  const updateData = {
+    ...(rest.notes !== undefined && { notes: rest.notes }),
+    ...(rest.lastPMDaysAgo !== undefined && { lastPMDaysAgo: rest.lastPMDaysAgo }),
+    ...(rest.totalServices !== undefined && { totalServices: rest.totalServices }),
+    ...(lat           !== undefined ? { lat }           : {}),
+    ...(lng           !== undefined ? { lng }           : {}),
+    ...(locatedAt     !== undefined ? { locatedAt: locatedAt ? new Date(locatedAt) : null } : {}),
+    ...(assignedJobId !== undefined ? { assignedJobId } : {}),
+  }
+
   const eq = await db.equipment.update({
     where: { id },
-    data: {
-      ...(body.notes !== undefined && { notes: body.notes }),
-      ...(body.lastPMDaysAgo !== undefined && { lastPMDaysAgo: body.lastPMDaysAgo }),
-      ...(body.totalServices !== undefined && { totalServices: body.totalServices }),
-    },
+    data: updateData,
   })
 
   return Response.json(eq)
