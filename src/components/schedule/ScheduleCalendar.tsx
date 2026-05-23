@@ -22,6 +22,8 @@ type CalJob = {
 
 type CalUser = { id: string; name: string; initials: string; role: string }
 
+type TeamMember = { id: string; name: string; initials: string; role: string; specialty: string }
+
 // 7 AM – 8 PM (inclusive)
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 
@@ -95,9 +97,11 @@ function ChevronRight() {
 export default function ScheduleCalendar({
   session,
   users,
+  teamMembers = [],
 }: {
   session: SessionUser
   users: CalUser[]
+  teamMembers?: TeamMember[]
 }) {
   const [jobs, setJobs] = useState<CalJob[]>([])
   const [wStart, setWStart] = useState<Date>(() => getWeekStart(new Date()))
@@ -939,6 +943,51 @@ export default function ScheduleCalendar({
             </div>
           )}
         </div>
+
+        {/* Team strip */}
+        {teamMembers.length > 0 && (
+          <div style={{ width: 180, borderRight: '1px solid var(--border)', overflowY: 'auto', padding: '12px 0', flexShrink: 0 }}>
+            <div style={{ padding: '0 12px 8px', fontSize: 9, fontWeight: 800, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '1.1px' }}>Team</div>
+            <button
+              type="button"
+              onClick={() => setFilterTechId('all')}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                background: filterTechId === 'all' ? 'var(--bg3)' : 'transparent',
+                border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                color: filterTechId === 'all' ? 'var(--amber)' : 'var(--text3)',
+              }}
+            >
+              Everyone
+            </button>
+            {teamMembers.map(u => (
+              <button
+                type="button"
+                key={u.id}
+                onClick={() => setFilterTechId(filterTechId === u.id ? 'all' : u.id)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+                  background: filterTechId === u.id ? 'var(--bg3)' : 'transparent',
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: filterTechId === u.id ? 'var(--amber)' : 'var(--bg4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 800,
+                  color: filterTechId === u.id ? '#060a17' : 'var(--text3)',
+                  flexShrink: 0,
+                }}>
+                  {u.initials}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: filterTechId === u.id ? 'var(--amber)' : 'var(--text3)', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {u.name.split(' ')[0]}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Calendar grid */}
         <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', position: 'relative' }}>
