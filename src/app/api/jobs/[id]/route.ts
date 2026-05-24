@@ -6,6 +6,20 @@ import { emailJobAssigned, emailJobCompleted } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push'
 import { cache } from '@/lib/cache'
+import { z } from 'zod'
+
+const PatchJobSchema = z.object({
+  client: z.string().min(1).optional(),
+  address: z.string().min(1).optional(),
+  type: z.string().min(1).optional(),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+  description: z.string().optional(),
+  techId: z.string().optional().nullable(),
+  scheduledAt: z.string().optional().nullable(),
+  contractId: z.string().optional().nullable(),
+  status: z.string().optional(),
+  action: z.string().optional(),
+})
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -35,7 +49,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const db = tenantPrisma(session)
 
   const { id } = await params
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = PatchJobSchema.safeParse(body)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
   const tenantFilter = getTenantFilter(session)
 
   const prev = await db.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true, updatedAt: true } })

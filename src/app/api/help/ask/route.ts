@@ -12,7 +12,7 @@ const SYSTEM_PROMPT = `You are a helpful support agent for WorkForge, a field se
 
 export async function POST(req: NextRequest) {
   const ip = getIp(req)
-  const { ok, retryAfter } = rateLimit(`help-ask:${ip}`, 10, 60 * 1000)
+  const { ok, retryAfter } = await rateLimit(`help-ask:${ip}`, 10, 60 * 1000)
 
   if (!ok) {
     return NextResponse.json(

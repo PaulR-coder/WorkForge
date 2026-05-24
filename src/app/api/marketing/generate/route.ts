@@ -2,6 +2,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { checkLimit, recordTokens } from '@/lib/tokenUsage'
+import { z } from 'zod'
+
+const GenerateSchema = z.object({
+  tool:   z.string().min(1),
+  inputs: z.record(z.string(), z.string()),
+})
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -189,18 +195,11 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // Parse body
-  let body: { tool?: string; inputs?: Record<string, string> }
-  try {
-    body = await request.json()
-  } catch {
-    return Response.json({ error: 'Invalid request body' }, { status: 400 })
-  }
-
-  const { tool, inputs } = body
-  if (!tool || !inputs) {
-    return Response.json({ error: 'Missing tool or inputs' }, { status: 400 })
-  }
+  const raw = await request.json().catch(() => null)
+  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const gr = GenerateSchema.safeParse(raw)
+  if (!gr.success) return Response.json({ error: gr.error.issues[0].message }, { status: 400 })
+  const { tool, inputs } = gr.data
 
   const config = TOOL_CONFIGS[tool]
   if (!config) {

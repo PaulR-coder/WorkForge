@@ -5,7 +5,7 @@ import { rateLimit, getIp } from '@/lib/rateLimit'
 export async function POST(req: Request) {
   const ip = getIp(req)
   const { email, password } = await req.json()
-  const rl = rateLimit(`login:${ip}:${email}`, 15, 15 * 60 * 1000) // 15 attempts per 15 min per IP+account
+  const rl = await rateLimit(`login:${ip}:${email}`, 15, 15 * 60 * 1000) // 15 attempts per 15 min per IP+account
   if (!rl.ok) {
     const minutes = Math.ceil(rl.retryAfter / 60)
     return Response.json(

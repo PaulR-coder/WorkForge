@@ -2,6 +2,13 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { checkLimit, recordTokens } from '@/lib/tokenUsage'
 import Anthropic from '@anthropic-ai/sdk'
+import { z } from 'zod'
+
+const GenerateSchema = z.object({
+  client:      z.string().max(200).optional(),
+  jobType:     z.string().max(100).optional(),
+  description: z.string().min(5).max(2000),
+})
 
 export async function POST(req: Request) {
   const session = await getSession()
@@ -19,8 +26,11 @@ export async function POST(req: Request) {
     }
   }
 
-  const { client, jobType, description } = await req.json()
-  if (!description?.trim()) return Response.json({ error: 'Description required' }, { status: 400 })
+  const raw = await req.json().catch(() => null)
+  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const gr = GenerateSchema.safeParse(raw)
+  if (!gr.success) return Response.json({ error: gr.error.issues[0].message }, { status: 400 })
+  const { client, jobType, description } = gr.data
 
   const anthropic = new Anthropic()
 

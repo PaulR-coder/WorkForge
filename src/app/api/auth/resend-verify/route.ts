@@ -8,7 +8,7 @@ const TOKEN_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 export async function POST(req: Request) {
   const ip = getIp(req)
-  const rl = rateLimit(`resend-verify:${ip}`, 3, 60 * 60 * 1000) // 3 resends per hour per IP
+  const rl = await rateLimit(`resend-verify:${ip}`, 3, 60 * 60 * 1000) // 3 resends per hour per IP
   if (!rl.ok) {
     return Response.json(
       { error: `Too many requests. Try again in ${rl.retryAfter} seconds.` },

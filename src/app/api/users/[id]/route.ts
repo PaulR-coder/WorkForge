@@ -2,6 +2,13 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
+import { z } from 'zod'
+
+const PatchSchema = z.object({
+  phone:     z.string().max(30).optional(),
+  active:    z.boolean().optional(),
+  specialty: z.string().max(100).optional(),
+})
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -10,7 +17,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const db = tenantPrisma(session)
 
   const { id } = await params
-  const body = await req.json()
+  const raw = await req.json().catch(() => null)
+  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = PatchSchema.safeParse(raw)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+  const body = result.data
   const tenantFilter = getTenantFilter(session)
 
   const target = await db.user.findFirst({ where: { id, ...tenantFilter } })

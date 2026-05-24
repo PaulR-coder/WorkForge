@@ -7,7 +7,7 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').
 
 export async function POST(req: Request) {
   const ip = getIp(req)
-  const rl = rateLimit(`forgot:${ip}`, 5, 60 * 60 * 1000) // 5 attempts per hour per IP
+  const rl = await rateLimit(`forgot:${ip}`, 5, 60 * 60 * 1000) // 5 attempts per hour per IP
   if (!rl.ok) {
     return Response.json(
       { error: `Too many requests. Try again in ${rl.retryAfter} seconds.` },

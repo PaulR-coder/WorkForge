@@ -3,6 +3,19 @@ import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { emailInvoiceUpdate } from '@/lib/email'
+import { z } from 'zod'
+
+const PatchInvoiceSchema = z.object({
+  client: z.string().min(1).optional(),
+  clientEmail: z.string().email().optional(),
+  jobId: z.string().optional().nullable(),
+  labor: z.number().min(0).optional(),
+  parts: z.number().min(0).optional(),
+  surcharge: z.number().min(0).optional(),
+  total: z.number().min(0).optional(),
+  dueDate: z.string().optional(),
+  status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(),
+})
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -11,7 +24,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const db = tenantPrisma(session)
 
   const { id } = await params
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = PatchInvoiceSchema.safeParse(body)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
   const tenantFilter = getTenantFilter(session)
 
   const existing = await db.invoice.findFirst({ where: { id, ...tenantFilter }, select: { updatedAt: true, number: true, client: true } })
@@ -25,24 +41,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   }
 
+  const { status } = result.data
+
   const invoice = await db.invoice.update({
     where: { id },
     data: {
-      ...(body.status !== undefined && { status: body.status }),
-      ...(body.status === 'paid' && { paidAt: new Date() }),
+      ...(status !== undefined && { status }),
+      ...(status === 'paid' && { paidAt: new Date() }),
     },
   })
 
   await db.auditLog.create({
-    data: { icon: '💰', action: `Invoice ${body.status}`, detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
+    data: { icon: '💰', action: `Invoice ${status}`, detail: `${invoice.number} — ${invoice.client}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
   })
 
-  if (body.status === 'sent' || body.status === 'paid') {
+  if (status === 'sent' || status === 'paid') {
     const admins = await db.user.findMany({
       where: { role: { in: ['admin'] }, active: true, ...tenantFilter },
       select: { email: true },
     })
-    void emailInvoiceUpdate(admins.map(a => a.email), { number: invoice.number, client: invoice.client, total: invoice.total }, body.status)
+    void emailInvoiceUpdate(admins.map(a => a.email), { number: invoice.number, client: invoice.client, total: invoice.total }, status)
   }
 
   return Response.json(invoice)

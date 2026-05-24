@@ -4,6 +4,16 @@ import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { requireTenantId } from '@/lib/tenant'
 import { emailInvite } from '@/lib/email'
+import { z } from 'zod'
+
+const InviteSchema = z.object({
+  email: z.string().email(),
+  role:  z.enum(['admin', 'dispatcher', 'tech']),
+})
+
+const DeleteSchema = z.object({
+  id: z.string().min(1),
+})
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
@@ -31,8 +41,11 @@ export async function DELETE(req: Request) {
   if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
   const db = tenantPrisma(session)
 
-  const { id } = await req.json()
-  if (!id) return Response.json({ error: 'Missing invite id' }, { status: 400 })
+  const raw = await req.json().catch(() => null)
+  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const dr = DeleteSchema.safeParse(raw)
+  if (!dr.success) return Response.json({ error: dr.error.issues[0].message }, { status: 400 })
+  const { id } = dr.data
 
   const tenantId = requireTenantId(session)
   const invite = await db.invite.findFirst({ where: { id, tenantId, usedAt: null } })
@@ -54,13 +67,11 @@ export async function POST(req: Request) {
   if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
   const db = tenantPrisma(session)
 
-  const { email, role } = await req.json()
-  if (!email || !role) return Response.json({ error: 'Email and role required' }, { status: 400 })
-
-  const INVITABLE_ROLES = ['admin', 'dispatcher', 'tech']
-  if (!INVITABLE_ROLES.includes(role)) {
-    return Response.json({ error: 'Invalid role' }, { status: 400 })
-  }
+  const raw = await req.json().catch(() => null)
+  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const ir = InviteSchema.safeParse(raw)
+  if (!ir.success) return Response.json({ error: ir.error.issues[0].message }, { status: 400 })
+  const { email, role } = ir.data
 
   const tenantId = requireTenantId(session)
 

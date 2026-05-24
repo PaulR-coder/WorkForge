@@ -2,6 +2,18 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
+import { z } from 'zod'
+
+const CreateContractSchema = z.object({
+  client: z.string().min(1),
+  name: z.string().min(1),
+  icon: z.string().optional(),
+  units: z.number().int().min(1),
+  frequencyDays: z.number().int().min(1),
+  pricePerVisit: z.number().min(0),
+  nextDueDate: z.string().min(1),
+  notes: z.string().optional(),
+})
 
 export async function GET() {
   const session = await getSession()
@@ -20,31 +32,29 @@ export async function POST(req: Request) {
   if (!can(session.role, 'editContracts')) return Response.json({ error: 'Forbidden' }, { status: 403 })
   const db = tenantPrisma(session)
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = CreateContractSchema.safeParse(body)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+
   const tenantId = requireTenantId(session)
 
-  if (!body.client?.trim() || !body.name?.trim()) {
-    return Response.json({ error: 'Client and contract name are required' }, { status: 400 })
-  }
-  if (typeof body.pricePerVisit !== 'number' || body.pricePerVisit < 0) {
-    return Response.json({ error: 'Price per visit must be a non-negative number' }, { status: 400 })
-  }
-  const nextDueDate = new Date(body.nextDueDate)
+  const nextDueDate = new Date(result.data.nextDueDate)
   if (isNaN(nextDueDate.getTime())) {
     return Response.json({ error: 'Invalid due date' }, { status: 400 })
   }
 
   const contract = await db.contract.create({
     data: {
-      client: body.client,
-      name: body.name,
-      icon: body.icon ?? '📑',
-      units: body.units ?? 1,
-      techInitials: body.techInitials ?? '',
-      frequencyDays: body.frequencyDays ?? 90,
-      pricePerVisit: body.pricePerVisit,
+      client: result.data.client,
+      name: result.data.name,
+      icon: result.data.icon ?? '📑',
+      units: result.data.units,
+      techInitials: typeof body.techInitials === 'string' ? body.techInitials : '',
+      frequencyDays: result.data.frequencyDays,
+      pricePerVisit: result.data.pricePerVisit,
       nextDueDate,
-      notes: body.notes ?? '',
+      notes: result.data.notes ?? '',
       tenantId,
     },
   })

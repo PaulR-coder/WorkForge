@@ -2,6 +2,20 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
+import { z } from 'zod'
+
+const CreateEquipmentSchema = z.object({
+  client: z.string().min(1),
+  name: z.string().min(1),
+  brand: z.string().min(1),
+  model: z.string().min(1),
+  serialNumber: z.string().min(1),
+  icon: z.string().optional(),
+  installedAt: z.string().min(1),
+  warrantyEnd: z.string().optional().nullable(),
+  intervalDays: z.number().int().min(1),
+  notes: z.string().optional(),
+})
 
 export async function GET() {
   const session = await getSession()
@@ -20,29 +34,30 @@ export async function POST(req: Request) {
   if (!can(session.role, 'editEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
   const db = tenantPrisma(session)
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = CreateEquipmentSchema.safeParse(body)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+
   const tenantId = requireTenantId(session)
 
-  if (!body.client?.trim() || !body.name?.trim() || !body.brand?.trim() || !body.model?.trim()) {
-    return Response.json({ error: 'Client, name, brand, and model are required' }, { status: 400 })
-  }
-  const installedAt = new Date(body.installedAt)
+  const installedAt = new Date(result.data.installedAt)
   if (isNaN(installedAt.getTime())) {
     return Response.json({ error: 'Invalid installation date' }, { status: 400 })
   }
 
   const eq = await db.equipment.create({
     data: {
-      client: body.client,
-      name: body.name,
-      brand: body.brand,
-      model: body.model,
-      serialNumber: body.serialNumber,
-      icon: body.icon ?? '⚙',
+      client: result.data.client,
+      name: result.data.name,
+      brand: result.data.brand,
+      model: result.data.model,
+      serialNumber: result.data.serialNumber,
+      icon: result.data.icon ?? '⚙',
       installedAt,
-      warrantyEnd: body.warrantyEnd ? new Date(body.warrantyEnd) : null,
-      intervalDays: body.intervalDays ?? 90,
-      notes: body.notes ?? '',
+      warrantyEnd: result.data.warrantyEnd ? new Date(result.data.warrantyEnd) : null,
+      intervalDays: result.data.intervalDays,
+      notes: result.data.notes ?? '',
       tenantId,
     },
   })

@@ -2,6 +2,19 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
+import { z } from 'zod'
+
+const CreateInvoiceSchema = z.object({
+  client: z.string().min(1),
+  clientEmail: z.string().email().optional(),
+  jobId: z.string().optional().nullable(),
+  labor: z.number().min(0),
+  parts: z.number().min(0),
+  surcharge: z.number().min(0),
+  total: z.number().min(0).optional(),
+  dueDate: z.string().min(1),
+  status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(),
+})
 
 export async function GET() {
   const session = await getSession()
@@ -30,18 +43,17 @@ export async function POST(req: Request) {
   if (!can(session.role, 'createInvoice')) return Response.json({ error: 'Forbidden' }, { status: 403 })
   const db = tenantPrisma(session)
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = CreateInvoiceSchema.safeParse(body)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+
   const tenantId = requireTenantId(session)
   const tenantFilter = getTenantFilter(session)
 
-  const labor = Number(body.labor ?? 0)
-  const parts = Number(body.parts ?? 0)
-  const surcharge = Number(body.surcharge ?? 0)
-  if (labor < 0 || parts < 0 || surcharge < 0 || labor > 1_000_000 || parts > 1_000_000 || surcharge > 1_000_000) {
+  const { labor, parts, surcharge } = result.data
+  if (labor > 1_000_000 || parts > 1_000_000 || surcharge > 1_000_000) {
     return Response.json({ error: 'Invalid invoice amounts' }, { status: 400 })
-  }
-  if (!body.client || typeof body.client !== 'string' || body.client.trim().length === 0) {
-    return Response.json({ error: 'Client name is required' }, { status: 400 })
   }
 
   const count = await db.invoice.count({ where: tenantFilter })
@@ -50,14 +62,14 @@ export async function POST(req: Request) {
   const invoice = await db.invoice.create({
     data: {
       number,
-      client: body.client.trim(),
-      jobId: body.jobId ?? null,
+      client: result.data.client.trim(),
+      jobId: result.data.jobId ?? null,
       labor,
       parts,
       surcharge,
       total: labor + parts + surcharge,
-      status: 'draft',
-      dueDate: new Date(Date.now() + 15 * 86400000),
+      status: result.data.status ?? 'draft',
+      dueDate: new Date(result.data.dueDate),
       tenantId,
     },
   })

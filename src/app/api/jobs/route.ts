@@ -6,6 +6,18 @@ import { emailJobAssigned } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push'
 import { cache } from '@/lib/cache'
+import { z } from 'zod'
+
+const CreateJobSchema = z.object({
+  client: z.string().min(1),
+  address: z.string().min(1),
+  type: z.string().min(1),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+  description: z.string().optional(),
+  techId: z.string().optional().nullable(),
+  scheduledAt: z.string().optional().nullable(),
+  contractId: z.string().optional().nullable(),
+})
 
 export async function GET(req: Request) {
   const session = await getSession()
@@ -57,24 +69,28 @@ export async function POST(req: Request) {
   if (!can(session.role, 'createJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
   const db = tenantPrisma(session)
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const result = CreateJobSchema.safeParse(body)
+  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+
   const tenantId = requireTenantId(session)
   const tenantFilter = getTenantFilter(session)
 
-  if (body.techId != null) {
-    const tech = await db.user.findFirst({ where: { id: body.techId, ...tenantFilter } })
+  if (result.data.techId != null) {
+    const tech = await db.user.findFirst({ where: { id: result.data.techId, ...tenantFilter } })
     if (!tech) return Response.json({ error: 'Invalid technician' }, { status: 400 })
   }
 
   const job = await db.job.create({
     data: {
-      client: body.client,
-      address: body.address,
-      description: body.description ?? '',
-      type: body.type,
-      priority: body.priority ?? 'normal',
-      status: body.status ?? 'open',
-      techId: body.techId ?? null,
+      client: result.data.client,
+      address: result.data.address,
+      description: result.data.description ?? '',
+      type: result.data.type,
+      priority: result.data.priority ?? 'normal',
+      status: 'open',
+      techId: result.data.techId ?? null,
       tenantId,
     },
     include: { tech: { select: { id: true, name: true, initials: true, email: true, phone: true } } },

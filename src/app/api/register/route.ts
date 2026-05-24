@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getIp(req)
-  const rl = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000) // 5 registrations per hour per IP
+  const rl = await rateLimit(`register:${ip}`, 5, 60 * 60 * 1000) // 5 registrations per hour per IP
   if (!rl.ok) {
     return Response.json(
       { error: `Too many requests. Try again in ${rl.retryAfter} seconds.` },

@@ -3,6 +3,9 @@ import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { sendPushToUser } from '@/lib/push'
 import { Role } from '@/generated/prisma/client'
+import { z } from 'zod'
+
+const MessageSchema = z.object({ body: z.string().min(1).max(4000) })
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -29,8 +32,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const db = tenantPrisma(session)
 
   const { id } = await params
-  const { body } = await req.json()
-  if (!body?.trim()) return Response.json({ error: 'Empty message' }, { status: 400 })
+  const raw = await req.json().catch(() => null)
+  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  const mr = MessageSchema.safeParse(raw)
+  if (!mr.success) return Response.json({ error: mr.error.issues[0].message }, { status: 400 })
+  const { body } = mr.data
 
   const tenantFilter = getTenantFilter(session)
   const job = await db.job.findFirst({ where: { id, ...tenantFilter } })
