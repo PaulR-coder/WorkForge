@@ -2,12 +2,13 @@ import { prisma } from '@/lib/prisma'
 import { setSession } from '@/lib/auth'
 import * as OTPAuth from 'otpauth'
 import bcrypt from 'bcryptjs'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request) {
   const { userId, code } = await req.json() as { userId: string; code: string }
 
   if (!userId || !code) {
-    return Response.json({ error: 'Missing required fields' }, { status: 400 })
+    return apiError('Missing required fields', 400)
   }
 
   const user = await prisma.user.findUnique({
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   })
 
   if (!user || !user.active || !user.twoFactorEnabled || !user.twoFactorSecret) {
-    return Response.json({ error: 'Invalid request' }, { status: 400 })
+    return apiError('Invalid request', 400)
   }
 
   const normalised = code.replace(/\s/g, '')
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
   }
 
   if (delta === null && usedBackupIndex === -1) {
-    return Response.json({ error: 'Invalid code' }, { status: 401 })
+    return apiError('Invalid code', 401)
   }
 
   // Consume backup code if used

@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import * as Sentry from '@sentry/nextjs'
 import { prisma } from '@/lib/prisma'
 import { emailAgentDigest } from '@/lib/email'
+import { apiError } from '@/lib/apiError'
 
 const DEV_EMAIL = process.env.AGENT_DIGEST_EMAIL ?? 'Paul.WorkForge@gmail.com'
 const BASE_URL  = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://workforge-production.up.railway.app').trim()
@@ -104,7 +105,7 @@ async function fetchSentryDigest() {
 export async function POST(req: Request) {
   const secret = req.headers.get('x-agent-secret')
   if (!secret || secret !== process.env.AGENT_SECRET) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const now      = new Date()

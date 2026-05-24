@@ -1,12 +1,13 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(request: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!session.tenantId) return apiError('No tenant context', 400)
   if (!['admin', 'superadmin'].includes(session.role)) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 })
+    return apiError('Forbidden', 403)
   }
 
   let reason: string | undefined

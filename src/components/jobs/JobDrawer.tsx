@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Fragment } from 'react'
 import Link from 'next/link'
 import type { SessionUser } from '@/lib/auth'
+import { trackEvent } from '@/lib/posthog'
 import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
@@ -121,12 +122,14 @@ export default function JobDrawer({
       setJob(prev => prev ? { ...prev, status } : null)
       onJobUpdate({ id: job.id, status, tech: job.tech })
       toast(`Job marked ${status === 'done' ? 'complete' : status.replace('_', ' ')}`, 'success')
+      trackEvent('job_status_changed', { status, jobType: job.type, jobId: job.id })
       if (status === 'done') setShowInvoicePrompt(true)
     } else if (res.ok) {
       const updated = await res.json()
       setJob(prev => prev ? { ...prev, status: updated.status, completedAt: updated.completedAt } : null)
       onJobUpdate({ id: job.id, status: updated.status, tech: updated.tech })
       toast(`Job marked ${status === 'done' ? 'complete' : status.replace('_', ' ')}`, 'success')
+      trackEvent('job_status_changed', { status, jobType: job.type, jobId: job.id })
       if (status === 'done') setShowInvoicePrompt(true)
     } else {
       toast('Failed to update status', 'error')

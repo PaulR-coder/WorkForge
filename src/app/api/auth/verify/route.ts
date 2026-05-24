@@ -1,16 +1,17 @@
 import { prisma } from '@/lib/prisma'
 import { setSession } from '@/lib/auth'
+import { apiError } from '@/lib/apiError'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const token = searchParams.get('token')
-  if (!token) return Response.json({ error: 'Missing token' }, { status: 400 })
+  if (!token) return apiError('Missing token', 400)
 
   const user = await prisma.user.findUnique({ where: { verifyToken: token } })
-  if (!user) return Response.json({ error: 'Invalid or expired verification link' }, { status: 400 })
+  if (!user) return apiError('Invalid or expired verification link', 400)
 
   if (user.verifyTokenExpiry && user.verifyTokenExpiry < new Date()) {
-    return Response.json({ error: 'This verification link has expired. Please request a new one.' }, { status: 400 })
+    return apiError('This verification link has expired. Please request a new one.', 400)
   }
 
   await prisma.user.update({

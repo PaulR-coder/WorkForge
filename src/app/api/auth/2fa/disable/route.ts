@@ -2,17 +2,18 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import * as OTPAuth from 'otpauth'
 import bcrypt from 'bcryptjs'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request) {
   const session = await getSession()
   if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const { code } = await req.json() as { code: string }
 
   if (!code) {
-    return Response.json({ error: 'Code is required' }, { status: 400 })
+    return apiError('Code is required', 400)
   }
 
   const user = await prisma.user.findUnique({
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   })
 
   if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
-    return Response.json({ error: '2FA is not enabled' }, { status: 400 })
+    return apiError('2FA is not enabled', 400)
   }
 
   // Try TOTP code first
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
   }
 
   if (delta === null && !validBackup) {
-    return Response.json({ error: 'Invalid code' }, { status: 400 })
+    return apiError('Invalid code', 400)
   }
 
   // Disable 2FA

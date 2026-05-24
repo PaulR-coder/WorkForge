@@ -3,6 +3,7 @@ import { can } from '@/lib/permissions'
 import { checkLimit, recordTokens } from '@/lib/tokenUsage'
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
+import { apiError } from '@/lib/apiError'
 
 const GenerateSchema = z.object({
   client:      z.string().max(200).optional(),
@@ -12,24 +13,24 @@ const GenerateSchema = z.object({
 
 export async function POST(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'createEstimate')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'createEstimate')) return apiError('Forbidden', 403)
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ error: 'AI not configured' }, { status: 503 })
+    return apiError('AI not configured', 503, 'AI_UNAVAILABLE')
   }
 
   if (session.tenantId) {
     const { allowed, used } = await checkLimit(session.tenantId)
     if (!allowed) {
-      return Response.json({ error: `Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.` }, { status: 429 })
+      return apiError(`Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.`, 429, 'AI_LIMIT_REACHED')
     }
   }
 
   const raw = await req.json().catch(() => null)
-  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  if (!raw) return apiError('Invalid JSON', 400)
   const gr = GenerateSchema.safeParse(raw)
-  if (!gr.success) return Response.json({ error: gr.error.issues[0].message }, { status: 400 })
+  if (!gr.success) return apiError(gr.error.issues[0].message, 400)
   const { client, jobType, description } = gr.data
 
   const anthropic = new Anthropic()
@@ -68,11 +69,11 @@ Include 3–6 line items typical for this type of job. Be realistic with pricing
 
   try {
     const lineItems = JSON.parse(cleaned)
-    if (!Array.isArray(lineItems)) return Response.json({ error: 'Invalid AI response' }, { status: 500 })
+    if (!Array.isArray(lineItems)) return apiError('Invalid AI response', 500)
     // Add stable IDs
     const tagged = lineItems.map((item, i) => ({ id: `ai-${Date.now()}-${i}`, ...item }))
     return Response.json({ lineItems: tagged })
   } catch {
-    return Response.json({ error: 'Failed to parse AI response', raw: text }, { status: 500 })
+    return apiError('Failed to parse AI response', 500, undefined, { raw: text })
   }
 }

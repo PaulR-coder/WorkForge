@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { trackEvent, identifyUser } from '@/lib/posthog'
 
 const DEMO_ACCOUNTS = [
   { name: 'Alex Owner',    role: 'Company Owner',    email: 'owner@acmefield.com',    password: 'owner123', label: 'Admin' },
@@ -61,6 +62,8 @@ export default function LoginPage() {
       }
       const dest = data.role === 'tech' ? '/field' : data.role === 'dispatcher' ? '/jobs' : '/dashboard'
       router.push(dest)
+      identifyUser(data.id, { role: data.role, company: data.company, tenantId: data.tenantId })
+      trackEvent('user_logged_in', { role: data.role, method: 'password' })
       router.refresh()
     } catch {
       setError('Connection error. Please try again.')
@@ -89,6 +92,8 @@ export default function LoginPage() {
       const me = await meRes.json()
       const dest = me.role === 'tech' ? '/field' : me.role === 'dispatcher' ? '/jobs' : '/dashboard'
       router.push(dest)
+      identifyUser(me.id, { role: me.role, company: me.company, tenantId: me.tenantId })
+      trackEvent('user_logged_in', { role: me.role, method: '2fa' })
       router.refresh()
     } catch {
       setError('Connection error. Please try again.')

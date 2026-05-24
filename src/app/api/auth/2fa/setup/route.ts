@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import * as OTPAuth from 'otpauth'
 import QRCode from 'qrcode'
+import { apiError } from '@/lib/apiError'
 
 function randomAlphanumeric(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -28,7 +29,7 @@ function generateBackupCode(): string {
 export async function GET() {
   const session = await getSession()
   if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const user = await prisma.user.findUnique({
@@ -36,7 +37,7 @@ export async function GET() {
     select: { email: true },
   })
   if (!user) {
-    return Response.json({ error: 'User not found' }, { status: 404 })
+    return apiError('User not found', 404)
   }
 
   // Generate a new TOTP secret (Base32, 20 bytes = 32 base32 chars)

@@ -1,9 +1,10 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   const where = session.role === 'superadmin' ? {} : { tenantId: session.tenantId }
 
@@ -21,11 +22,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   const { title, description } = await req.json()
   if (!title?.trim() || !description?.trim()) {
-    return Response.json({ error: 'Title and description are required' }, { status: 400 })
+    return apiError('Title and description are required', 400)
   }
 
   const request = await prisma.featureRequest.create({

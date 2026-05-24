@@ -1,9 +1,10 @@
 import { getSession, clearSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   // Get last login from audit log
   const lastLoginLog = await prisma.auditLog.findFirst({
@@ -24,7 +25,7 @@ export async function GET() {
 
 export async function DELETE() {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   // Clear current session cookie
   await clearSession()

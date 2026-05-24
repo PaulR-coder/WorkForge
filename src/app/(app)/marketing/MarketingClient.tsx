@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { trackEvent } from '@/lib/posthog'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

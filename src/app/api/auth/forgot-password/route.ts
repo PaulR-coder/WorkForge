@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { emailPasswordReset } from '@/lib/email'
 import { rateLimit, getIp } from '@/lib/rateLimit'
+import { apiError } from '@/lib/apiError'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
@@ -10,13 +11,13 @@ export async function POST(req: Request) {
   const rl = await rateLimit(`forgot:${ip}`, 5, 60 * 60 * 1000) // 5 attempts per hour per IP
   if (!rl.ok) {
     return Response.json(
-      { error: `Too many requests. Try again in ${rl.retryAfter} seconds.` },
+      { error: `Too many requests. Try again in ${rl.retryAfter} seconds.`, code: 'RATE_LIMITED' },
       { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
     )
   }
 
   const { email } = await req.json()
-  if (!email) return Response.json({ error: 'Email required' }, { status: 400 })
+  if (!email) return apiError('Email required', 400)
 
   const user = await prisma.user.findUnique({ where: { email } })
   if (user && user.active) {

@@ -3,6 +3,7 @@ import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 import { z } from 'zod'
+import { apiError } from '@/lib/apiError'
 
 const CreateContractSchema = z.object({
   client: z.string().min(1),
@@ -17,8 +18,8 @@ const CreateContractSchema = z.object({
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'viewContracts')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'viewContracts')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const tenantFilter = getTenantFilter(session)
@@ -28,20 +29,20 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'editContracts')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'editContracts')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const body = await req.json().catch(() => null)
-  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  if (!body) return apiError('Invalid JSON', 400)
   const result = CreateContractSchema.safeParse(body)
-  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+  if (!result.success) return apiError(result.error.issues[0].message, 400)
 
   const tenantId = requireTenantId(session)
 
   const nextDueDate = new Date(result.data.nextDueDate)
   if (isNaN(nextDueDate.getTime())) {
-    return Response.json({ error: 'Invalid due date' }, { status: 400 })
+    return apiError('Invalid due date', 400)
   }
 
   const contract = await db.contract.create({

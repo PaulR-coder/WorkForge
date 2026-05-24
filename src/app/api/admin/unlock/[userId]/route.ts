@@ -1,14 +1,15 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ userId: string }> },
 ) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'manageUsers')) return apiError('Forbidden', 403)
 
   const { userId } = await params
 
@@ -16,7 +17,7 @@ export async function POST(
     where: { id: userId },
     select: { id: true, email: true, tenantId: true },
   })
-  if (!target) return Response.json({ error: 'User not found' }, { status: 404 })
+  if (!target) return apiError('User not found', 404)
 
   await prisma.user.update({
     where: { id: userId },

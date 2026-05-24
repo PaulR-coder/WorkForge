@@ -3,6 +3,7 @@ import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter, requireTenantId } from '@/lib/tenant'
 import { z } from 'zod'
+import { apiError } from '@/lib/apiError'
 
 const CreateEquipmentSchema = z.object({
   client: z.string().min(1),
@@ -19,8 +20,8 @@ const CreateEquipmentSchema = z.object({
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'viewEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'viewEquipment')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const tenantFilter = getTenantFilter(session)
@@ -30,20 +31,20 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'editEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'editEquipment')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const body = await req.json().catch(() => null)
-  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  if (!body) return apiError('Invalid JSON', 400)
   const result = CreateEquipmentSchema.safeParse(body)
-  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+  if (!result.success) return apiError(result.error.issues[0].message, 400)
 
   const tenantId = requireTenantId(session)
 
   const installedAt = new Date(result.data.installedAt)
   if (isNaN(installedAt.getTime())) {
-    return Response.json({ error: 'Invalid installation date' }, { status: 400 })
+    return apiError('Invalid installation date', 400)
   }
 
   const eq = await db.equipment.create({

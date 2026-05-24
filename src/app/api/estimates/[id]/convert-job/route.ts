@@ -2,20 +2,21 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'createJob')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'createJob')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
   const estimate = await db.estimate.findFirst({ where: { id, ...tenantFilter } })
-  if (!estimate) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!estimate) return apiError('Not found', 404)
 
   if (estimate.jobId) {
-    return Response.json({ error: 'A job already exists for this estimate', jobId: estimate.jobId }, { status: 409 })
+    return apiError('A job already exists for this estimate', 409, undefined, { jobId: estimate.jobId })
   }
 
   const body = await req.json().catch(() => ({}))

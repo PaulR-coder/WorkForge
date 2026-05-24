@@ -1,11 +1,12 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'viewFinancials')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'viewFinancials')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
@@ -14,7 +15,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     where: tenantWhere,
     include: { job: { include: { tech: { select: { name: true } } } } },
   })
-  if (!inv) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!inv) return apiError('Not found', 404)
 
   const owner = await db.user.findFirst({
     where: { tenantId: inv.tenantId, role: 'admin', active: true },

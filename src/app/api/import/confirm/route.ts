@@ -1,14 +1,15 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'importData')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'importData')) return apiError('Forbidden', 403)
 
   const { type, data } = await req.json()
-  if (!type || !data) return Response.json({ error: 'Missing type or data' }, { status: 400 })
+  if (!type || !data) return apiError('Missing type or data', 400)
 
   const db = tenantPrisma(session)
 
@@ -81,5 +82,5 @@ export async function POST(req: Request) {
     return Response.json({ id: invoice.id, type: 'invoice', url: '/invoices', label: `${number} for ${invoice.client}` })
   }
 
-  return Response.json({ error: 'Unknown record type' }, { status: 400 })
+  return apiError('Unknown record type', 400)
 }

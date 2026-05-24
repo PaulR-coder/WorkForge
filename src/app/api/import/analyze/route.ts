@@ -3,6 +3,7 @@ import { can } from '@/lib/permissions'
 import { checkLimit, recordTokens } from '@/lib/tokenUsage'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest } from 'next/server'
+import { apiError } from '@/lib/apiError'
 
 const SYSTEM_PROMPT = `You are a document parser for WorkForge, a field service management app used by HVAC, plumbing, electrical, roofing, and similar service companies.
 
@@ -64,17 +65,17 @@ const ALLOWED_IMAGES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'importData')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'importData')) return apiError('Forbidden', 403)
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ error: 'AI not configured — set ANTHROPIC_API_KEY' }, { status: 503 })
+    return apiError('AI not configured — set ANTHROPIC_API_KEY', 503, 'AI_UNAVAILABLE')
   }
 
   if (session.tenantId) {
     const { allowed, used } = await checkLimit(session.tenantId)
     if (!allowed) {
-      return Response.json({ error: `Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.` }, { status: 429 })
+      return apiError(`Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.`, 429, 'AI_LIMIT_REACHED')
     }
   }
 
@@ -82,15 +83,15 @@ export async function POST(req: NextRequest) {
   try {
     formData = await req.formData()
   } catch {
-    return Response.json({ error: 'Invalid form data' }, { status: 400 })
+    return apiError('Invalid form data', 400)
   }
 
   const file = formData.get('file') as File | null
-  if (!file) return Response.json({ error: 'No file provided' }, { status: 400 })
+  if (!file) return apiError('No file provided', 400)
 
   const MAX_BYTES = 6 * 1024 * 1024
   if (file.size > MAX_BYTES) {
-    return Response.json({ error: 'File too large — max 6 MB' }, { status: 413 })
+    return apiError('File too large — max 6 MB', 413)
   }
 
   const mime = file.type || ''
@@ -100,10 +101,7 @@ export async function POST(req: NextRequest) {
   const isImage = ALLOWED_IMAGES.has(mime)
 
   if (!isCSV && !isPDF && !isImage) {
-    return Response.json(
-      { error: 'Unsupported file type. Upload a PDF, image (JPG/PNG/WEBP), or CSV.' },
-      { status: 415 },
-    )
+    return apiError('Unsupported file type. Upload a PDF, image (JPG/PNG/WEBP), or CSV.', 415)
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
@@ -161,7 +159,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = JSON.parse(cleaned)
     if (!parsed.documentType || !parsed.data) {
-      return Response.json({ error: 'AI returned unexpected structure' }, { status: 500 })
+      return apiError('AI returned unexpected structure', 500)
     }
 
     // Ensure lineItems have stable IDs if missing
@@ -175,6 +173,6 @@ export async function POST(req: NextRequest) {
     return Response.json(parsed)
   } catch (err) {
     console.error('Import analyze error:', err)
-    return Response.json({ error: 'Failed to analyze document — try a clearer scan or different file' }, { status: 500 })
+    return apiError('Failed to analyze document — try a clearer scan or different file', 500)
   }
 }

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { HelpCategory, HelpArticle } from '@/lib/help-articles'
+import { trackEvent } from '@/lib/posthog'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 

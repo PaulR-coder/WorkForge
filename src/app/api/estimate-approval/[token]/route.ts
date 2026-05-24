@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -13,9 +14,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     },
   })
 
-  if (!estimate) return Response.json({ error: 'Invalid or expired link' }, { status: 404 })
+  if (!estimate) return apiError('Invalid or expired link', 404)
   if (estimate.approvalTokenExpiry && new Date() > estimate.approvalTokenExpiry) {
-    return Response.json({ error: 'This estimate link has expired' }, { status: 410 })
+    return apiError('This estimate link has expired', 410)
   }
 
   return Response.json(estimate)
@@ -26,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const { action } = await req.json()
 
   if (action !== 'approve' && action !== 'decline') {
-    return Response.json({ error: 'Invalid action' }, { status: 400 })
+    return apiError('Invalid action', 400)
   }
 
   const estimate = await prisma.estimate.findFirst({
@@ -34,9 +35,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     include: { createdBy: { select: { tenantId: true } } },
   })
 
-  if (!estimate) return Response.json({ error: 'Invalid link' }, { status: 404 })
+  if (!estimate) return apiError('Invalid link', 404)
   if (estimate.approvalTokenExpiry && new Date() > estimate.approvalTokenExpiry) {
-    return Response.json({ error: 'This link has expired' }, { status: 410 })
+    return apiError('This link has expired', 410)
   }
   if (estimate.status === 'approved') {
     return Response.json({ status: 'approved', alreadyDone: true })

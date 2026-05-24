@@ -2,11 +2,12 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import * as OTPAuth from 'otpauth'
 import bcrypt from 'bcryptjs'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request) {
   const session = await getSession()
   if (!session) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const { secret, code, backupCodes } = await req.json() as {
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   }
 
   if (!secret || !code || !Array.isArray(backupCodes)) {
-    return Response.json({ error: 'Missing required fields' }, { status: 400 })
+    return apiError('Missing required fields', 400)
   }
 
   // Validate the TOTP code
@@ -24,7 +25,7 @@ export async function POST(req: Request) {
   try {
     otpSecret = OTPAuth.Secret.fromBase32(secret)
   } catch {
-    return Response.json({ error: 'Invalid secret' }, { status: 400 })
+    return apiError('Invalid secret', 400)
   }
 
   const totp = new OTPAuth.TOTP({
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
 
   const delta = totp.validate({ token: code, window: 1 })
   if (delta === null) {
-    return Response.json({ error: 'Invalid verification code' }, { status: 400 })
+    return apiError('Invalid verification code', 400)
   }
 
   // Hash all backup codes before storing

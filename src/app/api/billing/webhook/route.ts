@@ -2,6 +2,7 @@ import { stripe } from '@/lib/stripe'
 import { prisma } from '@/lib/prisma'
 import { emailSubscriptionConfirmation } from '@/lib/email'
 import type Stripe from 'stripe'
+import { apiError } from '@/lib/apiError'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(body, sig, secret)
   } catch {
-    return Response.json({ error: 'Invalid signature' }, { status: 400 })
+    return apiError('Invalid signature', 400)
   }
 
   async function syncSubscription(sub: Stripe.Subscription) {

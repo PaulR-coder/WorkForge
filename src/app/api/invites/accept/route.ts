@@ -1,22 +1,23 @@
 import { prisma } from '@/lib/prisma'
 import { hashPassword, setSession } from '@/lib/auth'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request) {
   const { token, name, password } = await req.json()
-  if (!token || !name || !password) return Response.json({ error: 'Missing fields' }, { status: 400 })
-  if (password.length < 8) return Response.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
-  if (password.length > 128) return Response.json({ error: 'Password must be 128 characters or fewer' }, { status: 400 })
+  if (!token || !name || !password) return apiError('Missing fields', 400)
+  if (password.length < 8) return apiError('Password must be at least 8 characters', 400)
+  if (password.length > 128) return apiError('Password must be 128 characters or fewer', 400)
 
   const invite = await prisma.invite.findUnique({ where: { token } })
   if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
-    return Response.json({ error: 'This invitation has expired or already been used.' }, { status: 400 })
+    return apiError('This invitation has expired or already been used.', 400)
   }
 
   const existing = await prisma.user.findUnique({ where: { email: invite.email } })
-  if (existing) return Response.json({ error: 'An account with this email already exists.' }, { status: 409 })
+  if (existing) return apiError('An account with this email already exists.', 409)
 
   const tenant = await prisma.tenant.findUnique({ where: { id: invite.tenantId } })
-  if (!tenant) return Response.json({ error: 'Workspace not found.' }, { status: 404 })
+  if (!tenant) return apiError('Workspace not found.', 404)
 
   const initials = name.trim().split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
   const hashed = await hashPassword(password)

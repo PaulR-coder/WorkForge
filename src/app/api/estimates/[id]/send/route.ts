@@ -4,25 +4,26 @@ import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { emailEstimate } from '@/lib/email'
+import { apiError } from '@/lib/apiError'
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'createEstimate')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'createEstimate')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
   const estimate = await db.estimate.findFirst({ where: { id, ...tenantFilter } })
-  if (!estimate) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!estimate) return apiError('Not found', 404)
 
   if (!estimate.clientEmail?.trim()) {
-    return Response.json({ error: 'Client email is required to send the estimate' }, { status: 400 })
+    return apiError('Client email is required to send the estimate', 400)
   }
   if (estimate.status === 'approved' || estimate.status === 'declined') {
-    return Response.json({ error: 'Cannot resend a closed estimate' }, { status: 400 })
+    return apiError('Cannot resend a closed estimate', 400)
   }
 
   const token = randomBytes(32).toString('hex')

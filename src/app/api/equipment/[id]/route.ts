@@ -3,6 +3,7 @@ import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { z } from 'zod'
+import { apiError } from '@/lib/apiError'
 
 const PatchEquipmentSchema = z.object({
   client: z.string().min(1).optional(),
@@ -25,25 +26,25 @@ const PatchEquipmentSchema = z.object({
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'editEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'editEquipment')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
   const body = await req.json().catch(() => null)
-  if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  if (!body) return apiError('Invalid JSON', 400)
   const result = PatchEquipmentSchema.safeParse(body)
-  if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
+  if (!result.success) return apiError(result.error.issues[0].message, 400)
   const tenantFilter = getTenantFilter(session)
 
   const existing = await db.equipment.findFirst({ where: { id, ...tenantFilter }, select: { updatedAt: true, name: true, client: true } })
-  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!existing) return apiError('Not found', 404)
 
   const queuedAt = req.headers.get('x-wf-queued-at')
   if (queuedAt) {
     const queuedDate = new Date(queuedAt)
     if (!isNaN(queuedDate.getTime()) && existing.updatedAt > queuedDate) {
-      return Response.json({ error: 'conflict', message: 'Equipment was updated while you were offline' }, { status: 409 })
+      return apiError('conflict', 409, undefined, { message: 'Equipment was updated while you were offline' })
     }
   }
 
@@ -69,15 +70,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'editEquipment')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'editEquipment')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
 
   const existing = await db.equipment.findFirst({ where: { id, ...tenantFilter } })
-  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!existing) return apiError('Not found', 404)
 
   await db.equipment.delete({ where: { id } })
 

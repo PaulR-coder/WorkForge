@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { SessionUser } from '@/lib/auth'
+import { trackEvent } from '@/lib/posthog'
 import { can } from '@/lib/permissions'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'

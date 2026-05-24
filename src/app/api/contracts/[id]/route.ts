@@ -2,11 +2,12 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
+import { apiError } from '@/lib/apiError'
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'editContracts')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'editContracts')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
@@ -14,13 +15,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const tenantFilter = getTenantFilter(session)
 
   const existing = await db.contract.findFirst({ where: { id, ...tenantFilter }, select: { updatedAt: true, name: true, client: true } })
-  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!existing) return apiError('Not found', 404)
 
   const queuedAt = req.headers.get('x-wf-queued-at')
   if (queuedAt) {
     const queuedDate = new Date(queuedAt)
     if (!isNaN(queuedDate.getTime()) && existing.updatedAt > queuedDate) {
-      return Response.json({ error: 'conflict', message: 'Contract was updated while you were offline' }, { status: 409 })
+      return apiError('conflict', 409, undefined, { message: 'Contract was updated while you were offline' })
     }
   }
 
@@ -45,15 +46,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'editContracts')) return Response.json({ error: 'Forbidden' }, { status: 403 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'editContracts')) return apiError('Forbidden', 403)
   const db = tenantPrisma(session)
 
   const { id } = await params
   const tenantFilter = getTenantFilter(session)
 
   const existing = await db.contract.findFirst({ where: { id, ...tenantFilter } })
-  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!existing) return apiError('Not found', 404)
 
   await db.contract.delete({ where: { id } })
 

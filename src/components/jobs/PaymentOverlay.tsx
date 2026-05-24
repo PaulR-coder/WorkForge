@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
+import { trackEvent } from '@/lib/posthog'
 
 // SVG method icons
 function CardMethodIcon({ size = 22 }: { size?: number }) {

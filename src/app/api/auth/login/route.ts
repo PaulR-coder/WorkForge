@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { verifyPassword, setSession } from '@/lib/auth'
 import { rateLimit, getIp } from '@/lib/rateLimit'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(req: Request) {
   const ip = getIp(req)
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
   if (!rl.ok) {
     const minutes = Math.ceil(rl.retryAfter / 60)
     return Response.json(
-      { error: `Too many attempts for this account. Try again in ${minutes} minutes.` },
+      { error: `Too many attempts for this account. Try again in ${minutes} minutes.`, code: 'RATE_LIMITED' },
       { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } },
     )
   }
@@ -20,16 +21,13 @@ export async function POST(req: Request) {
     // Include 2FA fields so we can gate the session cookie
   })
   if (!user || !user.active) {
-    return Response.json({ error: 'Invalid credentials' }, { status: 401 })
+    return apiError('Invalid credentials', 401)
   }
 
   // Account lockout check
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000)
-    return Response.json(
-      { error: `Account locked. Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'} or contact your administrator.` },
-      { status: 423 },
-    )
+    return apiError(`Account locked. Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'} or contact your administrator.`, 423)
   }
 
   const valid = await verifyPassword(password, user.password)
@@ -46,18 +44,18 @@ export async function POST(req: Request) {
     void prisma.auditLog.create({
       data: { icon: '🔐', action: 'Login failed', detail: `${user.email} — wrong password`, severity: 'warn', userId: user.id, tenantId: user.tenantId },
     })
-    return Response.json({ error: 'Invalid credentials' }, { status: 401 })
+    return apiError('Invalid credentials', 401)
   }
 
   // Block login for suspended/disabled tenants (superadmin bypasses this check)
   if (user.role !== 'superadmin' && user.tenant) {
     if (!user.tenant.active || user.tenant.subscriptionStatus === 'suspended') {
-      return Response.json({ error: 'Your workspace has been suspended. Contact support@getworkforge.com.' }, { status: 403 })
+      return apiError('Your workspace has been suspended. Contact support@getworkforge.com.', 403)
     }
   }
 
   if (!user.emailVerified) {
-    return Response.json({ error: 'Please verify your email before signing in.', needsVerification: true, email: user.email }, { status: 403 })
+    return apiError('Please verify your email before signing in.', 403, undefined, { needsVerification: true, email: user.email })
   }
 
   // Recover tenantId at login time if DB record is missing it

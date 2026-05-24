@@ -5,6 +5,7 @@ import { tenantPrisma } from '@/lib/prisma'
 import { requireTenantId } from '@/lib/tenant'
 import { emailInvite } from '@/lib/email'
 import { z } from 'zod'
+import { apiError } from '@/lib/apiError'
 
 const InviteSchema = z.object({
   email: z.string().email(),
@@ -19,9 +20,9 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').
 
 export async function GET() {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
-  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'manageUsers')) return apiError('Forbidden', 403)
+  if (!session.tenantId) return apiError('No tenant context', 400)
   const db = tenantPrisma(session)
 
   const tenantId = requireTenantId(session)
@@ -36,20 +37,20 @@ export async function GET() {
 
 export async function DELETE(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
-  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'manageUsers')) return apiError('Forbidden', 403)
+  if (!session.tenantId) return apiError('No tenant context', 400)
   const db = tenantPrisma(session)
 
   const raw = await req.json().catch(() => null)
-  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  if (!raw) return apiError('Invalid JSON', 400)
   const dr = DeleteSchema.safeParse(raw)
-  if (!dr.success) return Response.json({ error: dr.error.issues[0].message }, { status: 400 })
+  if (!dr.success) return apiError(dr.error.issues[0].message, 400)
   const { id } = dr.data
 
   const tenantId = requireTenantId(session)
   const invite = await db.invite.findFirst({ where: { id, tenantId, usedAt: null } })
-  if (!invite) return Response.json({ error: 'Not found' }, { status: 404 })
+  if (!invite) return apiError('Not found', 404)
 
   await db.invite.delete({ where: { id } })
 
@@ -62,26 +63,26 @@ export async function DELETE(req: Request) {
 
 export async function POST(req: Request) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!can(session.role, 'manageUsers')) return Response.json({ error: 'Forbidden' }, { status: 403 })
-  if (!session.tenantId) return Response.json({ error: 'No tenant context' }, { status: 400 })
+  if (!session) return apiError('Unauthorized', 401)
+  if (!can(session.role, 'manageUsers')) return apiError('Forbidden', 403)
+  if (!session.tenantId) return apiError('No tenant context', 400)
   const db = tenantPrisma(session)
 
   const raw = await req.json().catch(() => null)
-  if (!raw) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+  if (!raw) return apiError('Invalid JSON', 400)
   const ir = InviteSchema.safeParse(raw)
-  if (!ir.success) return Response.json({ error: ir.error.issues[0].message }, { status: 400 })
+  if (!ir.success) return apiError(ir.error.issues[0].message, 400)
   const { email, role } = ir.data
 
   const tenantId = requireTenantId(session)
 
   const existing = await db.user.findUnique({ where: { email } })
-  if (existing) return Response.json({ error: 'A user with this email already exists' }, { status: 409 })
+  if (existing) return apiError('A user with this email already exists', 409)
 
   const pending = await db.invite.findFirst({
     where: { email, tenantId, usedAt: null, expiresAt: { gt: new Date() } },
   })
-  if (pending) return Response.json({ error: 'An active invite for this email already exists' }, { status: 409 })
+  if (pending) return apiError('An active invite for this email already exists', 409)
 
   const token = randomBytes(32).toString('hex')
   const invite = await db.invite.create({

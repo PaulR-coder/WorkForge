@@ -4,6 +4,7 @@ import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
 import { emailInvoiceUpdate } from '@/lib/email'
 import { z } from 'zod'
+import { apiError } from '@/lib/apiError'
 
 const PatchInvoiceSchema = z.object({
   client: z.string().min(1).optional(),

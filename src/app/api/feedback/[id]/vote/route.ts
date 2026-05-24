@@ -1,19 +1,20 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { apiError } from '@/lib/apiError'
 
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   const { id } = await params
 
   const existing = await prisma.featureVote.findUnique({
     where: { featureRequestId_userId: { featureRequestId: id, userId: session.id } },
   })
-  if (existing) return Response.json({ error: 'Already voted' }, { status: 409 })
+  if (existing) return apiError('Already voted', 409)
 
   await prisma.$transaction([
     prisma.featureVote.create({
@@ -33,14 +34,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getSession()
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   const { id } = await params
 
   const existing = await prisma.featureVote.findUnique({
     where: { featureRequestId_userId: { featureRequestId: id, userId: session.id } },
   })
-  if (!existing) return Response.json({ error: 'Vote not found' }, { status: 404 })
+  if (!existing) return apiError('Vote not found', 404)
 
   await prisma.$transaction([
     prisma.featureVote.delete({

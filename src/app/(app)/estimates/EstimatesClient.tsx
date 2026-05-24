@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { SessionUser } from '@/lib/auth'
 import { useToast } from '@/components/Toast'
+import { trackEvent } from '@/lib/posthog'
 
 type LineItem = {
   id: string
