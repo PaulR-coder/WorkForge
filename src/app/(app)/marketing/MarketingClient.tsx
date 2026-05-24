@@ -198,7 +198,6 @@ export default function MarketingClient({ company }: Props) {
     setOutput('')
     setLoading(true)
 
-    // Normalize rating field to just number
     const normalizedInputs = { ...inputs }
     if (normalizedInputs.rating) {
       normalizedInputs.rating = normalizedInputs.rating.split(' —')[0].trim()
@@ -210,11 +209,31 @@ export default function MarketingClient({ company }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tool: activeTool, inputs: normalizedInputs }),
       })
-      const data: { result?: string; error?: string } = await res.json()
-      if (!res.ok || data.error) {
-        setError(data.error ?? 'Generation failed. Please try again.')
-      } else {
-        setOutput(data.result ?? '')
+
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}))
+        setError((data as { error?: string }).error ?? 'Generation failed. Please try again.')
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(part.slice(6)) as { text?: string; done?: boolean; error?: string }
+            if (event.error) { setError(event.error); return }
+            if (event.text) setOutput(prev => prev + event.text)
+          } catch { /* malformed chunk, skip */ }
+        }
       }
     } catch {
       setError('Network error. Please check your connection and try again.')

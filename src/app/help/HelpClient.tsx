@@ -341,11 +341,31 @@ export function HelpClient({ categories, popularArticles, allArticles }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: query }),
       })
-      const data = await res.json()
-      if (!res.ok) {
-        setAiError(data.error ?? 'Something went wrong. Please try again.')
-      } else {
-        setAiAnswer(data.answer)
+
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}))
+        setAiError((data as { error?: string }).error ?? 'Something went wrong. Please try again.')
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(part.slice(6)) as { text?: string; done?: boolean; error?: string }
+            if (event.error) { setAiError(event.error); return }
+            if (event.text) setAiAnswer(prev => prev + event.text)
+          } catch { /* malformed chunk, skip */ }
+        }
       }
     } catch {
       setAiError('Could not connect. Please check your connection and try again.')

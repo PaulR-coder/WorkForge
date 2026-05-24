@@ -45,27 +45,49 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const message = await anthropic.messages.create({
+    const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 400,
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: question.trim(),
-        },
-      ],
+      messages: [{ role: 'user', content: question.trim() }],
     })
 
-    const textBlock = message.content.find(b => b.type === 'text')
-    const answer = textBlock ? textBlock.text : 'Sorry, I could not generate a response.'
+    const encoder = new TextEncoder()
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === 'content_block_delta' &&
+              event.delta.type === 'text_delta'
+            ) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`)
+              )
+            }
+          }
+          const final = await stream.finalMessage()
+          const sess = await getSession()
+          if (sess?.tenantId) {
+            await recordTokens(sess.tenantId, final.usage.input_tokens, final.usage.output_tokens)
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Unknown error'
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`))
+        } finally {
+          controller.close()
+        }
+      },
+    })
 
-    const session = await getSession()
-    if (session?.tenantId) {
-      await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
-    }
-
-    return NextResponse.json({ answer })
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (err) {
     console.error('[help/ask] Anthropic error:', err)
     return NextResponse.json(

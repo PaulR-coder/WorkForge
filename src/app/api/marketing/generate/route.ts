@@ -213,30 +213,49 @@ export async function POST(request: Request) {
     }
   }
 
-  // Call Anthropic
   try {
-    const message = await anthropic.messages.create({
+    const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: config.systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: config.userMessage(inputs),
-        },
-      ],
+      messages: [{ role: 'user', content: config.userMessage(inputs) }],
     })
 
-    if (session.tenantId) {
-      await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
-    }
+    const encoder = new TextEncoder()
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === 'content_block_delta' &&
+              event.delta.type === 'text_delta'
+            ) {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ text: event.delta.text })}\n\n`)
+              )
+            }
+          }
+          const final = await stream.finalMessage()
+          if (session.tenantId) {
+            await recordTokens(session.tenantId, final.usage.input_tokens, final.usage.output_tokens)
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Unknown error'
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: `Generation failed: ${msg}` })}\n\n`))
+        } finally {
+          controller.close()
+        }
+      },
+    })
 
-    const result = message.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as { type: 'text'; text: string }).text)
-      .join('\n')
-
-    return Response.json({ result })
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return Response.json({ error: `Generation failed: ${message}` }, { status: 500 })
