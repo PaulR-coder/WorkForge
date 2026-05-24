@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { TOKEN_LIMIT } from '@/lib/tokenUsage'
 import { redirect } from 'next/navigation'
 import SuperAdminClient from './SuperAdminClient'
 
@@ -8,8 +9,9 @@ export default async function SuperAdminPage() {
   if (!session || session.role !== 'superadmin') redirect('/dashboard')
 
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const period = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 
-  const [tenants, jobGroups, activityGroups] = await Promise.all([
+  const [tenants, jobGroups, activityGroups, tokenRows] = await Promise.all([
     prisma.tenant.findMany({
       include: { _count: { select: { users: true } } },
       orderBy: { createdAt: 'desc' },
@@ -23,6 +25,11 @@ export default async function SuperAdminPage() {
       by: ['tenantId'],
       where: { tenantId: { not: null } },
       _max: { updatedAt: true },
+    }),
+    prisma.tenantTokenUsage.findMany({
+      where: { period },
+      include: { tenant: { select: { name: true } } },
+      orderBy: { tokensUsed: 'desc' },
     }),
   ])
 
@@ -51,10 +58,21 @@ export default async function SuperAdminPage() {
     .filter(t => t.subscriptionStatus === 'active')
     .reduce((s, t) => s + 39 + t.userCount * 12, 0)
 
+  const tokenUsage = tokenRows.map(r => ({
+    tenantId: r.tenantId,
+    tenantName: r.tenant.name,
+    tokensUsed: r.tokensUsed,
+    pct: Math.min(100, Math.round((r.tokensUsed / TOKEN_LIMIT) * 100)),
+  }))
+  const totalTokensThisMonth = tokenRows.reduce((s, r) => s + r.tokensUsed, 0)
+
   return (
     <SuperAdminClient
       tenants={enriched}
       stats={{ totalTenants: enriched.length, mrr, totalUsers, totalJobsThisMonth, activeCount, trialCount, totalJobs }}
+      tokenUsage={tokenUsage}
+      tokenLimit={TOKEN_LIMIT}
+      totalTokensThisMonth={totalTokensThisMonth}
     />
   )
 }

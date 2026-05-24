@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
+import { checkLimit, recordTokens } from '@/lib/tokenUsage'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest } from 'next/server'
 
@@ -68,6 +69,13 @@ export async function POST(req: NextRequest) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: 'AI not configured — set ANTHROPIC_API_KEY' }, { status: 503 })
+  }
+
+  if (session.tenantId) {
+    const { allowed, used } = await checkLimit(session.tenantId)
+    if (!allowed) {
+      return Response.json({ error: `Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.` }, { status: 429 })
+    }
   }
 
   let formData: FormData
@@ -143,6 +151,10 @@ export async function POST(req: NextRequest) {
       },
       isPDF ? { headers: { 'anthropic-beta': 'pdfs-2024-09-25' } } : undefined,
     )
+
+    if (session.tenantId) {
+      await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
+    }
 
     const raw = message.content[0].type === 'text' ? message.content[0].text.trim() : ''
     const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()

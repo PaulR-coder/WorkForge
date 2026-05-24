@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
+import { checkLimit, recordTokens } from '@/lib/tokenUsage'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -206,6 +207,13 @@ export async function POST(request: Request) {
     return Response.json({ error: `Unknown tool: ${tool}` }, { status: 400 })
   }
 
+  if (session.tenantId) {
+    const { allowed, used } = await checkLimit(session.tenantId)
+    if (!allowed) {
+      return Response.json({ error: `Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.` }, { status: 429 })
+    }
+  }
+
   // Call Anthropic
   try {
     const message = await anthropic.messages.create({
@@ -219,6 +227,10 @@ export async function POST(request: Request) {
         },
       ],
     })
+
+    if (session.tenantId) {
+      await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
+    }
 
     const result = message.content
       .filter((block) => block.type === 'text')

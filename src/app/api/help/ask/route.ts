@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { rateLimit, getIp } from '@/lib/rateLimit'
+import { getSession } from '@/lib/auth'
+import { recordTokens } from '@/lib/tokenUsage'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -57,6 +59,11 @@ export async function POST(req: NextRequest) {
 
     const textBlock = message.content.find(b => b.type === 'text')
     const answer = textBlock ? textBlock.text : 'Sorry, I could not generate a response.'
+
+    const session = await getSession()
+    if (session?.tenantId) {
+      await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
+    }
 
     return NextResponse.json({ answer })
   } catch (err) {

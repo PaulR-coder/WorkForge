@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
+import { checkLimit, recordTokens } from '@/lib/tokenUsage'
 import Anthropic from '@anthropic-ai/sdk'
 
 export async function POST(req: Request) {
@@ -9,6 +10,13 @@ export async function POST(req: Request) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return Response.json({ error: 'AI not configured' }, { status: 503 })
+  }
+
+  if (session.tenantId) {
+    const { allowed, used } = await checkLimit(session.tenantId)
+    if (!allowed) {
+      return Response.json({ error: `Monthly AI token limit reached (${used.toLocaleString()} used). Resets next month.` }, { status: 429 })
+    }
   }
 
   const { client, jobType, description } = await req.json()
@@ -38,6 +46,10 @@ Return ONLY a valid JSON array with no markdown, no explanation. Each object mus
 Include 3–6 line items typical for this type of job. Be realistic with pricing.`,
     }],
   })
+
+  if (session.tenantId) {
+    await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
+  }
 
   const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]'
 

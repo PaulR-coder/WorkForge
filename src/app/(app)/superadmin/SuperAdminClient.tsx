@@ -16,6 +16,8 @@ type PlatformStats = {
   totalJobsThisMonth: number; activeCount: number; trialCount: number; totalJobs: number
 }
 
+type TokenRow = { tenantId: string; tenantName: string; tokensUsed: number; pct: number }
+
 type TenantDetail = TenantRow & {
   users: { id: string; name: string; email: string; initials: string; role: string; active: boolean; createdAt: string }[]
   totalJobs: number
@@ -71,7 +73,15 @@ const ALERT_COLOR: Record<string, string> = { error: 'var(--red)', warn: 'var(--
 const ALERT_ICON: Record<string, string>  = { error: '⚠', warn: '⏱', info: '💤' }
 const ALERT_BG: Record<string, string>    = { error: 'rgba(239,68,68,.08)', warn: 'rgba(245,158,11,.08)', info: 'transparent' }
 
-export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRow[]; stats: PlatformStats }) {
+export default function SuperAdminClient({
+  tenants, stats, tokenUsage, tokenLimit, totalTokensThisMonth,
+}: {
+  tenants: TenantRow[]
+  stats: PlatformStats
+  tokenUsage: TokenRow[]
+  tokenLimit: number
+  totalTokensThisMonth: number
+}) {
   const router    = useRouter()
   const isMobile  = useIsMobile()
 
@@ -344,6 +354,53 @@ export default function SuperAdminClient({ tenants, stats }: { tenants: TenantRo
             ))}
           </div>
         </div>
+      </div>
+
+      {/* AI Token Usage */}
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 22px', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.7px', fontFamily: 'var(--font-display)' }}>
+              AI Token Usage — This Month
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 3, fontFamily: 'var(--font-body)' }}>
+              {totalTokensThisMonth.toLocaleString()} tokens across all tenants · cap {tokenLimit.toLocaleString()} per tenant
+            </div>
+          </div>
+          <div style={{
+            fontSize: 13, fontWeight: 800, color: totalTokensThisMonth > 0 ? 'var(--amber)' : 'var(--text4)',
+            fontFamily: 'var(--font-display)',
+          }}>
+            ${((totalTokensThisMonth / 1_000_000) * 3).toFixed(3)}
+          </div>
+        </div>
+        {tokenUsage.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center', padding: '20px 0', fontFamily: 'var(--font-body)' }}>
+            No AI usage recorded this month
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {tokenUsage.slice(0, 8).map(r => {
+              const barColor = r.pct >= 90 ? 'var(--red)' : r.pct >= 70 ? 'var(--amber)' : 'var(--green)'
+              return (
+                <div key={r.tenantId}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', fontFamily: 'var(--font-body)' }}>{r.tenantName}</span>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: r.pct >= 90 ? 'var(--red)' : 'var(--text3)' }}>
+                      {r.tokensUsed.toLocaleString()} <span style={{ color: 'var(--text4)', fontWeight: 400 }}>/ {tokenLimit.toLocaleString()} ({r.pct}%)</span>
+                    </span>
+                  </div>
+                  <div style={{ height: 5, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${r.pct}%`, background: barColor, borderRadius: 3, transition: 'width .4s ease' }} />
+                  </div>
+                </div>
+              )
+            })}
+            {tokenUsage.length > 8 && (
+              <div style={{ fontSize: 11, color: 'var(--text4)', fontFamily: 'var(--font-body)' }}>+{tokenUsage.length - 8} more tenants</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bottom row */}
