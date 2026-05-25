@@ -27,8 +27,9 @@ export async function POST(req: Request) {
     const hashed = await hashPassword(tempPassword)
     const initials = name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
     const result = await prisma.$transaction(async tx => {
-      const tenant = await tx.tenant.create({ data: { name: companyName, slug } })
+      const tenant = await tx.tenant.create({ data: { name: companyName, slug, trialEndsAt } })
       const user = await tx.user.create({
         data: { name, email, password: hashed, role: 'admin', initials, company: companyName, tenantId: tenant.id, emailVerified: true },
       })
@@ -71,8 +72,9 @@ export async function POST(req: Request) {
   const verifyToken = randomBytes(32).toString('hex')
   const verifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
   await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({ data: { name: companyName, slug } })
+    const tenant = await tx.tenant.create({ data: { name: companyName, slug, trialEndsAt } })
     const user = await tx.user.create({
       data: {
         name, email, password: hashed, role: 'admin', initials,

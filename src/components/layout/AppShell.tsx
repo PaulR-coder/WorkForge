@@ -140,7 +140,7 @@ function LogoMark({ size = 32 }: { size?: number }) {
 
 // ── Main shell ────────────────────────────────────────────────────────────────
 
-export default function AppShell({ session, children }: { session: SessionUser; children: React.ReactNode }) {
+export default function AppShell({ session, children, subscriptionStatus }: { session: SessionUser; children: React.ReactNode; subscriptionStatus?: string | null }) {
   const pathname       = usePathname()
   const router         = useRouter()
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
@@ -496,6 +496,28 @@ export default function AppShell({ session, children }: { session: SessionUser; 
 
       {/* ── Impersonation banner ───────────────────────────────────────── */}
       {session.impersonating && <ImpersonationBanner company={session.company} />}
+
+      {/* ── Past-due payment banner ───────────────────────────────────── */}
+      {subscriptionStatus === 'past_due' && (
+        <div style={{
+          background: 'rgba(239,68,68,.08)', borderBottom: '1px solid rgba(239,68,68,.2)',
+          padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+          <span style={{ flex: 1, fontSize: 13, color: '#fca5a5' }}>
+            Your payment is past due — please update your billing info to keep your account active.
+          </span>
+          <a
+            href="/billing"
+            style={{
+              padding: '6px 14px', background: 'rgba(239,68,68,.7)', color: '#fff',
+              borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0,
+            }}
+          >
+            Fix billing
+          </a>
+        </div>
+      )}
 
       {/* ── Push notification prompt ──────────────────────────────────── */}
       {!notifBannerDismissed && notifState === 'default' && (
