@@ -61,7 +61,9 @@ export default function proxy(request: NextRequest) {
   }
 
   if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
-    return NextResponse.next()
+    const res = NextResponse.next()
+    res.headers.set('x-pathname', pathname)
+    return res
   }
 
   const token = request.cookies.get('wf_session')?.value
@@ -82,7 +84,9 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+  response.headers.set('x-pathname', pathname)
+  return response
 }
 
 export const config = {
