@@ -4,7 +4,7 @@ const client =
   process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
     ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
     : null
-const FROM = process.env.TWILIO_FROM_NUMBER ?? ''
+const FROM = process.env.TWILIO_FROM ?? ''
 
 export async function smsJobAssigned(
   phone: string,
