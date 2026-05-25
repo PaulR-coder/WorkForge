@@ -58,6 +58,8 @@ const SUPERADMIN_ONLY: NavItem[] = [
   { href: '/superadmin', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, labelKey: 'commandCenter', perm: 'superAdminView' },
 ]
 
+const MOBILE_HIDDEN_HREFS = new Set(['/import', '/feedback', '/cron', '/audit', '/marketing'])
+
 const BOTTOM_TABS: Record<string, { href: string; icon: React.ReactNode; labelKey: TKeys }[]> = {
   tech: [
     { href: '/field',    icon: '📱', labelKey: 'fieldView'  },
@@ -73,8 +75,8 @@ const BOTTOM_TABS: Record<string, { href: string; icon: React.ReactNode; labelKe
   admin: [
     { href: '/dashboard', icon: '📊', labelKey: 'dashboard'  },
     { href: '/jobs',      icon: '🔧', labelKey: 'workOrders' },
-    { href: '/schedule',  icon: '📅', labelKey: 'schedule'   },
     { href: '/invoices',  icon: '💰', labelKey: 'invoices'   },
+    { href: '/team',      icon: '👥', labelKey: 'team'       },
   ],
   superadmin: [
     { href: '/superadmin', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>, labelKey: 'commandCenter' },
@@ -244,7 +246,8 @@ export default function AppShell({ session, children, subscriptionStatus, curren
         ...g,
         items: g.items.filter(i =>
           (!i.perm || can(session.role, i.perm)) &&
-          !(isTrialing && i.href === '/marketing')
+          !(isTrialing && i.href === '/marketing') &&
+          !(isMobile && MOBILE_HIDDEN_HREFS.has(i.href))
         ),
       })).filter(g => g.items.length > 0)
 
