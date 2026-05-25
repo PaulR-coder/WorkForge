@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import { SupportWidget } from '@/components/SupportWidget'
 import { SWRegistration } from '@/components/SWRegistration'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { Analytics } from '@/components/Analytics'
@@ -25,7 +24,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Analytics>
           {children}
         </Analytics>
-        <SupportWidget />
         <SWRegistration />
         <OfflineBanner />
       </body>
