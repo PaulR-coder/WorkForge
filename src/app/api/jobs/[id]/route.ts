@@ -31,7 +31,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const job = await db.job.findFirst({
     where: { id, ...tenantFilter },
     include: {
-      tech: { select: { id: true, name: true, initials: true } },
+      tech: { select: { id: true, name: true, initials: true, phone: true } },
       invoices: true,
       messages: { include: { author: { select: { name: true, initials: true, role: true } } }, orderBy: { createdAt: 'asc' } },
       equipment: true,
@@ -156,7 +156,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Invalidate cached job list so all clients see the updated state immediately.
   await cache.flush(`jobs:${session.tenantId}*`)
 
-  return Response.json({ ...job, tech: job.tech ? { id: job.tech.id, name: job.tech.name, initials: job.tech.initials } : null })
+  return Response.json({ ...job, tech: job.tech ? { id: job.tech.id, name: job.tech.name, initials: job.tech.initials, phone: job.tech.phone ?? null } : null })
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {

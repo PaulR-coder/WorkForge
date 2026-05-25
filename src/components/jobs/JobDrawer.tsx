@@ -37,7 +37,7 @@ type DetailJob = {
   scheduledAt: string | null
   completedAt: string | null
   archivedAt: string | null
-  tech: { id: string; name: string; initials: string } | null
+  tech: { id: string; name: string; initials: string; phone?: string | null } | null
   invoices: { id: string; number: string; total: number; status: string }[]
   equipment: { id: string; name: string; brand: string; icon: string }[]
   messages: Message[]
@@ -446,10 +446,24 @@ export default function JobDrawer({
                   <div style={{ width:34, height:34, borderRadius:'50%', background:'var(--amber)', color:'#080c1a', fontSize:12, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     {job.tech.initials}
                   </div>
-                  <div>
+                  <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:600, color:'var(--text2)' }}>{job.tech.name}</div>
                     <div style={{ fontSize:10, color:'var(--text4)' }}>Field Technician</div>
                   </div>
+                  {job.tech.phone && (
+                    <a
+                      href={`tel:${job.tech.phone}`}
+                      title={`Call ${job.tech.name}`}
+                      style={{
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        width:34, height:34, borderRadius:'50%',
+                        background:'var(--green)', color:'#fff',
+                        textDecoration:'none', flexShrink:0, fontSize:16,
+                      }}
+                    >
+                      📞
+                    </a>
+                  )}
                 </div>
               ) : (
                 <div style={{ fontSize:13, color:'var(--text4)', marginTop:8, fontStyle:'italic' }}>{t('unassigned')}</div>
