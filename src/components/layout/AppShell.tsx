@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useLang } from '@/components/LangProvider'
 import { useIsMobile } from '@/lib/useIsMobile'
 import type { TKeys } from '@/lib/i18n'
+import SupportChat from '@/components/SupportChat'
 import SidebarCustomizeDrawer from '@/components/layout/SidebarCustomizeDrawer'
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
   const router         = useRouter()
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [supportOpen, setSupportOpen]     = useState(false)
   const [notifState, setNotifState]       = useState<'unsupported' | 'denied' | 'granted' | 'default'>('default')
   const [notifBannerDismissed, setNotifBannerDismissed] = useState(true)
   const { lang, setLang, t } = useLang()
@@ -467,6 +469,7 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
                 {[
                   { icon: '🔐', label: 'Security (2FA)', action: () => { setUserMenuOpen(false); router.push('/settings/2fa') }, danger: false },
                   { icon: '🖥️', label: 'Active Sessions', action: () => { setUserMenuOpen(false); router.push('/settings/sessions') }, danger: false },
+                  { icon: '💬', label: 'Support', action: () => { setUserMenuOpen(false); setSupportOpen(true) }, danger: false },
                   { icon: '🚪', label: t('signOut'), action: () => { setUserMenuOpen(false); handleLogout() }, danger: true },
                 ].map(item => (
                   <button
@@ -615,6 +618,20 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
                 Customize sidebar
               </button>
               {navLink({ href: '/help', icon: '❓', labelKey: 'helpCenter', perm: null })}
+              <button
+                onClick={() => setSupportOpen(true)}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 13px', borderRadius: 10, background: 'transparent',
+                  border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 13,
+                  fontWeight: 600, textAlign: 'left', transition: 'all var(--dur) ease',
+                  minHeight: 44,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg3)'; e.currentTarget.style.color = 'var(--text2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text3)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Support
+              </button>
 
               {/* Company badge */}
               <div style={{ padding: '10px 13px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -795,6 +812,19 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
             <div style={{ padding: '8px 10px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
               {navLink({ href: '/help', icon: '❓', labelKey: 'helpCenter', perm: null }, true)}
               <button
+                onClick={() => { setMobileNavOpen(false); setSupportOpen(true) }}
+                style={{
+                  width: '100%', padding: '13px 14px', borderRadius: 10, cursor: 'pointer',
+                  fontSize: 14, color: 'var(--text3)', background: 'transparent',
+                  border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
+                  minHeight: 50, transition: 'all var(--dur) ease',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Support
+              </button>
+              <button
                 onClick={() => { setMobileNavOpen(false); handleLogout() }}
                 style={{
                   width: '100%', padding: '13px 14px', borderRadius: 10, cursor: 'pointer',
@@ -812,6 +842,7 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
         </div>
       )}
 
+      {supportOpen && <SupportChat onClose={() => setSupportOpen(false)} />}
       {customizeOpen && (
         <SidebarCustomizeDrawer
           groups={visibleGroups}
