@@ -145,6 +145,7 @@ export async function runMigrations() {
 
     await addColumn(db, 'User', 'phone', 'TEXT')
     await addColumn(db, 'Job', 'archivedAt', 'TIMESTAMP(3)')
+    await addColumn(db, 'Tenant', 'pastDueAt', 'TIMESTAMP(3)')
 
     // --- Auth columns ---
     await addColumn(db, 'User', 'emailVerified', 'BOOLEAN NOT NULL DEFAULT true')

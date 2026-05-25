@@ -141,7 +141,13 @@ function LogoMark({ size = 32 }: { size?: number }) {
 
 // ── Main shell ────────────────────────────────────────────────────────────────
 
-export default function AppShell({ session, children, subscriptionStatus }: { session: SessionUser; children: React.ReactNode; subscriptionStatus?: string | null }) {
+export default function AppShell({ session, children, subscriptionStatus, currentPeriodEnd, pastDueAt }: {
+  session: SessionUser
+  children: React.ReactNode
+  subscriptionStatus?: string | null
+  currentPeriodEnd?: string | null
+  pastDueAt?: string | null
+}) {
   const pathname       = usePathname()
   const router         = useRouter()
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
@@ -231,11 +237,15 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
   }
 
   const isSuperadminOnly = session.role === 'superadmin' && !session.impersonating
+  const isTrialing = subscriptionStatus === 'trialing'
   const visibleGroups: NavGroup[] = isSuperadminOnly
     ? [{ label: 'Platform', key: 'platform', items: SUPERADMIN_ONLY.filter(i => !i.perm || can(session.role, i.perm)) }]
     : NAV_GROUPS.map(g => ({
         ...g,
-        items: g.items.filter(i => !i.perm || can(session.role, i.perm)),
+        items: g.items.filter(i =>
+          (!i.perm || can(session.role, i.perm)) &&
+          !(isTrialing && i.href === '/marketing')
+        ),
       })).filter(g => g.items.length > 0)
 
   const bottomTabs = BOTTOM_TABS[session.role] ?? BOTTOM_TABS.tech
@@ -501,23 +511,36 @@ export default function AppShell({ session, children, subscriptionStatus }: { se
       {session.impersonating && <ImpersonationBanner company={session.company} />}
 
       {/* ── Past-due payment banner ───────────────────────────────────── */}
-      {subscriptionStatus === 'past_due' && (
+      {subscriptionStatus === 'past_due' && pastDueAt && (() => {
+        const daysLeft = Math.max(0, Math.ceil((new Date(pastDueAt).getTime() + 3 * 24 * 60 * 60 * 1000 - Date.now()) / 86400000))
+        return (
+          <div style={{
+            background: 'rgba(239,68,68,.08)', borderBottom: '1px solid rgba(239,68,68,.2)',
+            padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
+          }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+            <span style={{ flex: 1, fontSize: 13, color: '#fca5a5' }}>
+              Payment failed — your account will be locked in <strong>{daysLeft} day{daysLeft !== 1 ? 's' : ''}</strong>. Update your billing info to stay active.
+            </span>
+            <a href="/billing" style={{ padding: '6px 14px', background: 'rgba(239,68,68,.7)', color: '#fff', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+              Fix billing
+            </a>
+          </div>
+        )
+      })()}
+
+      {/* ── Cancelled — access until period end banner ────────────────── */}
+      {subscriptionStatus === 'cancelled' && currentPeriodEnd && new Date(currentPeriodEnd) > new Date() && (
         <div style={{
-          background: 'rgba(239,68,68,.08)', borderBottom: '1px solid rgba(239,68,68,.2)',
+          background: 'rgba(100,116,139,.08)', borderBottom: '1px solid rgba(100,116,139,.2)',
           padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
         }}>
-          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-          <span style={{ flex: 1, fontSize: 13, color: '#fca5a5' }}>
-            Your payment is past due — please update your billing info to keep your account active.
+          <span style={{ fontSize: 16, flexShrink: 0 }}>📅</span>
+          <span style={{ flex: 1, fontSize: 13, color: 'var(--text3)' }}>
+            Subscription cancelled — you have access until <strong>{new Date(currentPeriodEnd).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong>.
           </span>
-          <a
-            href="/billing"
-            style={{
-              padding: '6px 14px', background: 'rgba(239,68,68,.7)', color: '#fff',
-              borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0,
-            }}
-          >
-            Fix billing
+          <a href="/billing" style={{ padding: '6px 14px', background: 'var(--bg4)', color: 'var(--text2)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+            Resubscribe
           </a>
         </div>
       )}

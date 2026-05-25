@@ -35,6 +35,8 @@ export async function POST(req: Request) {
         stripeSubscriptionId: sub.id,
         subscriptionStatus: sub.status,
         currentPeriodEnd: new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000),
+        // Clear pastDueAt whenever subscription syncs back to a healthy state
+        ...(sub.status === 'active' ? { pastDueAt: null } : {}),
       },
     })
   }
@@ -76,9 +78,10 @@ export async function POST(req: Request) {
       const sub = event.data.object as Stripe.Subscription
       const tenantId = sub.metadata?.tenantId
       if (tenantId) {
+        // Keep currentPeriodEnd so the layout can grant access until end of paid period
         await prisma.tenant.update({
           where: { id: tenantId },
-          data: { subscriptionStatus: 'cancelled', stripeSubscriptionId: null, currentPeriodEnd: null },
+          data: { subscriptionStatus: 'cancelled', stripeSubscriptionId: null, pastDueAt: null },
         })
       }
       break
@@ -87,10 +90,17 @@ export async function POST(req: Request) {
       const inv = event.data.object as Stripe.Invoice
       const customerId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id
       if (customerId) {
-        await prisma.tenant.updateMany({
+        // Only stamp pastDueAt on the first failure — don't overwrite subsequent retries
+        const tenant = await prisma.tenant.findFirst({
           where: { stripeCustomerId: customerId },
-          data: { subscriptionStatus: 'past_due' },
+          select: { id: true, pastDueAt: true },
         })
+        if (tenant) {
+          await prisma.tenant.update({
+            where: { id: tenant.id },
+            data: { subscriptionStatus: 'past_due', pastDueAt: tenant.pastDueAt ?? new Date() },
+          })
+        }
       }
       break
     }

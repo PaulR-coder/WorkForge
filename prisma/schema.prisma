@@ -69,6 +69,7 @@ model Tenant {
   subscriptionStatus   String   @default("trialing")
   trialEndsAt          DateTime?
   currentPeriodEnd     DateTime?
+  pastDueAt            DateTime?
 
   users             User[]
   jobs              Job[]
