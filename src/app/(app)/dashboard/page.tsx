@@ -272,6 +272,125 @@ export default async function DashboardPage() {
   }
 
   return (
+    <>
+    <style>{`
+      @media (max-width: 767px) {
+        .dash-desktop { display: none !important; }
+        .dash-mobile  { display: block !important; }
+      }
+      @media (min-width: 768px) {
+        .dash-desktop { display: block; }
+        .dash-mobile  { display: none !important; }
+      }
+    `}</style>
+    <div className="dash-mobile" style={{ padding: '16px 16px 24px' }}>
+
+      {/* ── Mobile Header ─────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)', margin: 0, letterSpacing: '-0.5px' }}>
+          {greeting}, {firstName} 👋
+        </h1>
+        <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 4, fontWeight: 500 }}>
+          {dateLabel}
+        </div>
+      </div>
+
+      {/* ── KPI Chips 2×2 ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <Link href="/jobs" style={{ textDecoration: 'none' }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 14px' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: '#5ba3f5', letterSpacing: '-1px', lineHeight: 1 }}>{activeJobs.length}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginTop: 4 }}>Active Jobs</div>
+          </div>
+        </Link>
+        <Link href="/invoices?status=paid" style={{ textDecoration: 'none' }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 14px' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--green)', letterSpacing: '-1px', lineHeight: 1 }}>${paidAmt.toLocaleString()}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginTop: 4 }}>Collected</div>
+          </div>
+        </Link>
+        <Link href="/jobs" style={{ textDecoration: 'none' }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 14px' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: urgentJobs.length > 0 ? 'var(--red)' : 'var(--text4)', letterSpacing: '-1px', lineHeight: 1 }}>{urgentJobs.length}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginTop: 4 }}>Urgent Jobs</div>
+          </div>
+        </Link>
+        <Link href="/invoices?status=outstanding" style={{ textDecoration: 'none' }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 14px' }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: outstanding > 0 ? 'var(--amber)' : 'var(--text4)', letterSpacing: '-1px', lineHeight: 1 }}>${outstanding.toLocaleString()}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginTop: 4 }}>Outstanding</div>
+          </div>
+        </Link>
+      </div>
+
+      {/* ── Needs Attention strip ─────────────────────────────────────────── */}
+      {(urgentJobs.length > 0 || overdueInv.length > 0 || unassignedJobs.length > 0 || pmAlerts.length > 0 || pendingEstimates > 0) && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+            Needs Attention
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {urgentJobs.length > 0 && (
+              <AlertCard icon="🚨" accent="var(--red)"
+                title={`${urgentJobs.length} urgent job${urgentJobs.length > 1 ? 's' : ''}`}
+                sub="Require immediate attention" href="/jobs"
+              />
+            )}
+            {overdueInv.length > 0 && (
+              <AlertCard icon="💰" accent="var(--red)"
+                title={`${overdueInv.length} overdue invoice${overdueInv.length > 1 ? 's' : ''}`}
+                sub={`$${overdueInv.reduce((s, i) => s + i.total, 0).toLocaleString()} at risk`}
+                href="/invoices"
+              />
+            )}
+            {unassignedJobs.length > 0 && (
+              <AlertCard icon="👤" accent="var(--amber)"
+                title={`${unassignedJobs.length} job${unassignedJobs.length > 1 ? 's' : ''} without a tech`}
+                sub="Assign a technician to get them moving" href="/jobs"
+              />
+            )}
+            {pendingEstimates > 0 && (
+              <AlertCard icon="📝" accent="#5ba3f5"
+                title={`${pendingEstimates} estimate${pendingEstimates > 1 ? 's' : ''} awaiting response`}
+                sub="Client hasn&#39;t approved or declined yet" href="/estimates"
+              />
+            )}
+            {pmAlerts.length > 0 && (
+              <AlertCard icon="🔧" accent="var(--amber)"
+                title={`${pmAlerts.length} unit${pmAlerts.length > 1 ? 's' : ''} need preventive maintenance`}
+                sub="PM is overdue — schedule service soon" href="/equipment"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Today's Jobs ──────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+          Today&#39;s Jobs
+        </div>
+        {todayJobs.length === 0 ? (
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '20px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 24, marginBottom: 6 }}>📅</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text2)' }}>Nothing scheduled for today</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {todayJobs.slice(0, 6).map(job => (
+              <TodayJobCard key={job.id} job={job} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── New Job button ────────────────────────────────────────────────── */}
+      <Link href="/jobs" className="btn btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+        + New Job
+      </Link>
+
+    </div>
+    <div className="dash-desktop">
     <div style={{ padding: '28px 24px 60px', maxWidth: 1200 }}>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -649,5 +768,7 @@ export default async function DashboardPage() {
       )}
 
     </div>
+    </div>
+    </>
   )
 }
