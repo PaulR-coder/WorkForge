@@ -34,6 +34,30 @@ const PRIORITY_COLOR: Record<string, string> = {
   urgent: '#ef4444',
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  open: 'Open',
+  in_progress: 'In Progress',
+  scheduled: 'Scheduled',
+  done: 'Done',
+  cancelled: 'Cancelled',
+}
+
+const STATUS_BG: Record<string, string> = {
+  open: 'var(--bg3)',
+  in_progress: 'rgba(91,163,245,0.15)',
+  scheduled: 'rgba(91,163,245,0.10)',
+  done: 'rgba(34,197,94,0.15)',
+  cancelled: 'var(--bg3)',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  open: 'var(--text3)',
+  in_progress: '#5ba3f5',
+  scheduled: '#5ba3f5',
+  done: '#22c55e',
+  cancelled: 'var(--text4)',
+}
+
 const TECH_PALETTE = [
   '#f59e0b', '#5ba3f5', '#10b981', '#8b5cf6',
   '#ef4444', '#ec4899', '#14b8a6', '#f97316',
@@ -389,7 +413,18 @@ export default function ScheduleCalendar({
                         {new Date(job.scheduledAt!).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{job.client}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text3)' }}>{job.type}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>{job.type}</div>
+                      <div>
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                          borderRadius: 99, background: STATUS_BG[job.status] ?? 'var(--bg3)',
+                          color: STATUS_COLOR[job.status] ?? 'var(--text3)',
+                          textTransform: 'uppercase', letterSpacing: 0.5,
+                          display: 'inline-block',
+                        }}>
+                          {STATUS_LABEL[job.status] ?? job.status}
+                        </span>
+                      </div>
                     </div>
                     {job.tech && (
                       <div style={{
@@ -430,7 +465,18 @@ export default function ScheduleCalendar({
                         }}
                       >
                         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{job.client}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text3)' }}>{job.type}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>{job.type}</div>
+                        <div>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px',
+                            borderRadius: 99, background: STATUS_BG[job.status] ?? 'var(--bg3)',
+                            color: STATUS_COLOR[job.status] ?? 'var(--text3)',
+                            textTransform: 'uppercase', letterSpacing: 0.5,
+                            display: 'inline-block',
+                          }}>
+                            {STATUS_LABEL[job.status] ?? job.status}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
