@@ -289,18 +289,56 @@ export default function EquipmentClient({
                           {eq.serialNumber && <span style={{ opacity: 0.7 }}> &middot; S/N {eq.serialNumber}</span>}
                         </div>
                       </div>
+                      {/* PM Status badge — hidden on mobile (shown full-width below instead) */}
                       <span style={{
                         fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
                         background: st.dim, color: st.color, border: `1px solid ${st.color}33`,
                         flexShrink: 0, fontFamily: 'var(--font-mono)', letterSpacing: '.4px',
+                        display: isMobile ? 'none' : undefined,
                       }}>
                         {st.label}
                       </span>
                     </div>
 
-                    {/* Stats Grid */}
+                    {/* Mobile-only: PM Status full-width prominent badge (Row 1) */}
+                    {isMobile && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        gap: 8, marginBottom: 8,
+                        background: st.dim, border: `1px solid ${st.color}55`,
+                        borderRadius: 10, padding: '10px 12px',
+                      }}>
+                        <span style={{
+                          fontSize: 13, fontWeight: 800, color: st.color,
+                          fontFamily: 'var(--font-mono)', letterSpacing: '.6px',
+                        }}>
+                          PM STATUS
+                        </span>
+                        <span style={{
+                          fontSize: 15, fontWeight: 900, color: st.color,
+                          fontFamily: 'var(--font-mono)',
+                        }}>
+                          {st.label}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Stats Grid — on mobile: 2-col, order: Last PM | Next PM Due / Total Services | Warranty */}
                     <div className="wf-mobile-stats-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
-                      {[
+                      {(isMobile ? [
+                        { n: `${eq.lastPMDaysAgo}d`, l: 'Last PM', color: undefined },
+                        {
+                          n: remain <= 0 ? 'NOW' : `${remain}d`,
+                          l: remain <= 0 ? 'PM Overdue' : 'Next PM Due',
+                          color: st.color,
+                        },
+                        { n: eq.totalServices.toString(), l: 'Total Services', color: undefined },
+                        {
+                          n: eq.warrantyEnd ? new Date(eq.warrantyEnd).getFullYear().toString() : 'N/A',
+                          l: 'Warranty',
+                          color: undefined,
+                        },
+                      ] : [
                         { n: eq.totalServices.toString(), l: 'Total Services', color: undefined },
                         { n: `${eq.lastPMDaysAgo}d`, l: 'Since Last PM', color: undefined },
                         {
@@ -313,7 +351,7 @@ export default function EquipmentClient({
                           l: 'Warranty',
                           color: undefined,
                         },
-                      ].map((s, i) => (
+                      ]).map((s, i) => (
                         <div key={i} style={{
                           textAlign: 'center', background: 'var(--bg3)',
                           borderRadius: 10, padding: '10px 6px',
