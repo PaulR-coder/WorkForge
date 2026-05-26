@@ -368,7 +368,7 @@ export default async function DashboardPage() {
       {/* ── Today's Jobs ──────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-          Today&#39;s Jobs
+          Today's Jobs
         </div>
         {todayJobs.length === 0 ? (
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '20px 16px', textAlign: 'center' }}>
