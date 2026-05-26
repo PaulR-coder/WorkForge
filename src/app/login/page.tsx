@@ -426,6 +426,29 @@ export default function LoginPage() {
               </>
             )}
           </div>
+
+          {/* Footer */}
+          <div style={{ flexShrink:0, padding:'16px 24px', borderTop:'1px solid var(--border)', display:'flex', justifyContent:'center', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, color:'var(--text4)' }}>© 2026 WorkForge</span>
+            <span style={{ fontSize:11, color:'var(--border)' }}>·</span>
+            <Link href="/terms" style={{ fontSize:11, color:'var(--text4)', textDecoration:'none', transition:'color .15s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>
+              Terms
+            </Link>
+            <span style={{ fontSize:11, color:'var(--border)' }}>·</span>
+            <Link href="/privacy" style={{ fontSize:11, color:'var(--text4)', textDecoration:'none', transition:'color .15s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>
+              Privacy
+            </Link>
+            <span style={{ fontSize:11, color:'var(--border)' }}>·</span>
+            <Link href="/accessibility" style={{ fontSize:11, color:'var(--text4)', textDecoration:'none', transition:'color .15s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>
+              Accessibility
+            </Link>
+          </div>
         </div>
       </div>
     </>
