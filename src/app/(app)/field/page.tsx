@@ -2,15 +2,17 @@ import { getSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import FieldView from './FieldView'
+import { getTenantFilter } from '@/lib/tenant'
 
 export default async function FieldPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  const tenantFilter = getTenantFilter(session)
   const notDone = { notIn: ['done' as const] }
   const where = session.role === 'tech'
-    ? { techId: session.id, status: notDone }
-    : { status: notDone }
+    ? { ...tenantFilter, techId: session.id, status: notDone }
+    : { ...tenantFilter, status: notDone }
 
   const jobs = await prisma.job.findMany({
     where,

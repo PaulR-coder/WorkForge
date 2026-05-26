@@ -115,12 +115,15 @@ export default function RegisterPage() {
         position: 'fixed',
         inset: 0,
         background: 'var(--bg)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
         overflowY: 'auto',
       }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100%',
+          padding: 16,
+        }}>
         <div style={{
           position: 'absolute',
           inset: 0,
@@ -439,6 +442,7 @@ export default function RegisterPage() {
               </Link>
             </p>
           </form>
+        </div>
         </div>
       </div>
     </>
