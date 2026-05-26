@@ -9,7 +9,8 @@ import Anthropic from '@anthropic-ai/sdk'
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://getworkforge.com').trim()
 
 async function generateOtherJobTypes(description: string): Promise<string[]> {
-  if (!process.env.ANTHROPIC_API_KEY || !description.trim()) return []
+  const safe = description.slice(0, 500).trim()
+  if (!process.env.ANTHROPIC_API_KEY || !safe) return []
   try {
     const client = new Anthropic()
     const msg = await client.messages.create({
@@ -17,7 +18,7 @@ async function generateOtherJobTypes(description: string): Promise<string[]> {
       max_tokens: 256,
       messages: [{
         role: 'user',
-        content: `A field service business describes their work as: "${description.trim()}"
+        content: `A field service business describes their work as: "${safe}"
 
 List 6 to 8 specific job types for this business. Output each on its own line. No bullets, no numbers, no explanations — just the job type name (2 to 5 words each). Good examples: "Pool Chemical Balance", "Pressure Washing", "Filter Replacement".`,
       }],
