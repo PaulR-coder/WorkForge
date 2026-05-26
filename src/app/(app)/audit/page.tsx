@@ -41,6 +41,7 @@ export default async function AuditPage() {
 
   return (
     <div style={{ padding: 20, maxWidth: 1000, margin: '0 auto' }}>
+      <style>{`.audit-row:hover { background: var(--bg3); }`}</style>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', letterSpacing: '.5px', marginBottom: 3 }}>Audit Log</h1>
@@ -90,6 +91,7 @@ export default async function AuditPage() {
             return (
               <div
                 key={log.id}
+                className="audit-row"
                 style={{
                   display: 'grid', gridTemplateColumns: '36px 1fr 120px 100px 150px',
                   alignItems: 'center', gap: 0,
@@ -97,8 +99,6 @@ export default async function AuditPage() {
                   borderBottom: i < logs.length - 1 ? '1px solid var(--border)' : 'none',
                   transition: 'background .12s',
                 }}
-                onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = 'var(--bg3)')}
-                onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
               >
                 {/* Icon */}
                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
