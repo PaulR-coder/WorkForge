@@ -45,10 +45,11 @@ const TYPE_COLOR: Record<string, string> = {
   Refrigeration: '#a78bfa', Maintenance: '#6b7280', Emergency: 'var(--red)',
 }
 
-export default function JobsBoard({ initialJobs, users, session, initialStatusFilter, initialTypeFilter }: {
+export default function JobsBoard({ initialJobs, users, session, jobTypes = [], initialStatusFilter, initialTypeFilter }: {
   initialJobs: Job[]
   users: User[]
   session: SessionUser
+  jobTypes?: string[]
   initialStatusFilter?: string
   initialTypeFilter?: string
 }) {
@@ -56,7 +57,7 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter ?? 'all')
   const [typeFilter, setTypeFilter]     = useState(initialTypeFilter ?? 'all')
   const [showCreate, setShowCreate]   = useState(false)
-  const [form, setForm]               = useState({ client: '', address: '', type: 'HVAC', priority: 'normal', description: '', techId: '' })
+  const [form, setForm]               = useState({ client: '', address: '', type: jobTypes[0] ?? 'HVAC', priority: 'normal', description: '', techId: '' })
   const [saving, setSaving]           = useState(false)
   const [dragId, setDragId]           = useState<string | null>(null)
   const [dragOver, setDragOver]       = useState<string | null>(null)
@@ -113,7 +114,7 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
       const job = await res.json()
       setJobs(prev => [job, ...prev])
       setShowCreate(false)
-      setForm({ client: '', address: '', type: 'HVAC', priority: 'normal', description: '', techId: '' })
+      setForm({ client: '', address: '', type: jobTypes[0] ?? 'HVAC', priority: 'normal', description: '', techId: '' })
       toast('Work order created', 'success')
     } else {
       const body = await res.json().catch(() => ({}))
@@ -144,7 +145,7 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
   const timeSince  = Math.round((Date.now() - lastSync) / 1000)
   const techs      = users.filter(u => u.role === 'tech')
 
-  const jobTypes = [...new Set(jobs.map(j => j.type).filter((v): v is string => Boolean(v)))].sort()
+  const activeJobTypes = [...new Set(jobs.map(j => j.type).filter((v): v is string => Boolean(v)))].sort()
 
   const filteredJobs = jobs
     .filter(j => statusFilter === 'all' || j.status === statusFilter)
@@ -233,9 +234,9 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
               </button>
             ))}
           </div>
-          {jobTypes.length > 1 && (
+          {activeJobTypes.length > 1 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-              {['all', ...jobTypes].map(typeKey => (
+              {['all', ...activeJobTypes].map(typeKey => (
                 <button
                   type="button"
                   key={typeKey}
@@ -435,7 +436,10 @@ export default function JobsBoard({ initialJobs, users, session, initialStatusFi
                   <div>
                     <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--text4)', textTransform:'uppercase', letterSpacing:'.7px', marginBottom:6 }}>{t('jobType')}</label>
                     <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="wf-modal-input" style={inp()}>
-                      {['HVAC','Electrical','Plumbing','Refrigeration','Maintenance','Emergency'].map(jt => <option key={jt}>{jt}</option>)}
+                      {(jobTypes.length > 0
+                        ? jobTypes
+                        : ['HVAC', 'Electrical', 'Plumbing', 'Refrigeration', 'Maintenance', 'Emergency']
+                      ).map(jt => <option key={jt}>{jt}</option>)}
                     </select>
                   </div>
                 </div>

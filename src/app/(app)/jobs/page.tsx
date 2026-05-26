@@ -13,7 +13,7 @@ export default async function JobsPage({ searchParams }: Props) {
   const tenantFilter = getTenantFilter(session)
   const techFilter = session.role === 'tech' ? { techId: session.id } : {}
 
-  const [jobs, users] = await Promise.all([
+  const [jobs, users, jobTypeRecords] = await Promise.all([
     prisma.job.findMany({
       where: { ...tenantFilter, ...techFilter, archivedAt: null },
       include: { tech: { select: { id: true, name: true, initials: true } } },
@@ -23,8 +23,12 @@ export default async function JobsPage({ searchParams }: Props) {
       where: { role: { in: ['tech', 'dispatcher', 'admin'] }, active: true, ...tenantFilter },
       select: { id: true, name: true, initials: true, role: true },
     }),
+    session.tenantId
+      ? prisma.jobType.findMany({ where: { tenantId: session.tenantId }, orderBy: { name: 'asc' } })
+      : Promise.resolve([]),
   ])
 
+  const jobTypes = jobTypeRecords.map(jt => jt.name)
   const params = await searchParams
-  return <JobsBoard initialJobs={jobs} users={users} session={session} initialStatusFilter={params.status} initialTypeFilter={params.type} />
+  return <JobsBoard initialJobs={jobs} users={users} session={session} jobTypes={jobTypes} initialStatusFilter={params.status} initialTypeFilter={params.type} />
 }
