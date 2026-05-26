@@ -63,6 +63,8 @@ model Tenant {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Onboarding metadata: which service trades this business provides (e.g. "HVAC", "Plumbing").
+  // Separate from JobType records, which are the actual job type names shown in the job creation dropdown.
   serviceTypes String[] @default([])
 
   stripeCustomerId     String?
@@ -505,6 +507,7 @@ model JobType {
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([tenantId])
+  @@unique([tenantId, name])
 }
