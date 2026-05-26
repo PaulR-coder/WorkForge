@@ -143,12 +143,13 @@ function LogoMark({ size = 32 }: { size?: number }) {
 
 // ── Main shell ────────────────────────────────────────────────────────────────
 
-export default function AppShell({ session, children, subscriptionStatus, currentPeriodEnd, pastDueAt }: {
+export default function AppShell({ session, children, subscriptionStatus, currentPeriodEnd, pastDueAt, isDemo }: {
   session: SessionUser
   children: React.ReactNode
   subscriptionStatus?: string | null
   currentPeriodEnd?: string | null
   pastDueAt?: string | null
+  isDemo?: boolean
 }) {
   const pathname       = usePathname()
   const router         = useRouter()
@@ -246,7 +247,7 @@ export default function AppShell({ session, children, subscriptionStatus, curren
         ...g,
         items: g.items.filter(i =>
           (!i.perm || can(session.role, i.perm)) &&
-          !(isTrialing && i.href === '/marketing') &&
+          !(isTrialing && !isDemo && i.href === '/marketing') &&
           !(isMobile && MOBILE_HIDDEN_HREFS.has(i.href))
         ),
       })).filter(g => g.items.length > 0)

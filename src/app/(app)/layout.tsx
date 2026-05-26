@@ -16,18 +16,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let subscriptionStatus: string | null = null
   let currentPeriodEnd: string | null = null
   let pastDueAt: string | null = null
+  let isDemo = false
 
   // Superadmin always has full access
   if (session.role !== 'superadmin' && session.tenantId) {
     const tenant = await prisma.tenant.findUnique({
       where: { id: session.tenantId },
-      select: { subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, pastDueAt: true },
+      select: { subscriptionStatus: true, trialEndsAt: true, currentPeriodEnd: true, pastDueAt: true, slug: true },
     })
 
     if (tenant) {
       subscriptionStatus = tenant.subscriptionStatus
       currentPeriodEnd = tenant.currentPeriodEnd?.toISOString() ?? null
       pastDueAt = tenant.pastDueAt?.toISOString() ?? null
+      isDemo = tenant.slug === 'acme-field-services'
 
       const now = new Date()
 
@@ -59,7 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <LangProvider>
       <ToastProvider>
-        <AppShell session={session} subscriptionStatus={subscriptionStatus} currentPeriodEnd={currentPeriodEnd} pastDueAt={pastDueAt}>{children}</AppShell>
+        <AppShell session={session} subscriptionStatus={subscriptionStatus} currentPeriodEnd={currentPeriodEnd} pastDueAt={pastDueAt} isDemo={isDemo}>{children}</AppShell>
       </ToastProvider>
     </LangProvider>
   )
