@@ -53,11 +53,12 @@ export default function JobsBoard({ initialJobs, users, session, jobTypes = [], 
   initialStatusFilter?: string
   initialTypeFilter?: string
 }) {
+  const defaultType = jobTypes[0] ?? 'HVAC'
   const [jobs, setJobs]               = useState<Job[]>(initialJobs)
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter ?? 'all')
   const [typeFilter, setTypeFilter]     = useState(initialTypeFilter ?? 'all')
   const [showCreate, setShowCreate]   = useState(false)
-  const [form, setForm]               = useState({ client: '', address: '', type: jobTypes[0] ?? 'HVAC', priority: 'normal', description: '', techId: '' })
+  const [form, setForm]               = useState({ client: '', address: '', type: defaultType, priority: 'normal', description: '', techId: '' })
   const [saving, setSaving]           = useState(false)
   const [dragId, setDragId]           = useState<string | null>(null)
   const [dragOver, setDragOver]       = useState<string | null>(null)
@@ -114,7 +115,7 @@ export default function JobsBoard({ initialJobs, users, session, jobTypes = [], 
       const job = await res.json()
       setJobs(prev => [job, ...prev])
       setShowCreate(false)
-      setForm({ client: '', address: '', type: jobTypes[0] ?? 'HVAC', priority: 'normal', description: '', techId: '' })
+      setForm({ client: '', address: '', type: defaultType, priority: 'normal', description: '', techId: '' })
       toast('Work order created', 'success')
     } else {
       const body = await res.json().catch(() => ({}))
