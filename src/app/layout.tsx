@@ -9,6 +9,19 @@ export const metadata: Metadata = {
   description: 'Field operations management platform for service industry businesses.',
   icons: { icon: '/icon.png', apple: '/icon.png' },
   manifest: '/manifest.json',
+  openGraph: {
+    title: 'WorkForge — Field Service Management Software',
+    description: 'All-in-one field service management for HVAC, plumbing, and electrical contractors. Dispatch faster, invoice in 60 seconds.',
+    url: 'https://getworkforge.com',
+    siteName: 'WorkForge',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'WorkForge — Field Service Management Software',
+    description: 'All-in-one field service management for HVAC, plumbing, and electrical contractors. Dispatch faster, invoice in 60 seconds.',
+  },
 }
 
 export const viewport: Viewport = {
