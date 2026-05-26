@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useToast } from '@/components/Toast'
+import { useIsMobile } from '@/lib/useIsMobile'
 
 type Equipment = {
   id: string; client: string; name: string; brand: string; model: string
@@ -49,6 +50,7 @@ export default function EquipmentClient({
   canEdit: boolean
 }) {
   const { toast } = useToast()
+  const isMobile = useIsMobile()
   const [equipment, setEquipment] = useState(initialEquipment)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -297,7 +299,7 @@ export default function EquipmentClient({
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="wf-mobile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
+                    <div className="wf-mobile-stats-grid" style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
                       {[
                         { n: eq.totalServices.toString(), l: 'Total Services', color: undefined },
                         { n: `${eq.lastPMDaysAgo}d`, l: 'Since Last PM', color: undefined },
@@ -412,7 +414,7 @@ export default function EquipmentClient({
                   {/* Action Footer */}
                   {canEdit && editingId !== eq.id && confirmDelete !== eq.id && (
                     <div className="wf-mobile-eq-footer" style={{
-                      display: 'flex', gap: 6, borderTop: '1px solid var(--border)',
+                      display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 6, borderTop: '1px solid var(--border)',
                       padding: '12px 18px', background: 'var(--bg3)',
                     }}>
                       <button
@@ -449,7 +451,7 @@ export default function EquipmentClient({
                       <button
                         onClick={() => setConfirmDelete(eq.id)}
                         style={{
-                          marginLeft: 'auto', padding: '7px 12px', background: 'transparent',
+                          marginLeft: isMobile ? 0 : 'auto', padding: '7px 12px', background: 'transparent',
                           color: 'var(--red)', border: '1px solid rgba(239,68,68,.25)',
                           borderRadius: 7, fontSize: 11, cursor: 'pointer',
                         }}
