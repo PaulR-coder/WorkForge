@@ -110,7 +110,7 @@ export default function ScheduleCalendar({
   const [filterTechId, setFilterTechId] = useState('all')
   const [dragging, setDragging] = useState<string | null>(null)
   const [dropHover, setDropHover] = useState<string | null>(null)
-  const [mobileDay, setMobileDay] = useState<number>(() => new Date().getDay())
+  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date())
   const { t, lang } = useLang()
   const isMobile = useIsMobile()
 
@@ -323,347 +323,121 @@ export default function ScheduleCalendar({
 
   // ===== MOBILE VIEW =====
   if (isMobile) {
-    const selectedDay = weekDays[mobileDay]
-    const dayJobs = thisWeek.filter(j => isSameDay(new Date(j.scheduledAt!), selectedDay))
-
-    function mobileCard(job: CalJob) {
-      const pColor = PRIORITY_COLOR[job.priority] ?? '#5ba3f5'
-      const tColor = job.techId ? (techColor[job.techId] ?? '#5ba3f5') : 'var(--text4)'
-      return (
-        <div
-          key={job.id}
-          onClick={() => setOpenJobId(job.id)}
-          className="mobile-job-card"
-          style={{
-            background: 'var(--bg3)',
-            border: `1px solid var(--border)`,
-            borderLeft: `3px solid ${pColor}`,
-            borderRadius: 10,
-            padding: '12px 14px',
-            cursor: 'pointer',
-            transition: 'border-color .15s, background .15s, transform .1s',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-            <div style={{
-              fontSize: 13,
-              fontWeight: 700,
-              fontFamily: 'var(--font-body)',
-              color: 'var(--text)',
-              lineHeight: 1.3,
-              flex: 1,
-            }}>
-              {job.client}
-            </div>
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '.04em',
-              textTransform: 'uppercase',
-              color: pColor,
-              background: `${pColor}18`,
-              padding: '2px 8px',
-              borderRadius: 20,
-              border: `1px solid ${pColor}30`,
-              flexShrink: 0,
-            }}>
-              {job.priority}
-            </span>
-          </div>
-          <div style={{
-            fontSize: 11,
-            color: 'var(--text4)',
-            fontFamily: 'var(--font-body)',
-            marginBottom: job.tech ? 8 : 0,
-          }}>
-            {job.type} · {job.address.split(',')[0]}
-          </div>
-          {job.tech && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{
-                width: 20,
-                height: 20,
-                borderRadius: '50%',
-                background: tColor,
-                color: '#080c1a',
-                fontSize: 7,
-                fontWeight: 800,
-                fontFamily: 'var(--font-mono)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                {job.tech.initials}
-              </div>
-              <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500, fontFamily: 'var(--font-body)' }}>
-                {job.tech.name}
-              </span>
-            </div>
-          )}
-          {job.scheduledAt && can(session.role, 'editJob') && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-              <button
-                onClick={e => { e.stopPropagation(); patchSchedule(job.id, null) }}
-                className="unschedule-btn"
-                style={{
-                  padding: '4px 10px',
-                  background: 'transparent',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
-                  fontSize: 10,
-                  color: 'var(--text4)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-body)',
-                  transition: 'border-color .12s, color .12s',
-                }}
-              >
-                Unschedule
-              </button>
-            </div>
-          )}
-        </div>
-      )
-    }
+    const mobileUnscheduled = baseJobs.filter(j => !j.scheduledAt && j.status !== 'done')
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-        {/* Mobile header */}
+        {/* Day selector strip */}
         <div style={{
-          padding: '12px 14px 8px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg2)',
-          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+          background: 'var(--bg2)', borderBottom: '1px solid var(--border)', flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{
-              fontSize: 17,
-              fontWeight: 700,
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '.02em',
-              color: 'var(--text)',
-              flex: 1,
-              textTransform: 'uppercase',
-            }}>
-              {t('dispatchSchedule')}
+          <button
+            onClick={() => setSelectedDay(prev => addDays(prev, -1))}
+            style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', cursor: 'pointer', fontSize: 16 }}
+          >‹</button>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
+              {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            {!isSameDay(selectedDay, new Date()) && (
               <button
-                onClick={() => { setWStart(getWeekStart(new Date())); setMobileDay(new Date().getDay()) }}
-                className="today-btn"
-                style={{
-                  padding: '5px 10px',
-                  borderRadius: 6,
-                  border: '1px solid var(--amber-border, rgba(245,158,11,.35))',
-                  background: 'rgba(245,158,11,.08)',
-                  color: 'var(--amber)',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-body)',
-                  cursor: 'pointer',
-                  transition: 'background .15s',
-                }}
+                onClick={() => setSelectedDay(new Date())}
+                style={{ fontSize: 11, color: 'var(--amber)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 700, marginTop: 2 }}
               >
                 Today
               </button>
-              <button
-                onClick={() => setWStart(d => addDays(d, -7))}
-                className="nav-arrow-btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '5px 8px',
-                  borderRadius: '6px 0 0 6px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg3)',
-                  color: 'var(--text3)',
-                  cursor: 'pointer',
-                  transition: 'background .12s, color .12s',
-                }}
-              >
-                <ChevronLeft />
-              </button>
-              <button
-                onClick={() => setWStart(d => addDays(d, 7))}
-                className="nav-arrow-btn"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '5px 8px',
-                  borderRadius: '0 6px 6px 0',
-                  border: '1px solid var(--border)',
-                  borderLeft: 'none',
-                  background: 'var(--bg3)',
-                  color: 'var(--text3)',
-                  cursor: 'pointer',
-                  transition: 'background .12s, color .12s',
-                }}
-              >
-                <ChevronRight />
-              </button>
-            </div>
-          </div>
-
-          {/* Day selector strip */}
-          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 6 }}>
-            {weekDays.map((d, i) => {
-              const isToday = isSameDay(d, today)
-              const isSelected = i === mobileDay
-              const jobCount = thisWeek.filter(j => isSameDay(new Date(j.scheduledAt!), d)).length
-              return (
-                <button
-                  key={i}
-                  onClick={() => setMobileDay(i)}
-                  style={{
-                    flexShrink: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '6px 10px',
-                    borderRadius: 10,
-                    border: `1px solid ${isSelected ? 'var(--amber)' : 'var(--border)'}`,
-                    background: isSelected ? 'rgba(245,158,11,.12)' : 'transparent',
-                    cursor: 'pointer',
-                    minWidth: 44,
-                    transition: 'border-color .15s, background .15s',
-                  }}
-                >
-                  <div style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-display)',
-                    letterSpacing: '.06em',
-                    textTransform: 'uppercase',
-                    color: isToday ? 'var(--amber)' : 'var(--text4)',
-                    marginBottom: 2,
-                  }}>
-                    {dayLabels[d.getDay()]}
-                  </div>
-                  <div style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    fontFamily: 'var(--font-mono)',
-                    color: isSelected || isToday ? 'var(--amber)' : 'var(--text)',
-                    lineHeight: 1,
-                  }}>
-                    {d.getDate()}
-                  </div>
-                  <div style={{
-                    fontSize: 8,
-                    fontWeight: 700,
-                    color: jobCount > 0 ? 'var(--amber)' : 'transparent',
-                    marginTop: 3,
-                    fontFamily: 'var(--font-mono)',
-                  }}>
-                    {jobCount > 0 ? `${jobCount}` : '·'}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Tech filter */}
-          {techs.length > 1 && (
-            <div style={{ marginTop: 6 }}>
-              <select
-                value={filterTechId}
-                onChange={e => setFilterTechId(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg3)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  color: 'var(--text)',
-                  fontSize: 12,
-                  fontFamily: 'var(--font-body)',
-                  padding: '7px 10px',
-                  outline: 'none',
-                }}
-              >
-                <option value="all">{t('allTechs')}</option>
-                {techs.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* Day content */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {/* Scheduled for this day */}
-          <div style={{ padding: '10px 12px' }}>
-            <div style={{
-              fontSize: 10,
-              fontWeight: 700,
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '.06em',
-              color: 'var(--text4)',
-              textTransform: 'uppercase',
-              marginBottom: 8,
-            }}>
-              {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} · {dayJobs.length} {dayJobs.length === 1 ? 'job' : 'jobs'}
-            </div>
-            {dayJobs.length === 0 ? (
-              <div style={{
-                padding: '24px 0',
-                textAlign: 'center',
-                color: 'var(--text4)',
-                fontSize: 12,
-                fontFamily: 'var(--font-body)',
-              }}>
-                Nothing scheduled
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {HOURS.map(hour => {
-                  const hJobs = dayJobs.filter(j => new Date(j.scheduledAt!).getHours() === hour)
-                  if (hJobs.length === 0) return null
-                  return (
-                    <div key={hour} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <div style={{
-                        fontSize: 10,
-                        color: 'var(--text4)',
-                        fontWeight: 600,
-                        fontFamily: 'var(--font-mono)',
-                        width: 42,
-                        paddingTop: 14,
-                        textAlign: 'right',
-                        flexShrink: 0,
-                        letterSpacing: '-.01em',
-                      }}>
-                        {fmtHour(hour)}
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {hJobs.map(j => mobileCard(j))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
             )}
           </div>
+          <button
+            onClick={() => setSelectedDay(prev => addDays(prev, 1))}
+            style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', cursor: 'pointer', fontSize: 16 }}
+          >›</button>
+        </div>
 
-          {/* Unscheduled section */}
-          {unscheduled.length > 0 && (
-            <div style={{ borderTop: '1px solid var(--border)', padding: '10px 12px' }}>
-              <div style={{
-                fontSize: 10,
-                fontWeight: 700,
-                fontFamily: 'var(--font-display)',
-                letterSpacing: '.06em',
-                color: 'var(--text4)',
-                textTransform: 'uppercase',
-                marginBottom: 8,
-              }}>
-                {t('unscheduledJobs')} ({unscheduled.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {unscheduled.map(j => mobileCard(j))}
-              </div>
-            </div>
-          )}
+        {/* Scrollable job list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+          {(() => {
+            const dayJobs = baseJobs
+              .filter(j => j.scheduledAt && isSameDay(new Date(j.scheduledAt), selectedDay))
+              .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
+            return (
+              <>
+                {dayJobs.length === 0 && (
+                  <div style={{
+                    background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
+                    padding: '24px', textAlign: 'center', marginBottom: 16,
+                  }}>
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>📅</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)', marginBottom: 4 }}>Nothing scheduled</div>
+                    <div style={{ fontSize: 12, color: 'var(--text4)' }}>No jobs scheduled for this day</div>
+                  </div>
+                )}
+                {dayJobs.map(job => (
+                  <div
+                    key={job.id}
+                    onClick={() => setOpenJobId(job.id)}
+                    style={{
+                      background: 'var(--bg2)', border: '1px solid var(--border)',
+                      borderLeft: `3px solid ${PRIORITY_COLOR[job.priority] ?? 'var(--border)'}`,
+                      borderRadius: 12, padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 11, color: 'var(--text4)', fontWeight: 600, marginBottom: 2 }}>
+                        {new Date(job.scheduledAt!).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{job.client}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)' }}>{job.type}</div>
+                    </div>
+                    {job.tech && (
+                      <div style={{
+                        width: 32, height: 32, borderRadius: '50%',
+                        background: job.techId ? (techColor[job.techId] ?? TECH_PALETTE[0]) : TECH_PALETTE[0],
+                        color: '#060a17',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 800, flexShrink: 0,
+                      }}>
+                        {job.tech.initials}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {mobileUnscheduled.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 800, color: 'var(--text4)',
+                      textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8,
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}>
+                      Unscheduled
+                      <span style={{
+                        background: 'var(--amber)', color: '#080c1a',
+                        borderRadius: 99, fontSize: 10, fontWeight: 800,
+                        padding: '1px 7px',
+                      }}>{mobileUnscheduled.length}</span>
+                    </div>
+                    {mobileUnscheduled.map(job => (
+                      <div
+                        key={job.id}
+                        onClick={() => setOpenJobId(job.id)}
+                        style={{
+                          background: 'var(--bg2)', border: '1px solid var(--border)',
+                          borderLeft: `3px solid ${PRIORITY_COLOR[job.priority] ?? 'var(--border)'}`,
+                          borderRadius: 12, padding: '12px 14px', marginBottom: 8, cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{job.client}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text3)' }}>{job.type}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
 
         {overlays}
@@ -672,21 +446,6 @@ export default function ScheduleCalendar({
           @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
-          }
-          .mobile-job-card:hover {
-            background: var(--bg4) !important;
-            transform: translateY(-1px);
-          }
-          .unschedule-btn:hover {
-            border-color: var(--border2) !important;
-            color: var(--text3) !important;
-          }
-          .today-btn:hover {
-            background: rgba(245,158,11,.16) !important;
-          }
-          .nav-arrow-btn:hover {
-            background: var(--bg4) !important;
-            color: var(--text) !important;
           }
         `}</style>
       </div>
