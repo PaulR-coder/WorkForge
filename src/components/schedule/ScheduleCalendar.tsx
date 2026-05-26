@@ -347,7 +347,6 @@ export default function ScheduleCalendar({
 
   // ===== MOBILE VIEW =====
   if (isMobile) {
-    const mobileUnscheduled = baseJobs.filter(j => !j.scheduledAt && j.status !== 'done')
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -364,9 +363,9 @@ export default function ScheduleCalendar({
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
               {selectedDay.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
-            {!isSameDay(selectedDay, new Date()) && (
+            {!isSameDay(selectedDay, today) && (
               <button
-                onClick={() => setSelectedDay(new Date())}
+                onClick={() => setSelectedDay(today)}
                 style={{ fontSize: 11, color: 'var(--amber)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 700, marginTop: 2 }}
               >
                 Today
@@ -383,7 +382,7 @@ export default function ScheduleCalendar({
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
           {(() => {
             const dayJobs = baseJobs
-              .filter(j => j.scheduledAt && isSameDay(new Date(j.scheduledAt), selectedDay))
+              .filter(j => j.scheduledAt && isSameDay(new Date(j.scheduledAt!), selectedDay))
               .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
             return (
               <>
@@ -440,7 +439,7 @@ export default function ScheduleCalendar({
                   </div>
                 ))}
 
-                {mobileUnscheduled.length > 0 && (
+                {unscheduled.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     <div style={{
                       fontSize: 10, fontWeight: 800, color: 'var(--text4)',
@@ -452,9 +451,9 @@ export default function ScheduleCalendar({
                         background: 'var(--amber)', color: '#080c1a',
                         borderRadius: 99, fontSize: 10, fontWeight: 800,
                         padding: '1px 7px',
-                      }}>{mobileUnscheduled.length}</span>
+                      }}>{unscheduled.length}</span>
                     </div>
-                    {mobileUnscheduled.map(job => (
+                    {unscheduled.map(job => (
                       <div
                         key={job.id}
                         onClick={() => setOpenJobId(job.id)}
