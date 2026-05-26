@@ -306,7 +306,7 @@ export default async function DashboardPage() {
         <Link href="/invoices?status=paid" style={{ textDecoration: 'none' }}>
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 14px' }}>
             <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--green)', letterSpacing: '-1px', lineHeight: 1 }}>${paidAmt.toLocaleString()}</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginTop: 4 }}>Collected</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text2)', marginTop: 4 }}>Total Paid</div>
           </div>
         </Link>
         <Link href="/jobs" style={{ textDecoration: 'none' }}>
@@ -352,7 +352,7 @@ export default async function DashboardPage() {
             {pendingEstimates > 0 && (
               <AlertCard icon="📝" accent="#5ba3f5"
                 title={`${pendingEstimates} estimate${pendingEstimates > 1 ? 's' : ''} awaiting response`}
-                sub="Client hasn&#39;t approved or declined yet" href="/estimates"
+                sub="Client hasn't approved or declined yet" href="/estimates"
               />
             )}
             {pmAlerts.length > 0 && (
@@ -378,7 +378,21 @@ export default async function DashboardPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {todayJobs.slice(0, 6).map(job => (
-              <TodayJobCard key={job.id} job={job} />
+              <div
+                key={job.id}
+                style={{
+                  background: 'var(--bg2)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+                }}
+              >
+                <div style={{ fontSize: 12, color: 'var(--text4)', marginBottom: 2 }}>
+                  {job.scheduledAt ? new Date(job.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'Unscheduled'}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>
+                  {job.client}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text3)' }}>{job.type}</div>
+              </div>
             ))}
           </div>
         )}
