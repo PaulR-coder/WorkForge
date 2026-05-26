@@ -1,4 +1,17 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Pricing — WorkForge Field Service Software',
+  description: 'Simple, transparent pricing for field service teams. Start with a 14-day free trial. No credit card required.',
+  openGraph: {
+    title: 'Pricing — WorkForge Field Service Software',
+    description: 'Simple, transparent pricing for field service teams. Start with a 14-day free trial. No credit card required.',
+    url: 'https://getworkforge.com/pricing',
+    siteName: 'WorkForge',
+    type: 'website',
+  },
+}
 
 // ── Bolt SVG path shared across logo instances ─────────────────────────────
 const BOLT_PATH = 'M -10 -28 L -22 6 L -2 6 L -8 30 L 22 -8 L 4 -8 L 12 -28 Z'
