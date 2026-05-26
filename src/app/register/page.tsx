@@ -30,6 +30,12 @@ export default function RegisterPage() {
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [serviceTypes, setServiceTypes] = useState<string[]>([])
+  const [customService, setCustomService] = useState('')
+
+  function toggleService(s: string) {
+    setServiceTypes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -43,7 +49,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName, name, email, password }),
+        body: JSON.stringify({ companyName, name, email, password, serviceTypes, customService }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Registration failed.'); return }
@@ -101,6 +107,9 @@ export default function RegisterPage() {
         .wf-auth-btn {
           transition: background 0.15s, transform 0.15s, opacity 0.15s;
         }
+        .wf-svc-chip { transition: background 0.13s, border-color 0.13s; }
+        .wf-svc-chip:hover { background: var(--bg5) !important; }
+        .wf-svc-chip:focus-within { outline: 2px solid var(--amber); outline-offset: 2px; }
       `}</style>
       <div style={{
         position: 'fixed',
@@ -184,6 +193,91 @@ export default function RegisterPage() {
                 }}
               />
               <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 4 }}>This becomes your workspace name</div>
+            </div>
+
+            {divider('Services You Offer')}
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 12, color: 'var(--text4)', marginBottom: 12, lineHeight: 1.5 }}>
+                Select all that apply — we&apos;ll set up your workspace with the right job types.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                {(['HVAC', 'Plumbing', 'Electrical', 'Landscaping', 'Junk Removal', 'Construction'] as const).map(s => {
+                  const selected = serviceTypes.includes(s)
+                  return (
+                    <label
+                      key={s}
+                      className="wf-svc-chip"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 13px', cursor: 'pointer',
+                        background: selected ? 'rgba(245,158,11,.1)' : 'var(--bg3)',
+                        border: `1px solid ${selected ? 'var(--amber)' : 'var(--border)'}`,
+                        borderRadius: 10,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleService(s)}
+                        style={{ accentColor: 'var(--amber)', flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: selected ? 'var(--amber)' : 'var(--text3)' }}>
+                        {s}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <label
+                className="wf-svc-chip"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 13px', cursor: 'pointer',
+                  background: serviceTypes.includes('Other') ? 'rgba(245,158,11,.1)' : 'var(--bg3)',
+                  border: `1px solid ${serviceTypes.includes('Other') ? 'var(--amber)' : 'var(--border)'}`,
+                  borderRadius: 10,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={serviceTypes.includes('Other')}
+                  onChange={() => toggleService('Other')}
+                  style={{ accentColor: 'var(--amber)', flexShrink: 0 }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600, color: serviceTypes.includes('Other') ? 'var(--amber)' : 'var(--text3)' }}>
+                  Other
+                </span>
+              </label>
+
+              {serviceTypes.includes('Other') && (
+                <div style={{ marginTop: 8 }}>
+                  <input
+                    type="text"
+                    value={customService}
+                    onChange={e => setCustomService(e.target.value)}
+                    placeholder="e.g. Pool cleaning and pressure washing"
+                    className="wf-auth-input"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg3)',
+                      border: '1px solid var(--amber)',
+                      borderRadius: 10,
+                      color: 'var(--text)',
+                      fontSize: 13,
+                      padding: '11px 14px',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box' as const,
+                      transition: 'border-color 0.15s, box-shadow 0.15s',
+                    }}
+                  />
+                  <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 4 }}>
+                    Describe your services — AI will set up matching job types for you.
+                  </div>
+                </div>
+              )}
             </div>
 
             {divider('Your Account')}
