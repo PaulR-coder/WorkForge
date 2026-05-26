@@ -1,6 +1,38 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import Link from 'next/link'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'WorkForge — Field Service Management Software for Tampa & Beyond',
+  description: 'WorkForge is the all-in-one field service management platform for HVAC, plumbing, and electrical contractors. Dispatch faster, invoice in 60 seconds, manage your whole crew. Built for Tampa and growing.',
+  keywords: [
+    'field service management software',
+    'work order management app',
+    'job dispatch software',
+    'technician scheduling software',
+    'HVAC dispatch software',
+    'plumbing business management',
+    'electrical contractor software',
+    'service business software',
+    'field service software Tampa',
+    'Tampa HVAC software',
+    'Tampa service business management',
+  ],
+  openGraph: {
+    title: 'WorkForge — Field Service Management Software for Tampa & Beyond',
+    description: 'WorkForge is the all-in-one field service management platform for HVAC, plumbing, and electrical contractors. Dispatch faster, invoice in 60 seconds, manage your whole crew.',
+    url: 'https://getworkforge.com',
+    siteName: 'WorkForge',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'WorkForge — Field Service Management Software for Tampa & Beyond',
+    description: 'WorkForge is the all-in-one field service management platform for HVAC, plumbing, and electrical contractors.',
+  },
+}
 
 export default async function Home() {
   const session = await getSession()
@@ -8,6 +40,50 @@ export default async function Home() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify([
+            {
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'WorkForge',
+              url: 'https://getworkforge.com',
+              description: 'Field service management platform for HVAC, plumbing, and electrical contractors.',
+              address: {
+                '@type': 'PostalAddress',
+                addressLocality: 'Tampa',
+                addressRegion: 'FL',
+                addressCountry: 'US',
+              },
+              contactPoint: {
+                '@type': 'ContactPoint',
+                email: 'support@getworkforge.com',
+                contactType: 'customer support',
+              },
+            },
+            {
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              name: 'WorkForge',
+              url: 'https://getworkforge.com',
+              applicationCategory: 'BusinessApplication',
+              operatingSystem: 'Web',
+              description: 'All-in-one field service management for HVAC, plumbing, and electrical contractors. Work orders, dispatch, invoicing, and team management.',
+              offers: {
+                '@type': 'Offer',
+                price: '0',
+                priceCurrency: 'USD',
+                description: '14-day free trial',
+              },
+              audience: {
+                '@type': 'Audience',
+                audienceType: 'HVAC contractors, plumbers, electricians, field service businesses',
+              },
+            },
+          ]),
+        }}
+      />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
