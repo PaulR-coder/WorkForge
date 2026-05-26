@@ -173,25 +173,25 @@ export default function EquipmentClient({
     <div style={{ padding: '24px 20px', maxWidth: 860, margin: '0 auto' }}>
       <style>{`
         /* Equipment stats grid: 2x2 on mobile */
-        @media (max-width: 639px) {
+        @media (max-width: 767px) {
           .wf-mobile-stats-grid {
             grid-template-columns: 1fr 1fr !important;
           }
         }
         /* Equipment action footer: ensure 44px touch targets */
-        @media (max-width: 639px) {
+        @media (max-width: 767px) {
           .wf-mobile-eq-footer button {
             min-height: 44px;
           }
         }
         /* Add equipment modal: single column on mobile */
-        @media (max-width: 639px) {
+        @media (max-width: 767px) {
           .wf-mobile-eq-modal-2col {
             grid-template-columns: 1fr !important;
           }
         }
         /* Modal: full width on mobile */
-        @media (max-width: 639px) {
+        @media (max-width: 767px) {
           .wf-mobile-eq-modal-box {
             max-width: 100% !important;
             border-radius: 16px 16px 0 0 !important;
@@ -294,7 +294,7 @@ export default function EquipmentClient({
                         fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 20,
                         background: st.dim, color: st.color, border: `1px solid ${st.color}33`,
                         flexShrink: 0, fontFamily: 'var(--font-mono)', letterSpacing: '.4px',
-                        display: isMobile ? 'none' : undefined,
+                        display: isMobile ? 'none' : 'inline-flex',
                       }}>
                         {st.label}
                       </span>
