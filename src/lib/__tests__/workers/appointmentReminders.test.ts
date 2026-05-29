@@ -45,7 +45,7 @@ describe('runAppointmentReminders', () => {
     expect(emailAppointmentReminder).toHaveBeenCalledWith(
       'client@example.com',
       'Acme HVAC',
-      expect.any(Object)
+      expect.objectContaining({ id: 'job-1', client: 'Acme Corp' })
     )
     expect(result.processed).toBe(1)
   })

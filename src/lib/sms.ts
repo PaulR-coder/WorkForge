@@ -31,5 +31,5 @@ export async function smsAppointmentReminder(
     from: FROM,
     to: phone,
     body: `WorkForge reminder: ${job.type} for ${job.client} tomorrow ${date} at ${time} — ${job.address}`,
-  }).catch(console.error)
+  })
 }

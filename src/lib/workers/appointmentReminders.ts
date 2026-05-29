@@ -16,7 +16,6 @@ export async function runAppointmentReminders(): Promise<WorkerResult> {
     id: string
     client: string
     clientEmail: string | null
-    clientPhone: string | null
     address: string
     type: string
     scheduledAt: Date | null
@@ -36,7 +35,6 @@ export async function runAppointmentReminders(): Promise<WorkerResult> {
         id: true,
         client: true,
         clientEmail: true,
-        clientPhone: true,
         address: true,
         type: true,
         scheduledAt: true,
@@ -58,9 +56,12 @@ export async function runAppointmentReminders(): Promise<WorkerResult> {
   for (const job of jobs) {
     const companyName = job.tenant?.name ?? 'WorkForge'
 
+    let reminderSent = false
+
     if (job.clientEmail && job.scheduledAt) {
       try {
         await emailAppointmentReminder(job.clientEmail, companyName, { ...job, scheduledAt: job.scheduledAt })
+        reminderSent = true
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         errors.push(`job ${job.id}: email reminder failed — ${msg}`)
@@ -70,25 +71,28 @@ export async function runAppointmentReminders(): Promise<WorkerResult> {
     if (job.tech?.phone && job.scheduledAt) {
       try {
         await smsAppointmentReminder(job.tech.phone, { ...job, scheduledAt: job.scheduledAt })
+        reminderSent = true
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         errors.push(`job ${job.id}: SMS reminder failed — ${msg}`)
       }
     }
 
-    auditEntries.push({
-      icon: '🔔',
-      action: 'Appointment reminder sent',
-      detail: `${job.type} for ${job.client} scheduled tomorrow`,
-      severity: 'info',
-      tenantId: job.tenantId,
-    })
+    if (reminderSent) {
+      auditEntries.push({
+        icon: '🔔',
+        action: 'Appointment reminder sent',
+        detail: `${job.type} for ${job.client} scheduled tomorrow`,
+        severity: 'info',
+        tenantId: job.tenantId,
+      })
 
-    processed++
+      processed++
+    }
   }
 
   if (auditEntries.length > 0) {
-    await prisma.auditLog.createMany({ data: auditEntries }).catch(() => {})
+    await prisma.auditLog.createMany({ data: auditEntries }).catch((err: unknown) => { errors.push(`audit write failed: ${err instanceof Error ? err.message : String(err)}`) })
   }
 
   return { processed, errors }
