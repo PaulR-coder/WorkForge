@@ -37,6 +37,8 @@ type DetailJob = {
   scheduledAt: string | null
   completedAt: string | null
   archivedAt: string | null
+  clientEmail: string | null
+  clientPhone: string | null
   tech: { id: string; name: string; initials: string; phone?: string | null } | null
   invoices: { id: string; number: string; total: number; status: string }[]
   equipment: { id: string; name: string; brand: string; icon: string }[]
@@ -87,7 +89,7 @@ export default function JobDrawer({
   const [sending, setSending]               = useState(false)
   const [editingTech, setEditingTech]       = useState(false)
   const [editingDetails, setEditingDetails] = useState(false)
-  const [editForm, setEditForm]             = useState({ client: '', address: '', type: '', priority: '', description: '' })
+  const [editForm, setEditForm]             = useState({ client: '', address: '', type: '', priority: '', description: '', clientEmail: '', clientPhone: '' })
   const [savingDetails, setSavingDetails]   = useState(false)
   const [photos, setPhotos]                 = useState<Photo[]>([])
   const [lightboxSrc, setLightboxSrc]       = useState<string | null>(null)
@@ -167,22 +169,23 @@ export default function JobDrawer({
 
   function openEditDetails() {
     if (!job) return
-    setEditForm({ client: job.client, address: job.address, type: job.type, priority: job.priority, description: job.description ?? '' })
+    setEditForm({ client: job.client, address: job.address, type: job.type, priority: job.priority, description: job.description ?? '', clientEmail: job.clientEmail ?? '', clientPhone: job.clientPhone ?? '' })
     setEditingDetails(true)
   }
 
   async function saveDetails() {
     if (!job) return
     setSavingDetails(true)
-    const res = await fetch(`/api/jobs/${job.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) })
+    const patchBody = { ...editForm, clientEmail: editForm.clientEmail || null, clientPhone: editForm.clientPhone || null }
+    const res = await fetch(`/api/jobs/${job.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patchBody) })
     if (res.status === 202) {
-      setJob(prev => prev ? { ...prev, ...editForm } : null)
+      setJob(prev => prev ? { ...prev, ...editForm, clientEmail: patchBody.clientEmail, clientPhone: patchBody.clientPhone } : null)
       onJobUpdate({ id: job.id, status: job.status, tech: job.tech })
       setEditingDetails(false)
       toast('Details saved', 'success')
     } else if (res.ok) {
       const updated = await res.json()
-      setJob(prev => prev ? { ...prev, client: updated.client, address: updated.address, type: updated.type, priority: updated.priority, description: updated.description ?? '' } : null)
+      setJob(prev => prev ? { ...prev, client: updated.client, address: updated.address, type: updated.type, priority: updated.priority, description: updated.description ?? '', clientEmail: updated.clientEmail ?? null, clientPhone: updated.clientPhone ?? null } : null)
       onJobUpdate({ id: job.id, status: job.status, tech: job.tech })
       setEditingDetails(false)
       toast('Details saved', 'success')
@@ -283,9 +286,19 @@ export default function JobDrawer({
         <div style={{ padding:'16px 18px 14px', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'flex-start', gap:10 }}>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:18, fontWeight:800, color:'var(--text)', lineHeight:1.25, marginBottom:8, fontFamily:'var(--font-display, system-ui)' }}>
+              <div style={{ fontSize:18, fontWeight:800, color:'var(--text)', lineHeight:1.25, marginBottom: job.clientEmail || job.clientPhone ? 4 : 8, fontFamily:'var(--font-display, system-ui)' }}>
                 {job.client}
               </div>
+              {job.clientEmail && (
+                <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2, marginBottom: 2 }}>
+                  <a href={`mailto:${job.clientEmail}`} style={{ color: 'var(--text4)', textDecoration: 'none' }}>{job.clientEmail}</a>
+                </div>
+              )}
+              {job.clientPhone && (
+                <div style={{ fontSize: 12, color: 'var(--text4)', marginTop: 2, marginBottom: 6 }}>
+                  <a href={`tel:${job.clientPhone}`} style={{ color: 'var(--text4)', textDecoration: 'none' }}>{job.clientPhone}</a>
+                </div>
+              )}
               <div style={{ display:'flex', alignItems:'center', flexWrap:'wrap', gap:6 }}>
                 <span style={{ fontSize:10, fontWeight:700, color:'var(--text3)', background:'var(--bg4)', padding:'2px 8px', borderRadius:4, fontFamily:'var(--font-display, system-ui)', letterSpacing:'.3px' }}>
                   {job.type}
@@ -373,6 +386,34 @@ export default function JobDrawer({
                       style={{ width:'100%', background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, padding:'8px 10px', outline:'none', fontFamily:'inherit', boxSizing:'border-box' as const }} />
                   </div>
                 ))}
+                {/* Client Email */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>
+                    Client Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editForm.clientEmail ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, clientEmail: e.target.value }))}
+                    placeholder="client@example.com"
+                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, padding: '11px 14px', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+
+                {/* Client Phone */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>
+                    Client Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.clientPhone ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, clientPhone: e.target.value }))}
+                    placeholder="+1 (555) 000-0000"
+                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, padding: '11px 14px', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+
                 <div>
                   <div style={{ fontSize:10, fontWeight:700, color:'var(--text4)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.5px' }}>Priority</div>
                   <select value={editForm.priority} onChange={e => setEditForm(prev => ({ ...prev, priority: e.target.value }))}
