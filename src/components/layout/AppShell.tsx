@@ -246,7 +246,6 @@ export default function AppShell({ session, children, subscriptionStatus, curren
         ...g,
         items: g.items.filter(i =>
           (!i.perm || can(session.role, i.perm)) &&
-          !(isTrialing && !isDemo && i.href === '/marketing') &&
           !(isMobile && MOBILE_HIDDEN_HREFS.has(i.href))
         ),
       })).filter(g => g.items.length > 0)
