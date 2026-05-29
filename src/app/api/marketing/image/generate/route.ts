@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       model: 'gpt-image-1',
       prompt: fullPrompt,
       size: '1024x1024',
-      quality: 'standard',
+      quality: 'high',
     })
 
     const imageUrl = response.data?.[0]?.url
