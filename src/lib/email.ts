@@ -305,6 +305,10 @@ export async function emailInvoiceToClient(
   }).catch(console.error)
 }
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 type AppointmentJob = {
   id: string
   client: string
@@ -325,23 +329,21 @@ export async function emailAppointmentConfirmation(
   await resend.emails.send({
     from: FROM,
     to,
-    subject: `Appointment Confirmed — ${job.type} on ${date}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
-        <h2 style="color:#050810;margin-bottom:4px">Appointment Confirmed ✓</h2>
-        <p style="color:#666;margin-top:0">${companyName}</p>
-        <div style="background:#f8f9fa;border-radius:10px;padding:20px;margin:20px 0">
-          <p style="margin:0 0 8px"><strong>Service:</strong> ${job.type}</p>
-          <p style="margin:0 0 8px"><strong>Client:</strong> ${job.client}</p>
-          <p style="margin:0 0 8px"><strong>Address:</strong> ${job.address}</p>
-          <p style="margin:0 0 8px"><strong>Date:</strong> ${date}</p>
-          <p style="margin:0 0 8px"><strong>Time:</strong> ${time}</p>
-          ${job.tech ? `<p style="margin:0"><strong>Technician:</strong> ${job.tech.name}</p>` : ''}
-        </div>
-        <p style="color:#666;font-size:13px">If you need to reschedule, please contact us directly.</p>
+    subject: `Appointment Confirmed — ${escapeHtml(job.type)} on ${date}`,
+    html: baseTemplate(`
+      <h2 style="color:#050810;margin-bottom:4px">Appointment Confirmed ✓</h2>
+      <p style="color:#666;margin-top:0">${escapeHtml(companyName)}</p>
+      <div style="background:#f8f9fa;border-radius:10px;padding:20px;margin:20px 0">
+        <p style="margin:0 0 8px"><strong>Service:</strong> ${escapeHtml(job.type)}</p>
+        <p style="margin:0 0 8px"><strong>Client:</strong> ${escapeHtml(job.client)}</p>
+        <p style="margin:0 0 8px"><strong>Address:</strong> ${escapeHtml(job.address)}</p>
+        <p style="margin:0 0 8px"><strong>Date:</strong> ${date}</p>
+        <p style="margin:0 0 8px"><strong>Time:</strong> ${time}</p>
+        ${job.tech ? `<p style="margin:0"><strong>Technician:</strong> ${escapeHtml(job.tech.name)}</p>` : ''}
       </div>
-    `,
-  })
+      <p style="color:#666;font-size:13px">If you need to reschedule, please contact us directly.</p>
+    `),
+  }).catch(console.error)
 }
 
 export async function emailAppointmentReminder(
@@ -355,20 +357,18 @@ export async function emailAppointmentReminder(
   await resend.emails.send({
     from: FROM,
     to,
-    subject: `Reminder: ${job.type} tomorrow at ${time}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
-        <h2 style="color:#050810;margin-bottom:4px">Appointment Tomorrow</h2>
-        <p style="color:#666;margin-top:0">${companyName}</p>
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:20px;margin:20px 0">
-          <p style="margin:0 0 8px"><strong>Service:</strong> ${job.type}</p>
-          <p style="margin:0 0 8px"><strong>Address:</strong> ${job.address}</p>
-          <p style="margin:0 0 8px"><strong>Date:</strong> ${date}</p>
-          <p style="margin:0 0 8px"><strong>Time:</strong> ${time}</p>
-          ${job.tech ? `<p style="margin:0"><strong>Technician:</strong> ${job.tech.name}</p>` : ''}
-        </div>
-        <p style="color:#666;font-size:13px">This is an automated reminder from ${companyName}.</p>
+    subject: `Reminder: ${escapeHtml(job.type)} tomorrow at ${time}`,
+    html: baseTemplate(`
+      <h2 style="color:#050810;margin-bottom:4px">Appointment Tomorrow</h2>
+      <p style="color:#666;margin-top:0">${escapeHtml(companyName)}</p>
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:20px;margin:20px 0">
+        <p style="margin:0 0 8px"><strong>Service:</strong> ${escapeHtml(job.type)}</p>
+        <p style="margin:0 0 8px"><strong>Address:</strong> ${escapeHtml(job.address)}</p>
+        <p style="margin:0 0 8px"><strong>Date:</strong> ${date}</p>
+        <p style="margin:0 0 8px"><strong>Time:</strong> ${time}</p>
+        ${job.tech ? `<p style="margin:0"><strong>Technician:</strong> ${escapeHtml(job.tech.name)}</p>` : ''}
       </div>
-    `,
-  })
+      <p style="color:#666;font-size:13px">This is an automated reminder from ${escapeHtml(companyName)}.</p>
+    `),
+  }).catch(console.error)
 }
