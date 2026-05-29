@@ -2,7 +2,7 @@ import { getSession } from '@/lib/auth'
 import { can } from '@/lib/permissions'
 import { tenantPrisma } from '@/lib/prisma'
 import { getTenantFilter } from '@/lib/tenant'
-import { emailJobAssigned, emailJobCompleted } from '@/lib/email'
+import { emailJobAssigned, emailJobCompleted, emailAppointmentConfirmation } from '@/lib/email'
 import { smsJobAssigned } from '@/lib/sms'
 import { sendPushToUser } from '@/lib/push'
 import { cache } from '@/lib/cache'
@@ -19,6 +19,8 @@ const PatchJobSchema = z.object({
   contractId: z.string().optional().nullable(),
   status: z.string().optional(),
   action: z.string().optional(),
+  clientEmail: z.string().email().optional().nullable(),
+  clientPhone: z.string().optional().nullable(),
 })
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -55,7 +57,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!result.success) return Response.json({ error: result.error.issues[0].message }, { status: 400 })
   const tenantFilter = getTenantFilter(session)
 
-  const prev = await db.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true, updatedAt: true } })
+  const prev = await db.job.findFirst({ where: { id, ...tenantFilter }, select: { techId: true, status: true, client: true, type: true, updatedAt: true, scheduledAt: true, clientEmail: true } })
   if (!prev) return Response.json({ error: 'Not found' }, { status: 404 })
 
   // Optimistic lock check — when a mutation was queued offline, the SW stamps
@@ -122,9 +124,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.techId !== undefined && { techId: body.techId }),
       ...(body.scheduledAt !== undefined && { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null }),
       ...(body.status === 'done' && { completedAt: new Date() }),
+      ...(body.clientEmail !== undefined && { clientEmail: body.clientEmail }),
+      ...(body.clientPhone !== undefined && { clientPhone: body.clientPhone }),
     },
-    include: { tech: { select: { id: true, name: true, initials: true, email: true, phone: true } } },
+    include: {
+      tech: { select: { id: true, name: true, initials: true, email: true, phone: true } },
+      tenant: { select: { name: true } },
+    },
   })
+
+  if (body.scheduledAt && !prev?.scheduledAt && job.clientEmail) {
+    emailAppointmentConfirmation(job.clientEmail, job.tenant?.name ?? session.company, {
+      id: job.id,
+      client: job.client,
+      address: job.address,
+      type: job.type,
+      scheduledAt: job.scheduledAt!,
+      tech: job.tech ?? null,
+    }).catch(() => {})
+  }
 
   await db.auditLog.create({
     data: { icon: '✏️', action: 'Job updated', detail: `${job.client} → ${job.status}`, severity: 'info', userId: session.id, tenantId: session.tenantId },
