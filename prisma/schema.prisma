@@ -90,6 +90,7 @@ model Tenant {
   referralCode      ReferralCode?
   tokenUsage        TenantTokenUsage[]
   jobTypes          JobType[]
+  socialConnections SocialConnection[]
 }
 
 model Invite {
@@ -510,4 +511,20 @@ model JobType {
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, name])
+}
+
+model SocialConnection {
+  id           String    @id @default(cuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  platform     String    // "facebook" | "instagram" | "linkedin" | "google_business"
+  accountId    String    // platform's page/account ID
+  accountName  String
+  accessToken  String    // AES-256 encrypted
+  refreshToken String?   // AES-256 encrypted
+  tokenExpiry  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([tenantId, platform, accountId])
 }
