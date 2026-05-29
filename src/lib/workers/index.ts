@@ -9,12 +9,14 @@
 import { runPmAlerts } from './pmAlerts'
 import { runInvoiceReminders } from './invoiceReminders'
 import { runContractRenewals } from './contractRenewals'
+import { runAppointmentReminders } from './appointmentReminders'
 import type { WorkerResult } from './pmAlerts'
 
 export interface AllWorkersResult {
   pmAlerts: WorkerResult
   invoiceReminders: WorkerResult
   contractRenewals: WorkerResult
+  appointmentReminders: WorkerResult
   ranAt: string
 }
 
@@ -23,7 +25,7 @@ const EMPTY: WorkerResult = { processed: 0, errors: [] }
 export async function runAllWorkers(): Promise<AllWorkersResult> {
   const ranAt = new Date().toISOString()
 
-  const [pmAlerts, invoiceReminders, contractRenewals] = await Promise.all([
+  const [pmAlerts, invoiceReminders, contractRenewals, appointmentReminders] = await Promise.all([
     runPmAlerts().catch((err): WorkerResult => {
       const msg = err instanceof Error ? err.message : String(err)
       return { ...EMPTY, errors: [`pmAlerts crashed: ${msg}`] }
@@ -36,7 +38,11 @@ export async function runAllWorkers(): Promise<AllWorkersResult> {
       const msg = err instanceof Error ? err.message : String(err)
       return { ...EMPTY, errors: [`contractRenewals crashed: ${msg}`] }
     }),
+    runAppointmentReminders().catch((err): WorkerResult => {
+      const msg = err instanceof Error ? err.message : String(err)
+      return { ...EMPTY, errors: [`appointmentReminders crashed: ${msg}`] }
+    }),
   ])
 
-  return { pmAlerts, invoiceReminders, contractRenewals, ranAt }
+  return { pmAlerts, invoiceReminders, contractRenewals, appointmentReminders, ranAt }
 }
