@@ -134,7 +134,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   })
 
   if (body.scheduledAt && !prev?.scheduledAt && job.clientEmail) {
-    emailAppointmentConfirmation(job.clientEmail, job.tenant?.name ?? session.company, {
+    void emailAppointmentConfirmation(job.clientEmail, job.tenant?.name ?? session.company, {
       id: job.id,
       client: job.client,
       address: job.address,

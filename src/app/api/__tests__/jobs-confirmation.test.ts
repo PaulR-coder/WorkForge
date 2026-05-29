@@ -55,6 +55,8 @@ jest.mock('@/lib/prisma', () => ({
 import { emailAppointmentConfirmation } from '@/lib/email'
 
 describe('PATCH /api/jobs/[id] — appointment confirmation', () => {
+  beforeEach(() => jest.clearAllMocks())
+
   it('sends confirmation email when scheduledAt is newly set and clientEmail exists', async () => {
     const req = new Request('http://localhost/api/jobs/job-1', {
       method: 'PATCH',
@@ -69,7 +71,14 @@ describe('PATCH /api/jobs/[id] — appointment confirmation', () => {
     expect(emailAppointmentConfirmation).toHaveBeenCalledWith(
       'client@example.com',
       'Acme HVAC',
-      expect.objectContaining({ id: 'job-1' })
+      expect.objectContaining({
+        id: 'job-1',
+        client: 'Acme',
+        address: '123 Main',
+        type: 'AC Repair',
+        scheduledAt: expect.any(Date),
+        tech: null,
+      })
     )
   })
 
@@ -121,5 +130,17 @@ describe('PATCH /api/jobs/[id] — appointment confirmation', () => {
     await PATCH(req, { params })
     await new Promise(r => setTimeout(r, 0))
     expect(emailAppointmentConfirmation).not.toHaveBeenCalled()
+  })
+
+  it('still returns 200 when email sending throws', async () => {
+    ;(emailAppointmentConfirmation as jest.Mock).mockRejectedValueOnce(new Error('Resend down'))
+    const req = new Request('http://localhost/api/jobs/job-1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduledAt: '2026-06-01T14:00:00Z' }),
+    })
+    const params = Promise.resolve({ id: 'job-1' })
+    const res = await PATCH(req, { params })
+    expect(res.status).toBe(200)
   })
 })
