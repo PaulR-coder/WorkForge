@@ -49,7 +49,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/history',   icon: '📋', labelKey: 'jobHistory',    perm: 'viewHistory' },
       { href: '/audit',     icon: '🛡',  labelKey: 'auditLog',      perm: 'viewAudit' },
       { href: '/marketing', icon: '📣', labelKey: 'marketing',     perm: 'manageSettings' },
-      { href: '/cron',      icon: '⏱',  labelKey: 'scheduledJobs', perm: 'manageSettings' },
     ],
   },
 ]
