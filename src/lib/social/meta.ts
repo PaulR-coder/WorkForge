@@ -10,7 +10,7 @@ export async function publishToFacebook(
     if (imageBuffer) {
       // Upload photo as unpublished
       const formData = new FormData()
-      formData.append('source', new Blob([imageBuffer], { type: 'image/jpeg' }), 'image.jpg')
+      formData.append('source', new Blob([new Uint8Array(imageBuffer)], { type: 'image/jpeg' }), 'image.jpg')
       formData.append('published', 'false')
       formData.append('access_token', pageAccessToken)
 
