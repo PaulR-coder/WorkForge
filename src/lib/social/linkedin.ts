@@ -36,7 +36,7 @@ export async function publishToLinkedIn(
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'image/jpeg' },
-        body: imageBuffer,
+        body: new Uint8Array(imageBuffer),
       })
       if (!uploadRes.ok) return { success: false, error: 'LinkedIn image upload failed' }
     }
