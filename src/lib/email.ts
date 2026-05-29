@@ -304,3 +304,71 @@ export async function emailInvoiceToClient(
     `),
   }).catch(console.error)
 }
+
+type AppointmentJob = {
+  id: string
+  client: string
+  address: string
+  type: string
+  scheduledAt: Date | string
+  tech?: { name: string } | null
+}
+
+export async function emailAppointmentConfirmation(
+  to: string,
+  companyName: string,
+  job: AppointmentJob
+): Promise<void> {
+  if (!resend || !to) return
+  const date = new Date(job.scheduledAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  const time = new Date(job.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Appointment Confirmed — ${job.type} on ${date}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+        <h2 style="color:#050810;margin-bottom:4px">Appointment Confirmed ✓</h2>
+        <p style="color:#666;margin-top:0">${companyName}</p>
+        <div style="background:#f8f9fa;border-radius:10px;padding:20px;margin:20px 0">
+          <p style="margin:0 0 8px"><strong>Service:</strong> ${job.type}</p>
+          <p style="margin:0 0 8px"><strong>Client:</strong> ${job.client}</p>
+          <p style="margin:0 0 8px"><strong>Address:</strong> ${job.address}</p>
+          <p style="margin:0 0 8px"><strong>Date:</strong> ${date}</p>
+          <p style="margin:0 0 8px"><strong>Time:</strong> ${time}</p>
+          ${job.tech ? `<p style="margin:0"><strong>Technician:</strong> ${job.tech.name}</p>` : ''}
+        </div>
+        <p style="color:#666;font-size:13px">If you need to reschedule, please contact us directly.</p>
+      </div>
+    `,
+  })
+}
+
+export async function emailAppointmentReminder(
+  to: string,
+  companyName: string,
+  job: AppointmentJob
+): Promise<void> {
+  if (!resend || !to) return
+  const date = new Date(job.scheduledAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const time = new Date(job.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  await resend.emails.send({
+    from: FROM,
+    to,
+    subject: `Reminder: ${job.type} tomorrow at ${time}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px">
+        <h2 style="color:#050810;margin-bottom:4px">Appointment Tomorrow</h2>
+        <p style="color:#666;margin-top:0">${companyName}</p>
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:20px;margin:20px 0">
+          <p style="margin:0 0 8px"><strong>Service:</strong> ${job.type}</p>
+          <p style="margin:0 0 8px"><strong>Address:</strong> ${job.address}</p>
+          <p style="margin:0 0 8px"><strong>Date:</strong> ${date}</p>
+          <p style="margin:0 0 8px"><strong>Time:</strong> ${time}</p>
+          ${job.tech ? `<p style="margin:0"><strong>Technician:</strong> ${job.tech.name}</p>` : ''}
+        </div>
+        <p style="color:#666;font-size:13px">This is an automated reminder from ${companyName}.</p>
+      </div>
+    `,
+  })
+}
