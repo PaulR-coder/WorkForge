@@ -388,7 +388,7 @@ export default function JobDrawer({
                 ))}
                 {/* Client Email */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
                     Client Email
                   </label>
                   <input
@@ -396,13 +396,13 @@ export default function JobDrawer({
                     value={editForm.clientEmail ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, clientEmail: e.target.value }))}
                     placeholder="client@example.com"
-                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, padding: '11px 14px', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, padding: '8px 10px', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
                   />
                 </div>
 
                 {/* Client Phone */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text4)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
                     Client Phone
                   </label>
                   <input
@@ -410,7 +410,7 @@ export default function JobDrawer({
                     value={editForm.clientPhone ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, clientPhone: e.target.value }))}
                     placeholder="+1 (555) 000-0000"
-                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontSize: 14, padding: '11px 14px', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
+                    style={{ width: '100%', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 13, padding: '8px 10px', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
                   />
                 </div>
 
