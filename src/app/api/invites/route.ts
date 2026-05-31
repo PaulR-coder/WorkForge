@@ -84,6 +84,19 @@ export async function POST(req: Request) {
   })
   if (pending) return apiError('An active invite for this email already exists', 409)
 
+  const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { name: true, subscriptionStatus: true } })
+
+  // Enforce 5-user limit on trial accounts
+  if (tenant?.subscriptionStatus === 'trialing') {
+    const [userCount, pendingCount] = await Promise.all([
+      db.user.count({ where: { tenantId } }),
+      db.invite.count({ where: { tenantId, usedAt: null, expiresAt: { gt: new Date() } } }),
+    ])
+    if (userCount + pendingCount >= 5) {
+      return apiError('Trial accounts are limited to 5 users. Upgrade to add more.', 403)
+    }
+  }
+
   const token = randomBytes(32).toString('hex')
   const invite = await db.invite.create({
     data: {
@@ -95,7 +108,6 @@ export async function POST(req: Request) {
     },
   })
 
-  const tenant = await db.tenant.findUnique({ where: { id: tenantId } })
   void emailInvite(email, tenant?.name ?? 'WorkForge', role, `${APP_URL}/invite?token=${token}`)
 
   await db.auditLog.create({

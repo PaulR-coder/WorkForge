@@ -19,6 +19,14 @@ export async function POST(req: Request) {
   const tenant = await prisma.tenant.findUnique({ where: { id: invite.tenantId } })
   if (!tenant) return apiError('Workspace not found.', 404)
 
+  // Enforce 5-user limit on trial accounts
+  if (tenant.subscriptionStatus === 'trialing') {
+    const userCount = await prisma.user.count({ where: { tenantId: invite.tenantId } })
+    if (userCount >= 5) {
+      return apiError('This workspace has reached its trial limit of 5 users. Ask the owner to upgrade.', 403)
+    }
+  }
+
   const initials = name.trim().split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
   const hashed = await hashPassword(password)
 
