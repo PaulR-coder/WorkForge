@@ -234,8 +234,7 @@ export default function AppShell({ session, children, subscriptionStatus, curren
     if (sw) sw.postMessage({ type: 'CLEAR_USER_DATA' })
     Object.keys(localStorage).filter(k => k.startsWith('wf-')).forEach(k => localStorage.removeItem(k))
     await fetch('/api/auth/logout', { method: 'POST' })
-    router.push('/login')
-    router.refresh()
+    window.location.href = '/login'
   }
 
   const isSuperadminOnly = session.role === 'superadmin' && !session.impersonating
