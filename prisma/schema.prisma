@@ -494,9 +494,10 @@ model TenantTokenUsage {
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   period       String   // "YYYY-MM"
-  tokensUsed   Int      @default(0)
-  inputTokens  Int      @default(0)
-  outputTokens Int      @default(0)
+  tokensUsed        Int      @default(0)
+  inputTokens       Int      @default(0)
+  outputTokens      Int      @default(0)
+  imageGenerations  Int      @default(0)
   updatedAt    DateTime @updatedAt
 
   @@unique([tenantId, period])
