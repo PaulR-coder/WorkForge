@@ -26,7 +26,21 @@ export default function ImageStep({ selected, onBack, onNext }: Props) {
   const [imageBase64, setImageBase64] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
+  const [usage, setUsage] = useState<{ used: number; limit: number } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function fetchUsage() {
+    fetch('/api/marketing/image/usage')
+      .then((r) => r.json())
+      .then((d: { used?: number; limit?: number }) => {
+        if (typeof d.used === 'number' && typeof d.limit === 'number') {
+          setUsage({ used: d.used, limit: d.limit })
+        }
+      })
+      .catch(() => {})
+  }
+
+  useEffect(() => { fetchUsage() }, [])
 
   // Auto-generate prompt on mount
   useEffect(() => {
@@ -56,6 +70,7 @@ export default function ImageStep({ selected, onBack, onNext }: Props) {
       const data = await res.json() as { imageUrl?: string; error?: string }
       if (!res.ok || !data.imageUrl) { setError(data.error ?? 'Image generation failed'); return }
       setImageUrl(data.imageUrl)
+      fetchUsage()
     } catch {
       setError('Network error generating image')
     } finally {
@@ -132,6 +147,15 @@ export default function ImageStep({ selected, onBack, onNext }: Props) {
             </div>
           )}
         </div>
+
+        {usage && (
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--text4)' }}>Images this month</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: usage.used >= usage.limit ? 'var(--red)' : usage.used >= usage.limit * 0.8 ? 'var(--amber)' : 'var(--text)' }}>
+              {usage.used} / {usage.limit}
+            </span>
+          </div>
+        )}
 
         {error && (
           <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: 'var(--red)' }}>
