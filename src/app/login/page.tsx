@@ -388,11 +388,19 @@ export default function LoginPage() {
                   </form>
                 )}
 
-                <p style={{ textAlign:'center', fontSize:13, color:'var(--text4)', marginTop:22 }}>
-                  New business?{' '}
-                  <Link href="/register" style={{ color:'var(--amber)', fontWeight:700, textDecoration:'none' }}>
-                    Create a workspace →
-                  </Link>
+                <Link href="/register" style={{
+                  display: 'block', textAlign: 'center', marginTop: 20,
+                  background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.35)',
+                  borderRadius: 10, padding: '13px 16px',
+                  fontSize: 14, fontWeight: 800, color: 'var(--amber)',
+                  textDecoration: 'none', fontFamily: 'var(--font-display, inherit)',
+                  letterSpacing: '.2px',
+                }}>
+                  Start Free Trial →
+                </Link>
+
+                <p style={{ textAlign:'center', fontSize:12, color:'var(--text4)', marginTop:10 }}>
+                  No credit card required · 14-day free trial
                 </p>
 
                 {/* Demo accounts */}
