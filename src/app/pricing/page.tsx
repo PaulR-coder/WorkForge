@@ -295,9 +295,11 @@ export default function PricingPage() {
 
         .pr-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(2, 1fr);
           gap: 20px;
           align-items: start;
+          max-width: 800px;
+          margin: 0 auto;
           animation: fadeUp .5s ease .2s both;
         }
 
@@ -520,14 +522,10 @@ export default function PricingPage() {
         .pr-footer-link:hover { color: var(--text2); }
 
         /* ── Responsive ──────────────────────────────────────────────────── */
-        @media (max-width: 900px) {
+        @media (max-width: 720px) {
           .pr-grid {
             grid-template-columns: 1fr;
             max-width: 480px;
-            margin: 0 auto;
-          }
-          .pr-card-pro {
-            order: -1;
           }
         }
         @media (max-width: 640px) {
@@ -603,92 +601,66 @@ export default function PricingPage() {
         <section className="pr-section" aria-label="Pricing tiers">
           <div className="pr-grid" role="list">
 
-            {/* ── Starter ───────────────────────────────────────────────── */}
-            <article className="pr-card" role="listitem" aria-label="Starter plan">
-              <p className="pr-tier-label">Tier 1</p>
-              <h2 className="pr-tier-name">Starter</h2>
-
-              <div className="pr-price-block">
-                <span className="pr-price-currency">$</span>
-                <span className="pr-price-amount">0</span>
-                <span className="pr-price-period">/mo</span>
-              </div>
-              <p className="pr-price-desc">Free forever &mdash; no credit card required.</p>
-
-              <div className="pr-divider" />
-
-              <ul className="pr-features-list" aria-label="Starter features">
-                <Feature text="Up to 3 users" />
-                <Feature text="Up to 50 jobs / month" />
-                <Feature text="Basic invoicing" />
-                <Feature text="Job board &amp; scheduling" />
-                <Feature text="Email support" />
-              </ul>
-
-              <Link href="/register" className="pr-cta pr-cta-ghost" aria-label="Get started free with Starter plan">
-                Get Started Free
-              </Link>
-            </article>
-
             {/* ── Pro ───────────────────────────────────────────────────── */}
-            <article className="pr-card pr-card-pro" role="listitem" aria-label="Pro plan — most popular">
-              <div className="pr-popular-badge" aria-label="Most popular plan">
-                &#9733; Most Popular
-              </div>
-
-              <p className="pr-tier-label" style={{ color: 'var(--amber)' }}>Tier 2</p>
-              <h2 className="pr-tier-name" style={{ color: 'var(--amber)' }}>Pro</h2>
+            <article className="pr-card pr-card-pro" role="listitem" aria-label="Standard plan">
+              <p className="pr-tier-label" style={{ color: 'var(--amber)' }}>Standard</p>
+              <h2 className="pr-tier-name" style={{ color: 'var(--amber)' }}>WorkForge</h2>
 
               <div className="pr-price-block">
                 <span className="pr-price-currency" style={{ color: 'var(--amber)', opacity: .7 }}>$</span>
-                <span className="pr-price-amount" style={{ color: 'var(--amber)' }}>79</span>
+                <span className="pr-price-amount" style={{ color: 'var(--amber)' }}>139</span>
                 <span className="pr-price-period">/mo</span>
               </div>
-              <p className="pr-price-desc">Billed monthly &mdash; cancel anytime.</p>
+              <p className="pr-price-desc">14-day free trial (up to 5 users) &mdash; then $139/mo, cancel anytime.</p>
 
               <div className="pr-divider" />
 
               <ul className="pr-features-list" aria-label="Pro features">
-                <Feature text="Unlimited users" />
-                <Feature text="Unlimited jobs" />
-                <Feature text="Full invoicing &amp; estimates" />
-                <Feature text="Equipment tracking" />
-                <Feature text="Contracts &amp; recurring jobs" />
-                <Feature text="AI line item generation" />
-                <Feature text="Priority support" />
+                <Feature text="Up to 15 users · unlimited jobs" />
+                <Feature text="Kanban dispatch board" />
+                <Feature text="Invoicing, payments &amp; estimates" />
+                <Feature text="Equipment tracking &amp; service contracts" />
+                <Feature text="Mobile field view for technicians" />
+                <Feature text="Appointment reminders (email &amp; SMS)" />
+                <Feature text="AI marketing tools &amp; post generator" />
+                <Feature text="Role-based access (5 roles)" />
+                <Feature text="Audit log &amp; reporting dashboard" />
+                <Feature text="14-day free trial (up to 5 users)" />
               </ul>
 
-              <Link href="/register" className="pr-cta pr-cta-primary" aria-label="Start 14-day free trial with Pro plan">
-                Start 14-Day Trial
+              <Link href="/register" className="pr-cta pr-cta-primary" aria-label="Start 14-day free trial with Standard plan">
+                Start 14-Day Free Trial
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                   <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </Link>
+              <p style={{ fontSize: 12, color: 'var(--text4)', textAlign: 'center', marginTop: 12 }}>No credit card required · Trial limited to 5 users</p>
             </article>
 
             {/* ── Enterprise ────────────────────────────────────────────── */}
             <article className="pr-card" role="listitem" aria-label="Enterprise plan">
-              <p className="pr-tier-label">Tier 3</p>
-              <h2 className="pr-tier-name">Enterprise</h2>
+              <p className="pr-tier-label">Enterprise</p>
+              <h2 className="pr-tier-name">Custom</h2>
 
               <div className="pr-price-block">
-                <span className="pr-price-custom">Custom</span>
+                <span className="pr-price-custom">Let&rsquo;s talk</span>
               </div>
-              <p className="pr-price-desc">Tailored pricing for large teams &amp; orgs.</p>
+              <p className="pr-price-desc">Tailored pricing for large teams &amp; multi-location orgs.</p>
 
               <div className="pr-divider" />
 
               <ul className="pr-features-list" aria-label="Enterprise features">
-                <Feature text="Everything in Pro" />
+                <Feature text="Everything in Standard" />
                 <Feature text="Custom integrations" />
                 <Feature text="Dedicated account manager" />
                 <Feature text="SLA guarantee" />
-                <Feature text="Custom reporting" />
+                <Feature text="Custom reporting &amp; exports" />
                 <Feature text="SSO / SAML" />
+                <Feature text="Volume &amp; annual discounts" />
               </ul>
 
               <a
-                href="mailto:sales@getworkforge.com"
+                href="mailto:support@getworkforge.com"
                 className="pr-cta pr-cta-ghost"
                 aria-label="Contact sales for Enterprise plan"
               >
@@ -721,7 +693,7 @@ export default function PricingPage() {
             <div className="pr-faq-item" role="listitem">
               <FaqItem
                 q="Is there a free trial?"
-                a="Yes — the Pro plan includes a 14-day free trial. No credit card required. You can explore every Pro feature before committing."
+                a="Yes — WorkForge includes a 14-day free trial, limited to 5 users. No credit card required. You get full access to every feature so you can evaluate it with your real crew before committing."
               />
             </div>
             <div className="pr-faq-item" role="listitem">

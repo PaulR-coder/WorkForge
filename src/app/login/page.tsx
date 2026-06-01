@@ -5,12 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { trackEvent, identifyUser } from '@/lib/posthog'
 
-const DEMO_ACCOUNTS = [
-  { name: 'Alex Owner',    role: 'Company Owner',    email: 'owner@acmefield.com',    password: 'owner123', label: 'Admin' },
-  { name: 'Diana Dispatch', role: 'Dispatcher',      email: 'dispatch@acmefield.com', password: 'disp123',  label: 'Dispatch' },
-  { name: 'Carlos M.',     role: 'HVAC Technician',  email: 'carlos@acmefield.com',   password: 'tech123',  label: 'Tech' },
-]
-
 const FEATURES = [
   'Real-time job tracking across your entire team',
   'Field-to-office sync that works offline too',
@@ -116,16 +110,6 @@ export default function LoginPage() {
     }
   }
 
-  function fillDemo(acc: typeof DEMO_ACCOUNTS[0]) {
-    setEmail(acc.email)
-    setPassword(acc.password)
-    setError('')
-    setNeedsVerification(false)
-    setResendStatus('idle')
-    setRequires2FA(false)
-    setTwoFACode('')
-  }
-
   return (
     <>
       <style>{`
@@ -144,8 +128,6 @@ export default function LoginPage() {
         .wf-input:focus { border-color:var(--amber) !important; box-shadow:0 0 0 3px rgba(245,158,11,.13); outline:none; }
         .wf-btn-primary { transition:background 140ms, box-shadow 140ms, transform 120ms; }
         .wf-btn-primary:hover:not(:disabled) { background:var(--amber-hover) !important; box-shadow:0 4px 18px rgba(245,158,11,.38); transform:translateY(-1px); }
-        .wf-demo-row { transition:background 110ms; }
-        .wf-demo-row:hover { background:var(--bg5) !important; }
         .wf-otp-input { letter-spacing:.3em; text-align:center; font-size:22px; font-weight:800; }
       `}</style>
 
@@ -403,34 +385,6 @@ export default function LoginPage() {
                   No credit card required · 14-day free trial
                 </p>
 
-                {/* Demo accounts */}
-                <div style={{ marginTop:28, background:'var(--bg3)', borderRadius:14, border:'1px solid var(--border)', overflow:'hidden' }}>
-                  <div style={{ padding:'9px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:8 }}>
-                    <div style={{ width:6, height:6, borderRadius:'50%', background:'var(--amber)', flexShrink:0 }} />
-                    <span style={{ fontSize:10, fontWeight:700, color:'var(--text4)', textTransform:'uppercase', letterSpacing:'.8px' }}>Try a Demo Account</span>
-                  </div>
-                  <div>
-                    {DEMO_ACCOUNTS.map((acc, i) => (
-                      <button key={acc.email} className="wf-demo-row" onClick={() => fillDemo(acc)} style={{
-                        display:'flex', alignItems:'center', gap:12, padding:'11px 16px',
-                        background:'transparent', border:'none',
-                        borderBottom: i < DEMO_ACCOUNTS.length - 1 ? '1px solid var(--border)' : 'none',
-                        cursor:'pointer', textAlign:'left', width:'100%', fontFamily:'inherit',
-                      }}>
-                        <div style={{ width:34, height:34, borderRadius:9, background:'var(--bg5)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, flexShrink:0 }}>
-                          {acc.label === 'Admin' ? '🏢' : acc.label === 'Dispatch' ? '📋' : '🔧'}
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:2 }}>{acc.name}</div>
-                          <div style={{ fontSize:11, color:'var(--text4)', fontFamily:'var(--font-mono, monospace)' }}>{acc.email}</div>
-                        </div>
-                        <span style={{ fontSize:9, fontWeight:800, letterSpacing:'.6px', textTransform:'uppercase', padding:'3px 8px', borderRadius:20, background:'var(--amber-dim)', color:'var(--amber)', border:'1px solid var(--amber-border)', flexShrink:0 }}>
-                          {acc.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </>
             )}
           </div>

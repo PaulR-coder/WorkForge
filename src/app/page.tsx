@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import AppMockup from '@/components/landing/AppMockup'
 
 export const metadata: Metadata = {
   title: 'WorkForge — Field Service Management Software for Tampa & Beyond',
@@ -442,6 +443,91 @@ export default async function Home() {
           font-weight: 500;
         }
 
+        .land-pricing {
+          padding: 100px 24px;
+          max-width: 900px;
+          margin: 0 auto;
+          text-align: center;
+        }
+
+        .land-price-card {
+          background: var(--bg2);
+          border: 1px solid var(--amber-border);
+          border-radius: 20px;
+          padding: 48px 40px;
+          max-width: 520px;
+          margin: 0 auto;
+          box-shadow: 0 0 60px rgba(245,158,11,.08), 0 20px 60px rgba(0,0,0,.4);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .land-price-card::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 3px;
+          background: linear-gradient(90deg, var(--amber), rgba(245,158,11,.4));
+        }
+
+        .land-price-amount {
+          font-family: var(--font-display);
+          font-size: 72px;
+          font-weight: 800;
+          color: var(--amber);
+          line-height: 1;
+          letter-spacing: -.02em;
+        }
+
+        .land-price-period {
+          font-size: 16px;
+          color: var(--text3);
+          margin-left: 2px;
+        }
+
+        .land-price-tagline {
+          font-size: 14px;
+          color: var(--text4);
+          margin-top: 6px;
+          margin-bottom: 36px;
+        }
+
+        .land-price-features {
+          list-style: none;
+          text-align: left;
+          margin-bottom: 36px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .land-price-feature {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 14px;
+          color: var(--text2);
+        }
+
+        .land-price-check {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(34,197,94,.12);
+          border: 1px solid rgba(34,197,94,.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          color: var(--green);
+        }
+
+        .land-price-note {
+          font-size: 12px;
+          color: var(--text4);
+          margin-top: 16px;
+        }
+
         .land-footer {
           padding: 48px 40px;
           border-top: 1px solid var(--border);
@@ -496,6 +582,7 @@ export default async function Home() {
         <div className="land-nav-links">
           <a href="#features" className="land-nav-link">Features</a>
           <a href="#why" className="land-nav-link">Why WorkForge</a>
+          <a href="#pricing" className="land-nav-link">Pricing</a>
           <a href="/login" className="land-nav-link">Sign in</a>
           <a href="/register" className="land-nav-cta">Get started</a>
         </div>
@@ -536,6 +623,11 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* App preview */}
+      <div style={{ padding: '0 24px 80px', maxWidth: 1000, margin: '0 auto' }}>
+        <AppMockup />
+      </div>
 
       {/* Stats */}
       <div className="land-stats" id="why">
@@ -640,6 +732,58 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Pricing */}
+      <section className="land-pricing" id="pricing">
+        <div className="land-section-label">Pricing</div>
+        <h2 className="land-section-title">One plan. Everything included.</h2>
+        <p className="land-section-desc" style={{ margin: '0 auto 48px' }}>
+          No per-seat fees. No feature tiers. No surprises. Pay one flat rate and give your whole team access to every tool WorkForge offers.
+        </p>
+
+        <div className="land-price-card">
+          <div>
+            <span className="land-price-amount">$139</span>
+            <span className="land-price-period">/ month</span>
+          </div>
+          <div className="land-price-tagline">Everything included · Up to 15 users · Unlimited jobs</div>
+
+          <ul className="land-price-features">
+            {[
+              'Kanban dispatch board & job management',
+              'Invoicing, payments & signature capture',
+              'Mobile field view for technicians',
+              'Equipment tracking & service contracts',
+              'Appointment reminders via email & SMS',
+              'AI marketing tools & post generator',
+              'Role-based access (5 roles)',
+              'Audit log & reporting dashboard',
+              'Email support',
+            ].map((f) => (
+              <li key={f} className="land-price-feature">
+                <span className="land-price-check">
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                    <path d="M2 5.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <Link href="/register" className="land-btn-primary" style={{ width: '100%', justifyContent: 'center', boxSizing: 'border-box' }}>
+            Start your 14-day free trial
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
+          <p className="land-price-note">14-day free trial · Up to 5 users · No credit card required</p>
+        </div>
+        <p style={{ marginTop: 24, fontSize: 13, color: 'var(--text4)' }}>
+          Need a custom plan for a larger team?{' '}
+          <a href="mailto:support@getworkforge.com" style={{ color: 'var(--amber)', textDecoration: 'none' }}>Contact us →</a>
+        </p>
+      </section>
+
       {/* CTA Strip */}
       <section style={{
         background: 'var(--bg2)',
@@ -692,6 +836,7 @@ export default async function Home() {
             </p>
           </div>
           <div className="land-footer-links">
+            <Link href="/pricing" className="land-footer-link">Pricing</Link>
             <Link href="/privacy" className="land-footer-link">Privacy</Link>
             <Link href="/terms" className="land-footer-link">Terms</Link>
             <a href="mailto:support@getworkforge.com" className="land-footer-link">Support</a>
