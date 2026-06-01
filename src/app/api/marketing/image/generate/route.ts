@@ -18,9 +18,8 @@ const STYLE_SUFFIX = {
 
 const IMAGE_MONTHLY_LIMIT = 20
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
 export async function POST(request: Request) {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const session = await getSession()
   if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   if (!can(session.role, 'manageSettings')) return Response.json({ error: 'Forbidden' }, { status: 403 })

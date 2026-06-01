@@ -4,14 +4,11 @@ import { rateLimit, getIp } from '@/lib/rateLimit'
 import { getSession } from '@/lib/auth'
 import { recordTokens } from '@/lib/tokenUsage'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
-
 const SYSTEM_PROMPT = `You are a helpful support agent for WorkForge, a field service management platform for HVAC, plumbing, electrical, and similar businesses. Answer questions clearly and concisely. Focus on practical guidance. If a question is unrelated to WorkForge or field service management, politely redirect. Keep responses under 200 words.`
 
 export async function POST(req: NextRequest) {
   const ip = getIp(req)
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const { ok, retryAfter } = await rateLimit(`help-ask:${ip}`, 10, 60 * 1000)
 
   if (!ok) {
