@@ -5,9 +5,11 @@ import { randomUUID } from 'crypto'
 import type { Role } from '@/generated/prisma/client'
 import { getRedis } from './redis'
 
-const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret) throw new Error('JWT_SECRET environment variable is not set')
-const JWT_SECRET = jwtSecret
+function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET
+  if (!s) throw new Error('JWT_SECRET environment variable is not set')
+  return s
+}
 const COOKIE_NAME = 'wf_session'
 const REAL_SESSION_COOKIE = 'wf_real_session'
 
@@ -33,12 +35,12 @@ export async function verifyPassword(password: string, hash: string) {
 }
 
 export function signToken(user: SessionUser): string {
-  return jwt.sign({ ...user, jti: randomUUID() }, JWT_SECRET, { expiresIn: '24h' })
+  return jwt.sign({ ...user, jti: randomUUID() }, getJwtSecret(), { expiresIn: '24h' })
 }
 
 export function verifyToken(token: string): JwtPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JwtPayload
+    return jwt.verify(token, getJwtSecret()) as JwtPayload
   } catch {
     return null
   }
