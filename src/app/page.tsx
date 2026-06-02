@@ -40,6 +40,12 @@ export default async function Home() {
   if (session) redirect('/dashboard')
 
   return (
+    <div style={{ padding: 40, fontFamily: 'sans-serif', fontSize: 32 }}>
+      WORKFORGE_LANDING_TEST_2026
+    </div>
+  )
+
+  return (
     <>
       <script
         type="application/ld+json"
