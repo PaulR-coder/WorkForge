@@ -5,7 +5,7 @@ import type { Metadata } from 'next'
 import AppMockup from '@/components/landing/AppMockup'
 
 export const metadata: Metadata = {
-  title: 'WorkForge — Field Service Management Software for Tampa & Beyond',
+  title: 'WorkForge — Field Service Management for HVAC, Plumbing & Electrical',
   description: 'WorkForge is the all-in-one field service management platform for HVAC, plumbing, and electrical contractors. Dispatch faster, invoice in 60 seconds, manage your whole crew. Built for Tampa and growing.',
   keywords: [
     'field service management software',
