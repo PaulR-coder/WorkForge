@@ -405,6 +405,7 @@ Blueprints or schematics are attached. Before estimating:
 3. Note special conditions shown (wet areas, ceiling heights, fire-rated walls, etc.)
 4. Your line items should reference what you measured from the plans
 ` : ''
+    const wallSqft = sqft ? Math.round(sqft * 1.5) : null
     return `You are an expert construction subcontractor estimating assistant for Forge Group Contracting LLC, a Tampa, FL subcontracting company. You have deep knowledge of Tampa market pricing.
 ${drawingNote}
 Generate a professional, accurate, line-item bid for this trade using the knowledge below.
@@ -412,10 +413,17 @@ Generate a professional, accurate, line-item bid for this trade using the knowle
 JOB DETAILS:
 - Trade: ${t}
 - Job Mode: ${jobModeLabel || jobType || 'General'}
-- Square Footage: ${sqft ? `${sqft} sqft` : 'not specified — use best judgment'}
+- Floor Area: ${sqft ? `${sqft} sqft` : 'not specified'}
+- Wall Area: ${wallSqft ? `${wallSqft} sqft (floor × 1.5 — accounts for 8-ft ceilings and typical door/window deductions)` : 'not specified'}
 - Finish Level: ${finishLevel || 'standard'}
 - Client / GC: ${client || 'General Contractor'}
 - Additional Details: ${description || 'None'}
+
+QUANTITY RULES — use the correct sqft for each line item:
+- Painting walls, drywall hanging/finishing: use WALL AREA (${wallSqft ?? 'calculate as floor × 1.5'} sqft)
+- Ceilings: use FLOOR AREA (${sqft ?? 'not specified'} sqft)
+- Flooring, tile floors, LVP, carpet, hardwood: use FLOOR AREA
+- Trim/baseboard: estimate linear feet as floor perimeter (√(floor sqft) × 4 × 0.9)
 
 TRADE KNOWLEDGE AND PRICING REFERENCE:
 ${knowledge}
