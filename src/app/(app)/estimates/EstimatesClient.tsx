@@ -159,6 +159,11 @@ export default function EstimatesClient({
   const [lineItems, setLineItems] = useState<LineItem[]>([newItem()])
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState<Estimate['status']>('draft')
+  // Construction estimator fields
+  const [trade, setTrade] = useState('')
+  const [sqft, setSqft] = useState('')
+  const [jobMode, setJobMode] = useState<'new_construction' | 'remodel' | 'repair' | ''>('')
+  const [finishLevel, setFinishLevel] = useState('')
 
   const subtotal = lineItems.reduce((s, i) => s + (i.total || 0), 0)
 
@@ -166,6 +171,7 @@ export default function EstimatesClient({
     setEditTarget(null)
     setClient(''); setClientEmail(''); setJobType(''); setDescription('')
     setLineItems([newItem()]); setNotes(''); setStatus('draft')
+    setTrade(''); setSqft(''); setJobMode(''); setFinishLevel('')
     setModalOpen(true)
   }
 
@@ -175,6 +181,7 @@ export default function EstimatesClient({
     setDescription(est.description)
     setLineItems(est.lineItems.length ? est.lineItems : [newItem()])
     setNotes(est.notes); setStatus(est.status)
+    setTrade(''); setSqft(''); setJobMode(''); setFinishLevel('')
     setModalOpen(true)
   }
 
@@ -195,17 +202,28 @@ export default function EstimatesClient({
   }
 
   async function generateAI() {
-    if (!description.trim()) { toast('Add a description first', 'error'); return }
+    const hasConstruction = !!trade
+    if (!hasConstruction && !description.trim()) { toast('Select a trade or add a description', 'error'); return }
+    if (hasConstruction && !sqft) { toast('Enter square footage', 'error'); return }
     setAiLoading(true)
     try {
+      const body: Record<string, unknown> = { client, jobType, description: description || `${trade} job` }
+      if (hasConstruction) {
+        body.trade = trade
+        body.sqft = parseFloat(sqft)
+        if (jobMode) body.jobMode = jobMode
+        if (finishLevel) body.finishLevel = finishLevel
+        if (!jobType && jobMode) body.jobType = jobMode === 'new_construction' ? 'New Construction' : jobMode === 'remodel' ? 'Remodel' : 'Repair'
+      }
       const res = await fetch('/api/estimates/ai-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client, jobType, description }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) { toast(data.error || 'AI generation failed', 'error'); return }
       setLineItems(data.lineItems)
+      if (hasConstruction && !jobType) setJobType(trade)
       toast('AI generated line items', 'success')
     } catch { toast('Network error', 'error') }
     finally { setAiLoading(false) }
@@ -604,22 +622,81 @@ export default function EstimatesClient({
                 </div>
               </div>
 
-              {/* Job Type */}
-              <div style={{ marginBottom: 14 }}>
-                <label style={formLbl}>Job Type</label>
-                <input value={jobType} onChange={e => setJobType(e.target.value)} placeholder="HVAC, Electrical, Plumbing…" style={formInp} />
+              {/* Construction Estimator */}
+              <div style={{ marginBottom: 14, background: 'rgba(245,158,11,.04)', border: '1px solid rgba(245,158,11,.15)', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '.8px', fontFamily: 'var(--font-display, system-ui)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconSparkle /> AI Estimator — select trade + sqft to generate a bid instantly
+                </div>
+                <div className="wf-mobile-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={formLbl}>Trade</label>
+                    <select value={trade} onChange={e => { setTrade(e.target.value); setFinishLevel('') }} style={formInp}>
+                      <option value="">— select trade —</option>
+                      <option value="Painting">Painting</option>
+                      <option value="Drywall">Drywall</option>
+                      <option value="Demolition">Demolition</option>
+                      <option value="Tile">Tile</option>
+                      <option value="Flooring - LVP">Flooring — LVP</option>
+                      <option value="Flooring - Hardwood">Flooring — Hardwood</option>
+                      <option value="Flooring - Carpet">Flooring — Carpet</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={formLbl}>Square Footage</label>
+                    <input type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} placeholder="e.g. 1200" style={formInp} />
+                  </div>
+                </div>
+                <div className="wf-mobile-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                  <div>
+                    <label style={formLbl}>Job Type</label>
+                    <select value={jobMode} onChange={e => setJobMode(e.target.value as typeof jobMode)} style={formInp}>
+                      <option value="">— select —</option>
+                      <option value="new_construction">New Construction</option>
+                      <option value="remodel">Remodel / Renovation</option>
+                      <option value="repair">Repair</option>
+                    </select>
+                  </div>
+                  {(trade === 'Painting' || trade === 'Drywall') && (
+                    <div>
+                      <label style={formLbl}>Finish Level</label>
+                      <select value={finishLevel} onChange={e => setFinishLevel(e.target.value)} style={formInp}>
+                        <option value="">— standard —</option>
+                        {trade === 'Drywall' && <option value="Level 4">Level 4 (standard)</option>}
+                        {trade === 'Drywall' && <option value="Level 5">Level 5 (skim coat)</option>}
+                        {trade === 'Painting' && <option value="Standard">Standard (2 coats)</option>}
+                        {trade === 'Painting' && <option value="Level 5 prep">Level 5 prep required</option>}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={generateAI}
+                  disabled={aiLoading || (!!trade && !sqft) || (!trade && !description.trim())}
+                  style={{
+                    width: '100%', padding: '10px 0', borderRadius: 8,
+                    background: aiLoading ? '#111827' : 'linear-gradient(135deg, var(--amber), #f97316)',
+                    border: aiLoading ? '1px solid rgba(255,255,255,.09)' : 'none',
+                    color: aiLoading ? 'var(--text4)' : '#080c1a',
+                    fontSize: 12, fontWeight: 800, cursor: aiLoading ? 'wait' : 'pointer',
+                    opacity: (!!trade && !sqft) || (!trade && !description.trim()) ? .4 : 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px',
+                  }}
+                >
+                  <IconSparkle />{aiLoading ? 'Generating bid…' : 'Generate Line Items with AI'}
+                </button>
               </div>
 
-              {/* Description + AI button */}
+              {/* Job Type (manual override) */}
               <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
-                  <label style={{ ...formLbl, marginBottom: 0 }}>Description</label>
-                  <button onClick={generateAI} disabled={aiLoading || !description.trim()}
-                    style={{ marginLeft: 'auto', padding: '5px 13px', borderRadius: 20, background: aiLoading ? '#111827' : 'linear-gradient(135deg, var(--amber), #f97316)', border: aiLoading ? '1px solid rgba(255,255,255,.09)' : 'none', color: aiLoading ? 'var(--text4)' : '#080c1a', fontSize: 11, fontWeight: 800, cursor: aiLoading || !description.trim() ? 'not-allowed' : 'pointer', opacity: !description.trim() ? .4 : 1, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--font-display, system-ui)' }}>
-                    <IconSparkle />{aiLoading ? 'Generating…' : 'Generate with AI'}
-                  </button>
-                </div>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the job — AI will generate line items from this" rows={3}
+                <label style={formLbl}>Job Type <span style={{ opacity: .5, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(auto-filled from trade, or type your own)</span></label>
+                <input value={jobType} onChange={e => setJobType(e.target.value)} placeholder="Painting, Drywall, Demolition…" style={formInp} />
+              </div>
+
+              {/* Description */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={formLbl}>Additional Details <span style={{ opacity: .5, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional — adds context to AI bid)</span></label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Any extra details — room types, special conditions, access issues, GC notes…" rows={2}
                   style={{ ...formInp, resize: 'vertical' }} />
               </div>
 
