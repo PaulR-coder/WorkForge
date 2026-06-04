@@ -113,6 +113,16 @@ function IconSparkle() {
     </svg>
   )
 }
+const ALL_TRADES = [
+  'Painting',
+  'Drywall',
+  'Demolition',
+  'Tile',
+  'Flooring - LVP',
+  'Flooring - Hardwood',
+  'Flooring - Carpet',
+] as const
+
 function IconEmptyEstimates() {
   return (
     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', margin: '0 auto', opacity: .2 }}>
@@ -160,10 +170,16 @@ export default function EstimatesClient({
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState<Estimate['status']>('draft')
   // Construction estimator fields
-  const [trade, setTrade] = useState('')
+  const [selectedTrades, setSelectedTrades] = useState<string[]>([])
   const [sqft, setSqft] = useState('')
   const [jobMode, setJobMode] = useState<'new_construction' | 'remodel' | 'repair' | ''>('')
   const [finishLevel, setFinishLevel] = useState('')
+
+  function toggleTrade(t: string) {
+    setSelectedTrades(prev =>
+      prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
+    )
+  }
 
   const subtotal = lineItems.reduce((s, i) => s + (i.total || 0), 0)
 
@@ -171,7 +187,7 @@ export default function EstimatesClient({
     setEditTarget(null)
     setClient(''); setClientEmail(''); setJobType(''); setDescription('')
     setLineItems([newItem()]); setNotes(''); setStatus('draft')
-    setTrade(''); setSqft(''); setJobMode(''); setFinishLevel('')
+    setSelectedTrades([]); setSqft(''); setJobMode(''); setFinishLevel('')
     setModalOpen(true)
   }
 
@@ -181,7 +197,7 @@ export default function EstimatesClient({
     setDescription(est.description)
     setLineItems(est.lineItems.length ? est.lineItems : [newItem()])
     setNotes(est.notes); setStatus(est.status)
-    setTrade(''); setSqft(''); setJobMode(''); setFinishLevel('')
+    setSelectedTrades([]); setSqft(''); setJobMode(''); setFinishLevel('')
     setModalOpen(true)
   }
 
@@ -202,18 +218,21 @@ export default function EstimatesClient({
   }
 
   async function generateAI() {
-    const hasConstruction = !!trade
-    if (!hasConstruction && !description.trim()) { toast('Select a trade or add a description', 'error'); return }
+    const hasConstruction = selectedTrades.length > 0
+    if (!hasConstruction && !description.trim()) { toast('Select at least one trade or add a description', 'error'); return }
     if (hasConstruction && !sqft) { toast('Enter square footage', 'error'); return }
     setAiLoading(true)
     try {
-      const body: Record<string, unknown> = { client, jobType, description: description || `${trade} job` }
+      const body: Record<string, unknown> = {
+        client,
+        jobType,
+        description: description || selectedTrades.join(' + ') + ' job',
+      }
       if (hasConstruction) {
-        body.trade = trade
+        body.trades = selectedTrades
         body.sqft = parseFloat(sqft)
         if (jobMode) body.jobMode = jobMode
         if (finishLevel) body.finishLevel = finishLevel
-        if (!jobType && jobMode) body.jobType = jobMode === 'new_construction' ? 'New Construction' : jobMode === 'remodel' ? 'Remodel' : 'Repair'
       }
       const res = await fetch('/api/estimates/ai-generate', {
         method: 'POST',
@@ -223,8 +242,8 @@ export default function EstimatesClient({
       const data = await res.json()
       if (!res.ok) { toast(data.error || 'AI generation failed', 'error'); return }
       setLineItems(data.lineItems)
-      if (hasConstruction && !jobType) setJobType(trade)
-      toast('AI generated line items', 'success')
+      if (hasConstruction && !jobType) setJobType(selectedTrades.join(' + '))
+      toast(`AI generated estimate${selectedTrades.length > 1 ? ` for ${selectedTrades.length} trades` : ''}`, 'success')
     } catch { toast('Network error', 'error') }
     finally { setAiLoading(false) }
   }
@@ -624,29 +643,47 @@ export default function EstimatesClient({
 
               {/* Construction Estimator */}
               <div style={{ marginBottom: 14, background: 'rgba(245,158,11,.04)', border: '1px solid rgba(245,158,11,.15)', borderRadius: 10, padding: '14px 16px' }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '.8px', fontFamily: 'var(--font-display, system-ui)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IconSparkle /> AI Estimator — select trade + sqft to generate a bid instantly
+                <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '.8px', fontFamily: 'var(--font-display, system-ui)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <IconSparkle /> AI Estimator — pick your trades, enter sqft, generate
                 </div>
-                <div className="wf-mobile-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={formLbl}>Trade</label>
-                    <select value={trade} onChange={e => { setTrade(e.target.value); setFinishLevel('') }} style={formInp}>
-                      <option value="">— select trade —</option>
-                      <option value="Painting">Painting</option>
-                      <option value="Drywall">Drywall</option>
-                      <option value="Demolition">Demolition</option>
-                      <option value="Tile">Tile</option>
-                      <option value="Flooring - LVP">Flooring — LVP</option>
-                      <option value="Flooring - Hardwood">Flooring — Hardwood</option>
-                      <option value="Flooring - Carpet">Flooring — Carpet</option>
-                    </select>
+
+                {/* Trade chips — multi-select */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={formLbl}>Trades <span style={{ opacity: .5, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(select all that apply)</span></label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    {ALL_TRADES.map(t => {
+                      const on = selectedTrades.includes(t)
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => toggleTrade(t)}
+                          style={{
+                            padding: '6px 13px', borderRadius: 20, cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                            fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px',
+                            border: on ? 'none' : '1px solid rgba(255,255,255,.12)',
+                            background: on ? 'var(--amber)' : '#111827',
+                            color: on ? '#080c1a' : 'var(--text3)',
+                            transition: 'background .12s, color .12s, border .12s',
+                          }}
+                        >
+                          {on && <span style={{ marginRight: 4 }}>✓</span>}{t}
+                        </button>
+                      )
+                    })}
                   </div>
+                  {selectedTrades.length > 1 && (
+                    <div style={{ marginTop: 7, fontSize: 11, color: 'var(--amber)', fontWeight: 600 }}>
+                      {selectedTrades.length} trades selected — AI will generate separate sections for each
+                    </div>
+                  )}
+                </div>
+
+                <div className="wf-mobile-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
                     <label style={formLbl}>Square Footage</label>
                     <input type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} placeholder="e.g. 1200" style={formInp} />
                   </div>
-                </div>
-                <div className="wf-mobile-modal-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                   <div>
                     <label style={formLbl}>Job Type</label>
                     <select value={jobMode} onChange={e => setJobMode(e.target.value as typeof jobMode)} style={formInp}>
@@ -656,34 +693,42 @@ export default function EstimatesClient({
                       <option value="repair">Repair</option>
                     </select>
                   </div>
-                  {(trade === 'Painting' || trade === 'Drywall') && (
-                    <div>
-                      <label style={formLbl}>Finish Level</label>
-                      <select value={finishLevel} onChange={e => setFinishLevel(e.target.value)} style={formInp}>
-                        <option value="">— standard —</option>
-                        {trade === 'Drywall' && <option value="Level 4">Level 4 (standard)</option>}
-                        {trade === 'Drywall' && <option value="Level 5">Level 5 (skim coat)</option>}
-                        {trade === 'Painting' && <option value="Standard">Standard (2 coats)</option>}
-                        {trade === 'Painting' && <option value="Level 5 prep">Level 5 prep required</option>}
-                      </select>
-                    </div>
-                  )}
                 </div>
+
+                {(selectedTrades.includes('Painting') || selectedTrades.includes('Drywall')) && (
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={formLbl}>Finish Level</label>
+                    <select value={finishLevel} onChange={e => setFinishLevel(e.target.value)} style={formInp}>
+                      <option value="">— standard —</option>
+                      {selectedTrades.includes('Drywall') && <option value="Level 4">Level 4 — standard paint-ready</option>}
+                      {selectedTrades.includes('Drywall') && <option value="Level 5">Level 5 — skim coat (premium)</option>}
+                      {selectedTrades.includes('Painting') && !selectedTrades.includes('Drywall') && <option value="Standard">Standard — 2 finish coats</option>}
+                      {selectedTrades.includes('Painting') && !selectedTrades.includes('Drywall') && <option value="Level 5 prep">Level 5 surface — extra prep required</option>}
+                    </select>
+                  </div>
+                )}
+
                 <button
                   onClick={generateAI}
-                  disabled={aiLoading || (!!trade && !sqft) || (!trade && !description.trim())}
+                  disabled={aiLoading || (selectedTrades.length > 0 && !sqft) || (selectedTrades.length === 0 && !description.trim())}
                   style={{
                     width: '100%', padding: '10px 0', borderRadius: 8,
                     background: aiLoading ? '#111827' : 'linear-gradient(135deg, var(--amber), #f97316)',
                     border: aiLoading ? '1px solid rgba(255,255,255,.09)' : 'none',
                     color: aiLoading ? 'var(--text4)' : '#080c1a',
                     fontSize: 12, fontWeight: 800, cursor: aiLoading ? 'wait' : 'pointer',
-                    opacity: (!!trade && !sqft) || (!trade && !description.trim()) ? .4 : 1,
+                    opacity: (selectedTrades.length > 0 && !sqft) || (selectedTrades.length === 0 && !description.trim()) ? .4 : 1,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                     fontFamily: 'var(--font-display, system-ui)', letterSpacing: '.3px',
                   }}
                 >
-                  <IconSparkle />{aiLoading ? 'Generating bid…' : 'Generate Line Items with AI'}
+                  <IconSparkle />
+                  {aiLoading
+                    ? `Generating${selectedTrades.length > 1 ? ` ${selectedTrades.length} trades` : ''}…`
+                    : selectedTrades.length > 1
+                      ? `Generate Combined Estimate — ${selectedTrades.length} Trades`
+                      : 'Generate Line Items with AI'
+                  }
                 </button>
               </div>
 
@@ -716,7 +761,22 @@ export default function EstimatesClient({
                     <span style={{ textAlign: 'right' }}>TOTAL</span>
                     <span />
                   </div>
-                  {lineItems.map((item, idx) => (
+                  {lineItems.map((item, idx) => {
+                    const isSection = item.description.startsWith('── ') && item.unitPrice === 0 && item.total === 0
+                    if (isSection) {
+                      return (
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', borderTop: '1px solid rgba(255,255,255,.06)', background: 'rgba(245,158,11,.06)' }}>
+                          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-display, system-ui)' }}>
+                            {item.description.replace(/^── /, '').replace(/ ──$/, '')}
+                          </span>
+                          <button onClick={() => setLineItems(prev => prev.filter(i => i.id !== item.id))}
+                            style={{ background: 'none', border: 'none', color: 'var(--text4)', fontSize: 11, cursor: 'pointer', opacity: .5 }}>
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </div>
+                      )
+                    }
+                    return (
                     <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 80px 80px 32px', padding: '6px 12px', borderTop: '1px solid rgba(255,255,255,.06)', alignItems: 'center', background: idx % 2 === 1 ? 'rgba(255,255,255,.015)' : 'transparent' }}>
                       <input value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Description"
                         style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,.07)', background: '#060a17', color: 'var(--text)', fontSize: 12, width: '100%', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
@@ -733,7 +793,8 @@ export default function EstimatesClient({
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       </button>
                     </div>
-                  ))}
+                    )
+                  })}
                   {/* Subtotal row */}
                   <div style={{ padding: '11px 14px', borderTop: '1px solid rgba(255,255,255,.09)', display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center', background: '#0a0f1e' }}>
                     <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-display, system-ui)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.5px' }}>Subtotal</span>

@@ -10,6 +10,7 @@ const GenerateSchema = z.object({
   jobType:     z.string().max(100).optional(),
   description: z.string().min(1).max(2000),
   trade:       z.string().max(100).optional(),
+  trades:      z.array(z.string().max(100)).max(7).optional(),
   sqft:        z.number().positive().optional(),
   jobMode:     z.enum(['new_construction', 'remodel', 'repair']).optional(),
   finishLevel: z.string().max(50).optional(),
@@ -35,11 +36,14 @@ export async function POST(req: Request) {
   if (!raw) return apiError('Invalid JSON', 400)
   const gr = GenerateSchema.safeParse(raw)
   if (!gr.success) return apiError(gr.error.issues[0].message, 400)
-  const { client, jobType, description, trade, sqft, jobMode, finishLevel } = gr.data
+  const { client, jobType, description, trade, trades: tradesArr, sqft, jobMode, finishLevel } = gr.data
+
+  // Resolve trade list — multi-select (trades[]) takes priority over legacy single trade field
+  const tradeList = tradesArr && tradesArr.length > 0 ? tradesArr : trade ? [trade] : []
 
   const anthropic = new Anthropic()
 
-  const isConstruction = !!trade
+  const isConstruction = tradeList.length > 0
 
   const TRADE_KNOWLEDGE: Record<string, string> = {
 
@@ -364,79 +368,136 @@ FLOORING CARPET — COMMON LINE ITEMS FOR GC BIDS:
 
   }
 
-  const tradeKnowledge = trade && TRADE_KNOWLEDGE[trade] ? TRADE_KNOWLEDGE[trade] : ''
   const jobModeLabel = jobMode === 'new_construction' ? 'New Construction' : jobMode === 'remodel' ? 'Remodel/Renovation' : jobMode === 'repair' ? 'Repair' : ''
 
-  const prompt = isConstruction
-    ? `You are an expert construction subcontractor estimating assistant for Forge Group Contracting LLC, a Tampa, FL subcontracting company specializing in painting, drywall, demolition, tile, and flooring. You have deep knowledge of Tampa market pricing.
+  function buildConstructionPrompt(t: string): string {
+    const knowledge = TRADE_KNOWLEDGE[t] ?? ''
+    return `You are an expert construction subcontractor estimating assistant for Forge Group Contracting LLC, a Tampa, FL subcontracting company. You have deep knowledge of Tampa market pricing.
 
-Generate a professional, accurate, line-item bid for this job using the trade knowledge below.
+Generate a professional, accurate, line-item bid for this trade using the knowledge below.
 
 JOB DETAILS:
-- Trade: ${trade}
+- Trade: ${t}
 - Job Mode: ${jobModeLabel || jobType || 'General'}
 - Square Footage: ${sqft ? `${sqft} sqft` : 'not specified — use best judgment'}
 - Finish Level: ${finishLevel || 'standard'}
 - Client / GC: ${client || 'General Contractor'}
-- Additional Details: ${description || 'None provided'}
+- Additional Details: ${description || 'None'}
 
 TRADE KNOWLEDGE AND PRICING REFERENCE:
-${tradeKnowledge}
+${knowledge}
 
 INSTRUCTIONS:
-- Use the sqft and job mode to calculate realistic totals
+- Use sqft and job mode to calculate realistic totals
 - Separate labor and materials into individual line items
-- Use the high end of labor rates for new construction, low-to-mid for remodel, low for repair
+- Use high end of rates for new construction, low-to-mid for remodel, low for repair
 - Apply 15% markup on all materials
-- Include 3–6 line items total — no more, no less
-- Be specific in descriptions (e.g. "Interior wall painting — prime + 2 coats, ProMar 200" not just "painting")
+- Include 3–5 line items — no more, no less
+- Be specific (e.g. "Interior wall painting — prime + 2 coats, ProMar 200" not just "painting")
 - Use "hours" field for labor lines, "qty" field for material/supply lines
-- Totals must be mathematically correct: hours × unitPrice = total, OR qty × unitPrice = total
+- Totals must be correct: hours × unitPrice = total OR qty × unitPrice = total
 
-Return ONLY a valid JSON array with no markdown, no explanation, no text outside the array. Each object:
-- "description" (string) — specific line item name
-- "unitPrice" (number) — rate per hour or per unit in USD
-- "total" (number) — line total in USD
-- "hours" (number, optional) — labor hours for labor lines
-- "qty" (number, optional) — quantity for material/supply lines`
-    : `You are a field service estimating assistant specializing in HVAC, electrical, plumbing, refrigeration, and general industrial maintenance.
+Return ONLY a valid JSON array, no markdown, no text outside the array. Each object:
+- "description" (string)
+- "unitPrice" (number)
+- "total" (number)
+- "hours" (number, optional) — labor lines only
+- "qty" (number, optional) — material/supply lines only`
+  }
+
+  function buildGeneralPrompt(): string {
+    return `You are a field service estimating assistant specializing in HVAC, electrical, plumbing, refrigeration, and general industrial maintenance.
 
 Generate realistic estimate line items for this service call:
 Client: ${client || 'Unknown'}
 Job Type: ${jobType || 'General Service'}
 Description: ${description}
 
-Return ONLY a valid JSON array with no markdown, no explanation. Each object must have:
-- "description" (string) — specific item name
-- "unitPrice" (number) — price per unit in USD
-- "total" (number) — line total in USD
-- "hours" (number, optional) — labor hours (for labor lines)
-- "qty" (number, optional) — quantity (for parts/materials lines)
+Return ONLY a valid JSON array with no markdown. Each object:
+- "description" (string)
+- "unitPrice" (number)
+- "total" (number)
+- "hours" (number, optional)
+- "qty" (number, optional)
 
-Include 3–6 line items typical for this type of job. Be realistic with pricing.`
-
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
-    messages: [{ role: 'user', content: prompt }],
-  })
-
-  if (session.tenantId) {
-    await recordTokens(session.tenantId, message.usage.input_tokens, message.usage.output_tokens)
+Include 3–6 line items. Be realistic with pricing.`
   }
 
-  const text = message.content[0].type === 'text' ? message.content[0].text.trim() : '[]'
+  function parseItems(text: string): object[] {
+    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+    const parsed = JSON.parse(cleaned)
+    return Array.isArray(parsed) ? parsed : []
+  }
 
-  // Strip markdown code fences if model wraps in them
-  const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
 
   try {
-    const lineItems = JSON.parse(cleaned)
-    if (!Array.isArray(lineItems)) return apiError('Invalid AI response', 500)
-    // Add stable IDs
-    const tagged = lineItems.map((item, i) => ({ id: `ai-${Date.now()}-${i}`, ...item }))
-    return Response.json({ lineItems: tagged })
-  } catch {
-    return apiError('Failed to parse AI response', 500, undefined, { raw: text })
+    if (!isConstruction) {
+      // General service job — single call
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: buildGeneralPrompt() }],
+      })
+      totalInputTokens += msg.usage.input_tokens
+      totalOutputTokens += msg.usage.output_tokens
+      const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '[]'
+      const items = parseItems(text)
+      const tagged = items.map((item, i) => ({ id: `ai-${Date.now()}-${i}`, ...item }))
+      if (session.tenantId) await recordTokens(session.tenantId, totalInputTokens, totalOutputTokens)
+      return Response.json({ lineItems: tagged })
+    }
+
+    if (tradeList.length === 1) {
+      // Single trade — one call
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: buildConstructionPrompt(tradeList[0]) }],
+      })
+      totalInputTokens += msg.usage.input_tokens
+      totalOutputTokens += msg.usage.output_tokens
+      const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '[]'
+      const items = parseItems(text)
+      const tagged = items.map((item, i) => ({ id: `ai-${Date.now()}-${i}`, ...item }))
+      if (session.tenantId) await recordTokens(session.tenantId, totalInputTokens, totalOutputTokens)
+      return Response.json({ lineItems: tagged })
+    }
+
+    // Multiple trades — parallel calls, combine with section headers
+    const results = await Promise.all(
+      tradeList.map(async (t) => {
+        const msg = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: buildConstructionPrompt(t) }],
+        })
+        totalInputTokens += msg.usage.input_tokens
+        totalOutputTokens += msg.usage.output_tokens
+        const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : '[]'
+        const items = parseItems(text)
+        return { trade: t, items }
+      })
+    )
+
+    if (session.tenantId) await recordTokens(session.tenantId, totalInputTokens, totalOutputTokens)
+
+    // Build flat list with section header dividers between trades
+    const combined: object[] = []
+    const ts = Date.now()
+    results.forEach(({ trade: t, items }, ri) => {
+      // Section header — zero-value divider row
+      combined.push({ id: `section-${ts}-${ri}`, description: `── ${t} ──`, unitPrice: 0, total: 0 })
+      items.forEach((item, ii) => {
+        combined.push({ id: `ai-${ts}-${ri}-${ii}`, ...item })
+      })
+    })
+
+    return Response.json({ lineItems: combined })
+
+  } catch (err) {
+    const msg = err instanceof SyntaxError ? 'Failed to parse AI response' : 'AI generation failed'
+    return apiError(msg, 500)
   }
 }
