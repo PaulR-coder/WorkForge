@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   const db = tenantPrisma(session)
 
   const body = await req.json()
-  const { client, jobType, description, lineItems, subtotal, notes } = body
+  const { client, clientEmail, jobType, description, lineItems, subtotal, notes } = body
 
   if (!client?.trim()) return apiError('Client is required', 400)
 
@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     data: {
       number,
       client: client.trim(),
+      clientEmail: clientEmail?.trim() ?? '',
       jobType: jobType ?? '',
       description: description ?? '',
       lineItems: lineItems ?? [],

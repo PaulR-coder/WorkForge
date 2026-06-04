@@ -16,12 +16,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!existing) return apiError('Not found', 404)
 
   const body = await req.json()
-  const { client, jobType, description, lineItems, subtotal, notes, status } = body
+  const { client, clientEmail, jobType, description, lineItems, subtotal, notes, status } = body
 
   const estimate = await db.estimate.update({
     where: { id },
     data: {
       ...(client !== undefined && { client }),
+      ...(clientEmail !== undefined && { clientEmail: clientEmail?.trim() ?? '' }),
       ...(jobType !== undefined && { jobType }),
       ...(description !== undefined && { description }),
       ...(lineItems !== undefined && { lineItems }),
