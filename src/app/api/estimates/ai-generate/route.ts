@@ -14,6 +14,11 @@ const GenerateSchema = z.object({
   sqft:        z.number().positive().optional(),
   jobMode:     z.enum(['new_construction', 'remodel', 'repair']).optional(),
   finishLevel: z.string().max(50).optional(),
+  blueprints:  z.array(z.object({
+    name:      z.string().max(200),
+    data:      z.string(),
+    mediaType: z.string().max(50),
+  })).max(5).optional(),
 })
 
 export async function POST(req: Request) {
@@ -36,10 +41,11 @@ export async function POST(req: Request) {
   if (!raw) return apiError('Invalid JSON', 400)
   const gr = GenerateSchema.safeParse(raw)
   if (!gr.success) return apiError(gr.error.issues[0].message, 400)
-  const { client, jobType, description, trade, trades: tradesArr, sqft, jobMode, finishLevel } = gr.data
+  const { client, jobType, description, trade, trades: tradesArr, sqft, jobMode, finishLevel, blueprints: blueprintsArr } = gr.data
 
   // Resolve trade list — multi-select (trades[]) takes priority over legacy single trade field
   const tradeList = tradesArr && tradesArr.length > 0 ? tradesArr : trade ? [trade] : []
+  const hasBlueprints = !!blueprintsArr && blueprintsArr.length > 0
 
   const anthropic = new Anthropic()
 
@@ -370,10 +376,37 @@ FLOORING CARPET — COMMON LINE ITEMS FOR GC BIDS:
 
   const jobModeLabel = jobMode === 'new_construction' ? 'New Construction' : jobMode === 'remodel' ? 'Remodel/Renovation' : jobMode === 'repair' ? 'Repair' : ''
 
-  function buildConstructionPrompt(t: string): string {
-    const knowledge = TRADE_KNOWLEDGE[t] ?? ''
-    return `You are an expert construction subcontractor estimating assistant for Forge Group Contracting LLC, a Tampa, FL subcontracting company. You have deep knowledge of Tampa market pricing.
+  type Blueprint = { name: string; data: string; mediaType: string }
 
+  function buildMessageContent(
+    promptText: string,
+    bps?: Blueprint[]
+  ): Anthropic.MessageParam['content'] {
+    if (!bps || bps.length === 0) return promptText
+    const blocks: Array<Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam | Anthropic.TextBlockParam> = []
+    for (const bp of bps) {
+      if (bp.mediaType === 'application/pdf') {
+        blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: bp.data }, title: bp.name })
+      } else if (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(bp.mediaType)) {
+        blocks.push({ type: 'image', source: { type: 'base64', media_type: bp.mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: bp.data } })
+      }
+    }
+    blocks.push({ type: 'text', text: promptText })
+    return blocks
+  }
+
+  function buildConstructionPrompt(t: string, withBlueprints: boolean): string {
+    const knowledge = TRADE_KNOWLEDGE[t] ?? ''
+    const drawingNote = withBlueprints ? `
+ATTACHED DRAWINGS:
+Blueprints or schematics are attached. Before estimating:
+1. Read all dimensions, room labels, and notes visible in the drawings
+2. Use drawing measurements to calculate quantities (override the provided sqft if drawings are more precise)
+3. Note special conditions shown (wet areas, ceiling heights, fire-rated walls, etc.)
+4. Your line items should reference what you measured from the plans
+` : ''
+    return `You are an expert construction subcontractor estimating assistant for Forge Group Contracting LLC, a Tampa, FL subcontracting company. You have deep knowledge of Tampa market pricing.
+${drawingNote}
 Generate a professional, accurate, line-item bid for this trade using the knowledge below.
 
 JOB DETAILS:
@@ -388,7 +421,7 @@ TRADE KNOWLEDGE AND PRICING REFERENCE:
 ${knowledge}
 
 INSTRUCTIONS:
-- Use sqft and job mode to calculate realistic totals
+- ${withBlueprints ? 'Use dimensions from the drawings to calculate quantities; be specific about what you read from the plans' : 'Use sqft and job mode to calculate realistic totals'}
 - Separate labor and materials into individual line items
 - Use high end of rates for new construction, low-to-mid for remodel, low for repair
 - Apply 15% markup on all materials
@@ -405,9 +438,10 @@ Return ONLY a valid JSON array, no markdown, no text outside the array. Each obj
 - "qty" (number, optional) — material/supply lines only`
   }
 
-  function buildGeneralPrompt(): string {
+  function buildGeneralPrompt(withBlueprints: boolean): string {
+    const drawingNote = withBlueprints ? `\nBlueprints or drawings are attached — analyze them to determine scope and quantities before estimating.\n` : ''
     return `You are a field service estimating assistant specializing in HVAC, electrical, plumbing, refrigeration, and general industrial maintenance.
-
+${drawingNote}
 Generate realistic estimate line items for this service call:
 Client: ${client || 'Unknown'}
 Job Type: ${jobType || 'General Service'}
@@ -438,7 +472,7 @@ Include 3–6 line items. Be realistic with pricing.`
       const msg = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
-        messages: [{ role: 'user', content: buildGeneralPrompt() }],
+        messages: [{ role: 'user', content: buildMessageContent(buildGeneralPrompt(hasBlueprints), blueprintsArr) }],
       })
       totalInputTokens += msg.usage.input_tokens
       totalOutputTokens += msg.usage.output_tokens
@@ -454,7 +488,7 @@ Include 3–6 line items. Be realistic with pricing.`
       const msg = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
-        messages: [{ role: 'user', content: buildConstructionPrompt(tradeList[0]) }],
+        messages: [{ role: 'user', content: buildMessageContent(buildConstructionPrompt(tradeList[0], hasBlueprints), blueprintsArr) }],
       })
       totalInputTokens += msg.usage.input_tokens
       totalOutputTokens += msg.usage.output_tokens
@@ -471,7 +505,7 @@ Include 3–6 line items. Be realistic with pricing.`
         const msg = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
           max_tokens: 1024,
-          messages: [{ role: 'user', content: buildConstructionPrompt(t) }],
+          messages: [{ role: 'user', content: buildMessageContent(buildConstructionPrompt(t, hasBlueprints), blueprintsArr) }],
         })
         totalInputTokens += msg.usage.input_tokens
         totalOutputTokens += msg.usage.output_tokens

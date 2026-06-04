@@ -5,6 +5,8 @@ import type { SessionUser } from '@/lib/auth'
 import { useToast } from '@/components/Toast'
 import { trackEvent } from '@/lib/posthog'
 
+type BlueprintFile = { name: string; data: string; mediaType: string; preview?: string }
+
 type LineItem = {
   id: string
   description: string
@@ -174,11 +176,38 @@ export default function EstimatesClient({
   const [sqft, setSqft] = useState('')
   const [jobMode, setJobMode] = useState<'new_construction' | 'remodel' | 'repair' | ''>('')
   const [finishLevel, setFinishLevel] = useState('')
+  const [blueprints, setBlueprints] = useState<BlueprintFile[]>([])
 
   function toggleTrade(t: string) {
     setSelectedTrades(prev =>
       prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]
     )
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        resolve(result.split(',')[1])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function handleBlueprintUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    const toAdd: BlueprintFile[] = []
+    for (const file of files) {
+      if (blueprints.length + toAdd.length >= 3) break
+      if (file.size > 5 * 1024 * 1024) { toast(`${file.name} is over 5 MB`, 'error'); continue }
+      const data = await fileToBase64(file)
+      const preview = file.type.startsWith('image/') ? `data:${file.type};base64,${data}` : undefined
+      toAdd.push({ name: file.name, data, mediaType: file.type, preview })
+    }
+    setBlueprints(prev => [...prev, ...toAdd].slice(0, 3))
+    e.target.value = ''
   }
 
   const subtotal = lineItems.reduce((s, i) => s + (i.total || 0), 0)
@@ -187,7 +216,7 @@ export default function EstimatesClient({
     setEditTarget(null)
     setClient(''); setClientEmail(''); setJobType(''); setDescription('')
     setLineItems([newItem()]); setNotes(''); setStatus('draft')
-    setSelectedTrades([]); setSqft(''); setJobMode(''); setFinishLevel('')
+    setSelectedTrades([]); setSqft(''); setJobMode(''); setFinishLevel(''); setBlueprints([])
     setModalOpen(true)
   }
 
@@ -197,7 +226,7 @@ export default function EstimatesClient({
     setDescription(est.description)
     setLineItems(est.lineItems.length ? est.lineItems : [newItem()])
     setNotes(est.notes); setStatus(est.status)
-    setSelectedTrades([]); setSqft(''); setJobMode(''); setFinishLevel('')
+    setSelectedTrades([]); setSqft(''); setJobMode(''); setFinishLevel(''); setBlueprints([])
     setModalOpen(true)
   }
 
@@ -233,6 +262,9 @@ export default function EstimatesClient({
         body.sqft = parseFloat(sqft)
         if (jobMode) body.jobMode = jobMode
         if (finishLevel) body.finishLevel = finishLevel
+      }
+      if (blueprints.length > 0) {
+        body.blueprints = blueprints.map(({ name, data, mediaType }) => ({ name, data, mediaType }))
       }
       const res = await fetch('/api/estimates/ai-generate', {
         method: 'POST',
@@ -707,6 +739,51 @@ export default function EstimatesClient({
                     </select>
                   </div>
                 )}
+
+                {/* Blueprint / Drawing Upload */}
+                <div style={{ marginBottom: 10 }}>
+                  <label style={formLbl}>
+                    Blueprints / Drawings
+                    <span style={{ opacity: .5, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> — optional, up to 3 files (images or PDF)</span>
+                  </label>
+                  {blueprints.length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {blueprints.map((bp, i) => (
+                        <div key={i} style={{ position: 'relative', width: 72, height: 72, borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,.15)', background: '#111827', flexShrink: 0 }}>
+                          {bp.preview ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={bp.preview} alt={bp.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, padding: 4 }}>
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                              </svg>
+                              <span style={{ fontSize: 8, color: 'var(--text4)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 64 }}>PDF</span>
+                            </div>
+                          )}
+                          <button type="button" onClick={() => setBlueprints(prev => prev.filter((_, j) => j !== i))}
+                            style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,.7)', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', padding: 0 }}>
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {blueprints.length < 3 && (
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 8, border: '1px dashed rgba(255,255,255,.2)', color: 'var(--text3)', fontSize: 11, fontWeight: 600, cursor: 'pointer', background: 'rgba(255,255,255,.02)', fontFamily: 'var(--font-display, system-ui)' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                      </svg>
+                      {blueprints.length === 0 ? 'Upload blueprint, drawing, or photo' : 'Add another'}
+                      <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" multiple style={{ display: 'none' }} onChange={handleBlueprintUpload} />
+                    </label>
+                  )}
+                  {blueprints.length > 0 && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: 'var(--amber)', fontWeight: 600 }}>
+                      {blueprints.length} file{blueprints.length > 1 ? 's' : ''} attached — AI will read dimensions and scope from the drawing{blueprints.length > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={generateAI}
