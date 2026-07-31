@@ -234,11 +234,17 @@ export async function GET(
   if (!state || state !== storedState) redirect('/settings/social?error=oauth_state_mismatch')
   if (!code) redirect('/settings/social?error=no_code')
 
+  // Do the token exchange + storage inside try/catch, but keep the success
+  // redirect OUTSIDE. In Next.js App Router, redirect() throws NEXT_REDIRECT
+  // which MUST propagate — a bare `catch {}` around it silently swallows the
+  // successful redirect and falls through to the error branch, so every
+  // successful OAuth connect would incorrectly render as an error.
   try {
     const tokens = await exchangeCode(platform, code)
     await fetchAndStoreConnections(platform, tokens, session.tenantId)
-    redirect('/settings/social?connected=true')
   } catch {
     redirect('/settings/social?error=oauth_failed')
   }
+
+  redirect('/settings/social?connected=true')
 }
